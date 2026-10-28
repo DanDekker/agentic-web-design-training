@@ -272,6 +272,30 @@ export class OAuthServer {
     }
     return { ...record };
   }
+  introspectToken(token) {
+    if (!token) return { active: false };
+    const record = this.#tokens.get(token);
+    if (!record) return { active: false };
+    if (Date.now() > record.expiresAt) {
+      this.#tokens.delete(token);
+      return { active: false };
+    }
+    return {
+      active: true,
+      scope: record.scope,
+      client_id: record.clientId,
+      sub: record.userId,
+      exp: Math.floor(record.expiresAt / 1000),
+      iat: Math.floor(new Date(record.createdAt).getTime() / 1000),
+      token_type: "Bearer",
+    };
+  }
+
+  hasScope(tokenScope, requiredScope) {
+    if (!tokenScope || !requiredScope) return false;
+    const granted = new Set(tokenScope.split(" ").map((s) => s.trim()));
+    return granted.has(requiredScope) || granted.has("*");
+  }
 
   revokeToken(token) {
     if (this.#tokens.has(token)) {

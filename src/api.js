@@ -127,6 +127,7 @@ const evaluator = new Evaluator();
           token_endpoint: `${origin}/oauth/token`,
           userinfo_endpoint: `${origin}/oauth/userinfo`,
           revocation_endpoint: `${origin}/oauth/revoke`,
+          introspection_endpoint: `${origin}/oauth/introspect`,
           response_types_supported: ["code"],
           grant_types_supported: ["authorization_code", "client_credentials", "refresh_token"],
           code_challenge_methods_supported: ["S256", "plain"],
@@ -348,6 +349,19 @@ const evaluator = new Evaluator();
         const token = body.token;
         if (token) oauthServer.revokeToken(token);
         return json({ ok: true });
+      }
+      if (pathname === "/oauth/introspect" && req.method === "POST") {
+        let body;
+        const contentType = req.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          body = await readJson(req);
+        } else {
+          const form = await req.formData();
+          body = Object.fromEntries(form.entries());
+        }
+        const token = body.token;
+        const result = oauthServer.introspectToken(token);
+        return json(result);
       }
 
       /* ── Curriculum Refactoring Tasks ─────────────────────── */

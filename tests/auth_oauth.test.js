@@ -208,6 +208,36 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     });
     expect(postRevokeRes.status).toBe(401);
   });
+  test("OAuth 2.0 RFC 7662 Token Introspection", async () => {
+    // Generate valid access token via client credentials
+    const tokenRes = await (
+      await call("POST", "/oauth/token", {
+        grant_type: "client_credentials",
+        client_id: "weaver-agent-runner",
+        client_secret: "weaver-agent-secret-2026",
+        scope: "read:tasks tasks:refactor",
+      })
+    ).json();
+
+    // 1. Introspect active token
+    const activeRes = await call("POST", "/oauth/introspect", {
+      token: tokenRes.access_token,
+    });
+    expect(activeRes.status).toBe(200);
+    const activeData = await activeRes.json();
+    expect(activeData.active).toBe(true);
+    expect(activeData.client_id).toBe("weaver-agent-runner");
+    expect(activeData.scope).toBe("read:tasks tasks:refactor");
+    expect(activeData.sub).toBe("usr_weaver");
+    expect(typeof activeData.exp).toBe("number");
+
+    // 2. Revoke and introspect again -> active should be false
+    await call("POST", "/oauth/revoke", { token: tokenRes.access_token });
+    const revokedRes = await (
+      await call("POST", "/oauth/introspect", { token: tokenRes.access_token })
+    ).json();
+    expect(revokedRes.active).toBe(false);
+  });
 
   test("OAuth machine-to-machine client_credentials flow", async () => {
     const res = await call("POST", "/oauth/token", {
