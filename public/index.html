@@ -11,6 +11,10 @@
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230e0e0e'/%3E%3Cpath d='M9 16.6l4.6 4.6L23.5 11' stroke='%23f4f4f2' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="/styles.css" />
+    <!-- MDN Web Components & Custom Elements -->
+    <script type="module" src="/components/loom-task-item.js"></script>
+    <script type="module" src="/components/loom-diff-viewer.js"></script>
+    <script type="module" src="/components/loom-badge.js"></script>
     <script>
       try {
         const asked = new URLSearchParams(location.search).get("theme");
@@ -36,6 +40,12 @@
         </div>
 
         <div class="bar-actions">
+          <!-- MDN Popover API Trigger -->
+          <button type="button" class="btn-subtle" popovertarget="shortcuts-popover" title="Keyboard Shortcuts (MDN Popover API)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zm-6 0a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zm-6 0a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3z"/></svg>
+            <span>Shortcuts</span>
+          </button>
+
           <button type="button" class="btn-subtle" id="btn-oauth-portal" title="OAuth 2.0 Applications (O)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v3H9V7z"/></svg>
             <span>OAuth</span>
@@ -45,6 +55,7 @@
             <svg viewBox="0 0 24 24" class="icon"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/></svg>
             <span>Curriculum</span>
           </button>
+
           <button type="button" class="btn-subtle" id="btn-benchmark-portal" title="Curriculum 1M Benchmark (B)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             <span>Benchmark</span>
@@ -139,22 +150,42 @@
         <span><kbd>⏎</kbd> edit</span>
         <span><kbd>R</kbd> curriculum</span>
         <span><kbd>O</kbd> oauth</span>
+        <span><kbd>B</kbd> benchmark</span>
         <span><kbd>⌘K</kbd> commands</span>
       </div>
     </main>
 
-    <!-- Refactor Task Inspector Drawer / Modal -->
-    <div class="modal" id="refactor-modal" hidden>
-      <div class="modal-card refactor-card" role="dialog" aria-modal="true" aria-label="Refactoring Task Inspector">
+    <!-- MDN Popover API: Shortcuts Cheat Sheet -->
+    <div id="shortcuts-popover" popover="auto">
+      <div style="font-weight: 600; font-size: 0.82rem; margin-bottom: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink);">
+        Keyboard Shortcuts
+      </div>
+      <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.78rem;">
+        <li><kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd> Command palette</li>
+        <li><kbd>N</kbd> New task composer</li>
+        <li><kbd>J</kbd> / <kbd>K</kbd> Move selection down / up</li>
+        <li><kbd>X</kbd> Toggle complete</li>
+        <li><kbd>⏎</kbd> Inline edit title</li>
+        <li><kbd>R</kbd> Refactoring curriculum / inspect</li>
+        <li><kbd>O</kbd> OAuth 2.0 portal</li>
+        <li><kbd>B</kbd> Run 1M benchmark suite</li>
+        <li><kbd>T</kbd> Toggle dark / light theme</li>
+        <li><kbd>/</kbd> Focus search filter</li>
+      </ul>
+    </div>
+
+    <!-- Native HTML5 <dialog>: Refactor Task Inspector -->
+    <dialog class="native-modal" id="refactor-modal">
+      <div class="modal-card refactor-card" role="document">
         <header class="modal-header">
           <div>
             <div class="badge-row">
-              <span class="badge" id="refactor-difficulty">Intermediate</span>
-              <span class="badge category" id="refactor-category">Async</span>
+              <loom-badge variant="difficulty" id="refactor-difficulty">Intermediate</loom-badge>
+              <loom-badge variant="category" id="refactor-category">Async</loom-badge>
             </div>
             <h2 id="refactor-title" class="modal-title">Refactor Callback Hell to Pipeline</h2>
           </div>
-          <button type="button" class="close-btn" id="btn-close-refactor" aria-label="Close modal">×</button>
+          <button type="button" class="close-btn" id="btn-close-refactor" aria-label="Close dialog">×</button>
         </header>
 
         <div class="modal-body">
@@ -179,8 +210,11 @@
           <div id="tab-solution" class="tab-pane">
             <pre><code id="code-solution"></code></pre>
           </div>
+
           <div id="tab-diff" class="tab-pane">
-            <div id="diff-output" class="diff-container"></div>
+            <!-- Web Component: Shadow DOM Diff Viewer -->
+            <loom-diff-viewer id="loom-diff-component"></loom-diff-viewer>
+            <div id="diff-output" class="diff-container" style="display:none;"></div>
           </div>
 
           <div id="tab-verify" class="tab-pane">
@@ -194,14 +228,14 @@
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <!-- 1st-Party Authentication Modal -->
-    <div class="modal" id="auth-modal" hidden>
-      <div class="modal-card auth-card" role="dialog" aria-modal="true" aria-label="Authentication">
+    <!-- Native HTML5 <dialog>: 1st-Party Authentication -->
+    <dialog class="native-modal" id="auth-modal">
+      <div class="modal-card auth-card" role="document">
         <header class="modal-header">
           <h2 class="modal-title" id="auth-title">Sign In to Loom</h2>
-          <button type="button" class="close-btn" id="btn-close-auth" aria-label="Close modal">×</button>
+          <button type="button" class="close-btn" id="btn-close-auth" aria-label="Close dialog">×</button>
         </header>
 
         <div class="modal-body">
@@ -235,17 +269,50 @@
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <!-- Benchmark Suite Modal -->
-    <div class="modal" id="benchmark-modal" hidden>
-      <div class="modal-card benchmark-card" role="dialog" aria-modal="true" aria-label="Weaver 1M Benchmark">
+    <!-- Native HTML5 <dialog>: 1st-Party Proprietary OAuth Portal -->
+    <dialog class="native-modal" id="oauth-modal">
+      <div class="modal-card oauth-card" role="document">
+        <header class="modal-header">
+          <div>
+            <span class="badge">1st-Party Provider</span>
+            <h2 class="modal-title">OAuth 2.0 & OIDC Portal</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-oauth" aria-label="Close dialog">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="oauth-desc">
+            First-party proprietary OAuth 2.0 / OIDC identity & authorization server for desktop agent execution harnesses and weaver automated evaluators.
+          </p>
+
+          <div class="oauth-section">
+            <h3>Registered OAuth 2.0 Clients</h3>
+            <div id="oauth-clients-list" class="clients-list"></div>
+          </div>
+
+          <div class="oauth-section">
+            <h3>Simulate Desktop Weaver Agent PKCE Authorization</h3>
+            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;">
+              Executes a full OAuth 2.0 Authorization Code flow with SHA-256 PKCE code challenge and verifier right in the browser.
+            </p>
+            <button type="button" class="btn-primary" id="btn-simulate-oauth">Run Agent PKCE Auth Flow</button>
+            <div id="oauth-sim-output" class="sim-output" hidden></div>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Native HTML5 <dialog>: Benchmark Suite Modal -->
+    <dialog class="native-modal" id="benchmark-modal">
+      <div class="modal-card benchmark-card" role="document">
         <header class="modal-header">
           <div>
             <span class="badge">Curriculum 1M</span>
             <h2 class="modal-title">Agentic Benchmark Suite</h2>
           </div>
-          <button type="button" class="close-btn" id="btn-close-benchmark" aria-label="Close modal">×</button>
+          <button type="button" class="close-btn" id="btn-close-benchmark" aria-label="Close dialog">×</button>
         </header>
 
         <div class="modal-body">
@@ -294,39 +361,7 @@
           </div>
         </div>
       </div>
-    </div>
-    <!-- 1st-Party Proprietary OAuth Portal & PKCE Simulator Modal -->
-    <div class="modal" id="oauth-modal" hidden>
-      <div class="modal-card oauth-card" role="dialog" aria-modal="true" aria-label="OAuth 2.0 Applications">
-        <header class="modal-header">
-          <div>
-            <span class="badge">1st-Party Provider</span>
-            <h2 class="modal-title">OAuth 2.0 & OIDC Portal</h2>
-          </div>
-          <button type="button" class="close-btn" id="btn-close-oauth" aria-label="Close modal">×</button>
-        </header>
-
-        <div class="modal-body">
-          <p class="oauth-desc">
-            First-party proprietary OAuth 2.0 / OIDC identity & authorization server for desktop agent execution harnesses and weaver automated evaluators.
-          </p>
-
-          <div class="oauth-section">
-            <h3>Registered OAuth 2.0 Clients</h3>
-            <div id="oauth-clients-list" class="clients-list"></div>
-          </div>
-
-          <div class="oauth-section">
-            <h3>Simulate Desktop Weaver Agent PKCE Authorization</h3>
-            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;">
-              Executes a full OAuth 2.0 Authorization Code flow with SHA-256 PKCE code challenge and verifier right in the browser.
-            </p>
-            <button type="button" class="btn-primary" id="btn-simulate-oauth">Run Agent PKCE Auth Flow</button>
-            <div id="oauth-sim-output" class="sim-output" hidden></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </dialog>
 
     <!-- Command Palette -->
     <div class="palette" id="palette" hidden>
