@@ -45,6 +45,10 @@
             <svg viewBox="0 0 24 24" class="icon"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/></svg>
             <span>Curriculum</span>
           </button>
+          <button type="button" class="btn-subtle" id="btn-benchmark-portal" title="Curriculum 1M Benchmark (B)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            <span>Benchmark</span>
+          </button>
 
           <button type="button" class="user-pill" id="user-pill" aria-label="Account menu">
             <span class="status-dot"></span>
@@ -233,6 +237,64 @@
       </div>
     </div>
 
+    <!-- Benchmark Suite Modal -->
+    <div class="modal" id="benchmark-modal" hidden>
+      <div class="modal-card benchmark-card" role="dialog" aria-modal="true" aria-label="Weaver 1M Benchmark">
+        <header class="modal-header">
+          <div>
+            <span class="badge">Curriculum 1M</span>
+            <h2 class="modal-title">Agentic Benchmark Suite</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-benchmark" aria-label="Close modal">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="benchmark-desc">
+            Executes automated sandboxed verification across all 12 curriculum tasks, computing telemetry, assertion scores, and execution durations.
+          </p>
+
+          <div class="telemetry-grid" id="benchmark-stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="bench-total-tasks">12</div>
+              <div class="stat-label">Total Challenges</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="bench-pass-rate">100%</div>
+              <div class="stat-label">Reference Pass Rate</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="bench-avg-score">100%</div>
+              <div class="stat-label">Average Score</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="bench-avg-duration">1.8ms</div>
+              <div class="stat-label">Avg Execution Time</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:0.75rem;margin:1rem 0 1.2rem;">
+            <button type="button" class="btn-primary" id="btn-run-full-benchmark">Run All Benchmarks</button>
+            <button type="button" class="btn-secondary" id="btn-download-benchmark-md">Download Markdown Report</button>
+          </div>
+
+          <div class="table-container">
+            <table class="bench-table" id="bench-table">
+              <thead>
+                <tr>
+                  <th>Task Title</th>
+                  <th>Category</th>
+                  <th>Difficulty</th>
+                  <th>Duration</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="bench-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- 1st-Party Proprietary OAuth Portal & PKCE Simulator Modal -->
     <div class="modal" id="oauth-modal" hidden>
       <div class="modal-card oauth-card" role="dialog" aria-modal="true" aria-label="OAuth 2.0 Applications">

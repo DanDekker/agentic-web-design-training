@@ -25,6 +25,7 @@ const el = {
   userName: document.querySelector("#user-name"),
   btnCurriculum: document.querySelector("#btn-curriculum"),
   btnOAuthPortal: document.querySelector("#btn-oauth-portal"),
+  btnBenchmarkPortal: document.querySelector("#btn-benchmark-portal"),
 
   // Modals
   refactorModal: document.querySelector("#refactor-modal"),
@@ -62,6 +63,16 @@ const el = {
   oauthClientsList: document.querySelector("#oauth-clients-list"),
   btnSimulateOAuth: document.querySelector("#btn-simulate-oauth"),
   oauthSimOutput: document.querySelector("#oauth-sim-output"),
+  // Benchmark modal
+  benchmarkModal: document.querySelector("#benchmark-modal"),
+  btnCloseBenchmark: document.querySelector("#btn-close-benchmark"),
+  btnRunFullBenchmark: document.querySelector("#btn-run-full-benchmark"),
+  btnDownloadBenchmarkMd: document.querySelector("#btn-download-benchmark-md"),
+  benchTotalTasks: document.querySelector("#bench-total-tasks"),
+  benchPassRate: document.querySelector("#bench-pass-rate"),
+  benchAvgScore: document.querySelector("#bench-avg-score"),
+  benchAvgDuration: document.querySelector("#bench-avg-duration"),
+  benchTableBody: document.querySelector("#bench-table-body"),
 
   // Command palette
   palette: document.querySelector("#palette"),
@@ -852,12 +863,86 @@ async function simulateAgentOAuthPkce() {
   }
 }
 
+/* ── Weaver 1M Benchmark Suite Modal ───────────────────── */
+
+async function openBenchmarkModal() {
+  if (el.benchmarkModal) el.benchmarkModal.hidden = false;
+  try {
+    const stats = await api("GET", "/api/curriculum/benchmark");
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 12;
+  } catch {}
+}
+
+function closeBenchmarkModal() {
+  if (el.benchmarkModal) el.benchmarkModal.hidden = true;
+}
+
+async function runFullBenchmarkUI() {
+  if (!el.btnRunFullBenchmark) return;
+  const originalText = el.btnRunFullBenchmark.textContent;
+  el.btnRunFullBenchmark.disabled = true;
+  el.btnRunFullBenchmark.textContent = "Running Benchmark Suite...";
+
+  try {
+    const data = await api("POST", "/api/curriculum/benchmark/run-all");
+    const { summary, results } = data;
+
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = summary.totalTasks;
+    if (el.benchPassRate) el.benchPassRate.textContent = summary.passRate;
+    if (el.benchAvgScore) el.benchAvgScore.textContent = `${summary.averageScore}%`;
+    if (el.benchAvgDuration) el.benchAvgDuration.textContent = `${summary.averageDurationMs}ms`;
+
+    if (el.benchTableBody) {
+      el.benchTableBody.innerHTML = results
+        .map(
+          (r) => `
+        <tr>
+          <td>${escapeHtml(r.title)}</td>
+          <td><span class="tag-pill">${escapeHtml(r.category)}</span></td>
+          <td><span class="badge">${escapeHtml(r.difficulty)}</span></td>
+          <td>${r.durationMs}ms</td>
+          <td>${r.score}%</td>
+          <td style="color:${r.passed ? "#10b981" : "#ef4444"};font-weight:600;">
+            ${r.passed ? "PASSED" : "FAILED"}
+          </td>
+        </tr>
+      `,
+        )
+        .join("");
+    }
+
+    toast(`Benchmark complete: ${summary.passedTasks}/${summary.totalTasks} passed (${summary.averageScore}%)`);
+  } catch (err) {
+    toast(`Benchmark error: ${err.message}`);
+  } finally {
+    el.btnRunFullBenchmark.disabled = false;
+    el.btnRunFullBenchmark.textContent = originalText;
+  }
+}
+
+async function downloadBenchmarkMarkdown() {
+  try {
+    const res = await fetch("/api/curriculum/benchmark?format=markdown");
+    const md = await res.text();
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `weaver-1m-benchmark-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Downloaded Weaver Benchmark Report (Markdown).");
+  } catch (err) {
+    toast(`Failed to download report: ${err.message}`);
+  }
+}
 /* ── Command Palette ─────────────────────────────────────── */
 
 const commands = [
   { label: "New task", hint: "N", run: () => el.input?.focus() },
   { label: "Toggle theme", hint: "T", run: toggleTheme },
   { label: "Weaver Refactoring Curriculum", hint: "R", run: seedCurriculum },
+  { label: "Weaver 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "OAuth 2.0 Applications & Simulator", hint: "O", run: openOAuthModal },
   { label: "Switch to Today board", hint: "", run: () => switchBoard("board_today") },
   { label: "Switch to Weaver Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
@@ -1039,6 +1124,11 @@ el.btnQuickPp?.addEventListener("click", () => quickSignIn("pp", "curriculum-1m"
 // OAuth Modal Wiring
 el.btnCloseOAuth?.addEventListener("click", closeOAuthModal);
 el.btnSimulateOAuth?.addEventListener("click", simulateAgentOAuthPkce);
+// Benchmark Modal Wiring
+el.btnBenchmarkPortal?.addEventListener("click", openBenchmarkModal);
+el.btnCloseBenchmark?.addEventListener("click", closeBenchmarkModal);
+el.btnRunFullBenchmark?.addEventListener("click", runFullBenchmarkUI);
+el.btnDownloadBenchmarkMd?.addEventListener("click", downloadBenchmarkMarkdown);
 
 // Command palette wiring
 el.palette?.addEventListener("mousedown", (event) => {
@@ -1084,6 +1174,7 @@ document.addEventListener("keydown", (event) => {
     if (!el.refactorModal?.hidden) closeRefactorModal();
     if (!el.authModal?.hidden) closeAuthModal();
     if (!el.oauthModal?.hidden) closeOAuthModal();
+    if (!el.benchmarkModal?.hidden) closeBenchmarkModal();
     return;
   }
 
@@ -1092,6 +1183,7 @@ document.addEventListener("keydown", (event) => {
     !el.refactorModal?.hidden ||
     !el.authModal?.hidden ||
     !el.oauthModal?.hidden ||
+    !el.benchmarkModal?.hidden ||
     isTyping(event.target) ||
     state.editing
   ) {
@@ -1124,6 +1216,11 @@ document.addEventListener("keydown", (event) => {
       }
       break;
     }
+    case "b":
+    case "B":
+      event.preventDefault();
+      openBenchmarkModal();
+      break;
     case "o":
     case "O":
       event.preventDefault();

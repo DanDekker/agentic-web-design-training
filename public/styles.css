@@ -828,6 +828,60 @@ kbd {
 .refactor-card {
   width: min(100%, 720px);
 }
+.benchmark-card {
+  width: min(100%, 780px);
+}
+
+.benchmark-desc {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 1.2rem;
+}
+
+.table-container {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.bench-table th {
+  padding: 0.6rem 0.75rem;
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+}
+
+.bench-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+}
+
+.bench-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.bench-table td:first-child {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 0.8rem;
+}
 
 .modal-header {
   display: flex;
