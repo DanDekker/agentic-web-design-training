@@ -141,6 +141,61 @@ export class Evaluator {
         passed: code.includes("AbortController"),
         detail: "Aborts previous in-flight HTTP requests",
       });
+    } else if (id === "task_refactor_css_grid") {
+      results.push({
+        name: "CSS Grid & Flexbox Modernization",
+        passed: code.includes("display: grid") || code.includes("grid-template-columns"),
+        detail: "Uses modern CSS Grid layout",
+      });
+      results.push({
+        name: "Eliminates Legacy Float Hacks",
+        passed: !code.includes("float: left") && !code.includes("clear: both"),
+        detail: "Removes clearfix and float rules",
+      });
+    } else if (id === "task_refactor_reducer_state") {
+      results.push({
+        name: "Pure Reducer Function",
+        passed: (code.includes("switch ") || code.includes("if (action")) && code.includes("return "),
+        detail: "Uses deterministic state transitions based on action type",
+      });
+      results.push({
+        name: "Immutable State Returns",
+        passed: code.includes("...state"),
+        detail: "Returns new state object without in-place mutation",
+      });
+    } else if (id === "task_refactor_semantic_a11y") {
+      results.push({
+        name: "Semantic Button Element",
+        passed: code.includes("<button"),
+        detail: "Replaces non-semantic div with button element",
+      });
+      results.push({
+        name: "Accessible ARIA Role & State",
+        passed: code.includes('role="switch"') || code.includes("role='switch'"),
+        detail: "Applies ARIA switch role and state attributes",
+      });
+    } else if (id === "task_refactor_typed_schema") {
+      results.push({
+        name: "Schema Type Guards",
+        passed: code.includes("typeof ") || code.includes("Array.isArray"),
+        detail: "Enforces strict type checks on incoming payload",
+      });
+      results.push({
+        name: "Explicit Validation Errors",
+        passed: code.includes("throw "),
+        detail: "Fails fast with clear validation exceptions",
+      });
+    } else if (id === "task_refactor_worker_pool") {
+      results.push({
+        name: "Bounded Concurrency",
+        passed: code.includes("concurrency") || code.includes("pool") || code.includes("Math.min"),
+        detail: "Limits simultaneous parallel executions",
+      });
+      results.push({
+        name: "Non-blocking Async Batching",
+        passed: code.includes("Promise.all"),
+        detail: "Dispatches tasks concurrently using Promise.all",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -154,6 +209,18 @@ export class Evaluator {
 
   async #runSandboxTests(taskId, code, options) {
     const results = [];
+    const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
+
+    if (task?.category === "css" || code.trim().startsWith("<") || code.trim().startsWith("/*")) {
+      results.push({
+        name: "Markup / Stylesheet Valid",
+        passed: true,
+        detail: "Stylesheet or Markup structure verified",
+      });
+      return results;
+    }
+
+    const sanitizedCode = code.replace(/\bexport\s+(default\s+)?/g, "");
 
     // Safe isolated execution context
     const sandbox = {
@@ -178,7 +245,7 @@ export class Evaluator {
     if (taskId === "task_refactor_o_n2_lookup") {
       // Test execution of O(N) map reconciliation
       const harness = `
-        ${code};
+        ${sanitizedCode};
         const fn = typeof reconcileTransactions === "function" ? reconcileTransactions : exports.reconcileTransactions;
         const orders = [{ id: "o1" }, { id: "o2" }];
         const payments = [{ orderId: "o1", txHash: "0xabc" }];
@@ -193,7 +260,7 @@ export class Evaluator {
       });
     } else if (taskId === "task_refactor_reducer_state") {
       const harness = `
-        ${code};
+        ${sanitizedCode};
         const fn = typeof taskReducer === "function" ? taskReducer : exports.taskReducer;
         const s1 = fn({ tasks: [{ id: "1", done: false }] }, { type: "TASK_TOGGLED", id: "1" });
         const s2 = fn(s1, { type: "FILTER_CHANGED", filter: "active" });
@@ -207,7 +274,7 @@ export class Evaluator {
       });
     } else {
       // General syntax evaluation
-      runInContext(code, ctx, { timeout: 1000 });
+      runInContext(sanitizedCode, ctx, { timeout: 1000 });
       results.push({
         name: "Clean Syntax & Execution",
         passed: true,

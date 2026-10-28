@@ -1,6 +1,7 @@
 import { ValidationError } from "./store.js";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
 import { Evaluator } from "./evaluator.js";
+import { BenchmarkSuite } from "./benchmark.js";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -41,6 +42,7 @@ const notFound = (what) => json({ error: `No such ${what}.` }, 404);
 
 export function createHandler(store, hub, authStore, oauthServer) {
 const evaluator = new Evaluator();
+const benchmarkSuite = new BenchmarkSuite();
   return async function handle(req) {
     const url = new URL(req.url);
     const { pathname, searchParams } = url;
@@ -369,6 +371,27 @@ const evaluator = new Evaluator();
         const { taskId, code, options } = await readJson(req);
         const result = await evaluator.evaluate(taskId, code, options);
         return json(result);
+      }
+      if (pathname === "/api/curriculum/benchmark") {
+        if (req.method === "GET") {
+          const format = searchParams.get("format");
+          if (format === "markdown") {
+            const bench = await benchmarkSuite.runFullBenchmark();
+            const md = benchmarkSuite.formatMarkdown(bench);
+            return new Response(md, { headers: { "content-type": "text/markdown; charset=utf-8" } });
+          }
+          if (searchParams.get("run") === "true") {
+            const bench = await benchmarkSuite.runFullBenchmark();
+            return json(bench);
+          }
+          return json(benchmarkSuite.getCatalogStats());
+        }
+        throw new HttpError(405, "Method not allowed.");
+      }
+
+      if (pathname === "/api/curriculum/benchmark/run-all" && req.method === "POST") {
+        const results = await benchmarkSuite.runFullBenchmark();
+        return json(results);
       }
       if (pathname === "/api/curriculum/tasks") {
         return json({ tasks: REFACTORING_CURRICULUM_TASKS });
