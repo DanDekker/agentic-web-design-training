@@ -1,0 +1,189 @@
+import { randomBytes, createHash } from "node:crypto";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { ValidationError } from "./store.js";
+
+function randomToken(bytes = 32) {
+  return randomBytes(bytes).toString("hex");
+}
+
+export class AuthStore {
+  #file;
+  #users = [];
+  #sessions = new Map(); // token -> { userId, expiresAt, createdAt, userAgent }
+  #queue = Promise.resolve();
+
+  constructor(file) {
+    this.#file = file;
+  }
+
+  async load() {
+    try {
+      const raw = await readFile(this.#file, "utf8");
+      const parsed = JSON.parse(raw);
+      this.#users = Array.isArray(parsed?.users) ? parsed.users : [];
+    } catch (err) {
+      if (err.code === "ENOENT") {
+        this.#users = [];
+        await this.#seedDefaults();
+      } else {
+        this.#users = [];
+      }
+    }
+    if (this.#users.length === 0) {
+      await this.#seedDefaults();
+    }
+    return this;
+  }
+
+  async #seedDefaults() {
+    const weaverHash = await Bun.password.hash("weaver-agent-2026", { algorithm: "bcrypt", cost: 4 });
+    const ppHash = await Bun.password.hash("curriculum-1m", { algorithm: "bcrypt", cost: 4 });
+    this.#users = [
+      {
+        id: "usr_weaver",
+        username: "weaver",
+        displayName: "Weaver Curriculum Agent",
+        passwordHash: weaverHash,
+        role: "agent",
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "usr_pp",
+        username: "pp",
+        displayName: "pp (Lead Systems)",
+        passwordHash: ppHash,
+        role: "admin",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    await this.#persist();
+  }
+
+  async #persist() {
+    const payload = JSON.stringify({ version: 1, users: this.#users }, null, 2);
+    const run = this.#queue.catch(() => {}).then(async () => {
+      await mkdir(dirname(this.#file), { recursive: true });
+      const tmp = `${this.#file}.${process.pid}.tmp`;
+      await writeFile(tmp, payload, "utf8");
+      await rename(tmp, this.#file);
+    });
+    this.#queue = run.catch(() => {});
+    return run;
+  }
+
+  listUsers() {
+    return this.#users.map(({ passwordHash, ...user }) => ({ ...user }));
+  }
+
+  getUserById(id) {
+    const user = this.#users.find((u) => u.id === id);
+    if (!user) return null;
+    const { passwordHash, ...safe } = user;
+    return safe;
+  }
+
+  getUserByUsername(username) {
+    const user = this.#users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
+    return user ? { ...user } : null;
+  }
+
+  async register({ username, password, displayName, role = "user" }) {
+    const cleanUser = String(username || "").trim().toLowerCase();
+    if (!cleanUser || cleanUser.length < 2 || cleanUser.length > 32) {
+      throw new ValidationError("Username must be between 2 and 32 characters.");
+    }
+    if (!/^[a-z0-9_-]+$/.test(cleanUser)) {
+      throw new ValidationError("Username can only contain letters, numbers, hyphens, and underscores.");
+    }
+    if (this.getUserByUsername(cleanUser)) {
+      throw new ValidationError("Username already taken.");
+    }
+    if (!password || typeof password !== "string" || password.length < 6) {
+      throw new ValidationError("Password must be at least 6 characters.");
+    }
+
+    const passwordHash = await Bun.password.hash(password, { algorithm: "bcrypt", cost: 4 });
+    const user = {
+      id: `usr_${randomToken(8)}`,
+      username: cleanUser,
+      displayName: String(displayName || cleanUser).trim().slice(0, 48),
+      passwordHash,
+      role: role === "admin" ? "admin" : role === "agent" ? "agent" : "user",
+      createdAt: new Date().toISOString(),
+    };
+
+    this.#users.push(user);
+    await this.#persist();
+    const { passwordHash: _, ...safe } = user;
+    return safe;
+  }
+
+  async verifyCredentials(username, password) {
+    const user = this.getUserByUsername(username);
+    if (!user) return null;
+    const ok = await Bun.password.verify(password, user.passwordHash);
+    if (!ok) return null;
+    const { passwordHash: _, ...safe } = user;
+    return safe;
+  }
+
+  createSession(userId, userAgent = "") {
+    const token = randomToken(32);
+    const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 7; // 7 days
+    this.#sessions.set(token, {
+      token,
+      userId,
+      userAgent: String(userAgent || "").slice(0, 120),
+      createdAt: new Date().toISOString(),
+      expiresAt,
+    });
+    return { token, expiresAt };
+  }
+
+  getSession(token) {
+    if (!token) return null;
+    const session = this.#sessions.get(token);
+    if (!session) return null;
+    if (Date.now() > session.expiresAt) {
+      this.#sessions.delete(token);
+      return null;
+    }
+    return { ...session };
+  }
+
+  revokeSession(token) {
+    return this.#sessions.delete(token);
+  }
+
+  revokeUserSessions(userId) {
+    for (const [token, sess] of this.#sessions.entries()) {
+      if (sess.userId === userId) this.#sessions.delete(token);
+    }
+  }
+
+  authenticateRequest(req) {
+    // 1. Authorization: Bearer <token>
+    const authHeader = req.headers.get("authorization") || "";
+    if (authHeader.startsWith("Bearer ")) {
+      const token = authHeader.slice(7).trim();
+      const session = this.getSession(token);
+      if (session) {
+        return this.getUserById(session.userId);
+      }
+    }
+
+    // 2. Cookie: loom_session=<token>
+    const cookieHeader = req.headers.get("cookie") || "";
+    const match = cookieHeader.match(/(?:^|;\s*)loom_session=([a-f0-9]+)/);
+    if (match) {
+      const token = match[1];
+      const session = this.getSession(token);
+      if (session) {
+        return this.getUserById(session.userId);
+      }
+    }
+
+    return null;
+  }
+}

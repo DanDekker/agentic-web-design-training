@@ -1,0 +1,97 @@
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { TaskStore } from "../src/store.js";
+import { AuthStore } from "../src/auth.js";
+import { OAuthServer } from "../src/oauth.js";
+import { createHandler } from "../src/api.js";
+import { createHub } from "../src/events.js";
+import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
+
+let dir;
+let taskStore;
+let handle;
+
+const call = (method, path, body) =>
+  handle(
+    new Request(`http://loom.test${path}`, {
+      method,
+      headers: body ? { "content-type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    }),
+  );
+
+beforeEach(async () => {
+  dir = await mkdtemp(join(tmpdir(), "loom-curriculum-"));
+  taskStore = await new TaskStore(join(dir, "tasks.json")).load();
+  const authStore = await new AuthStore(join(dir, "auth.json")).load();
+  const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
+  handle = createHandler(taskStore, createHub(), authStore, oauthServer);
+});
+
+afterEach(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
+
+describe("Desktop / Weaver Curriculum Refactoring Tasks", () => {
+  test("lists pre-configured refactoring curriculum tasks", async () => {
+    const res = await call("GET", "/api/curriculum/tasks");
+    expect(res.status).toBe(200);
+    const { tasks } = await res.json();
+    expect(tasks.length).toBeGreaterThanOrEqual(6);
+    expect(tasks.some((t) => t.id === "task_refactor_async_pipeline")).toBe(true);
+    expect(tasks.some((t) => t.id === "task_refactor_o_n2_lookup")).toBe(true);
+  });
+
+  test("seeds curriculum tasks into the Weaver Refactoring board", async () => {
+    const seedRes = await call("POST", "/api/curriculum/seed");
+    expect(seedRes.status).toBe(200);
+    const { seededCount, tasks } = await seedRes.json();
+    expect(seededCount).toBeGreaterThanOrEqual(6);
+
+    const boardTasks = await (await call("GET", "/api/tasks?boardId=board_refactor_curriculum")).json();
+    expect(boardTasks.tasks.length).toBeGreaterThanOrEqual(6);
+    const asyncTask = boardTasks.tasks.find((t) => t.id === "task_refactor_async_pipeline");
+    expect(asyncTask).toBeTruthy();
+    expect(asyncTask.refactorData.starterCode).toContain("fetchUser");
+  });
+
+  test("verifies correct agent refactored solution", async () => {
+    const solution = `
+      async function processUserData(userId) {
+        const user = await fetchUser(userId);
+        const [prefs, activity] = await Promise.all([
+          fetchUserPreferences(user.id),
+          fetchRecentActivity(user.id)
+        ]);
+        const score = await calculateScore(activity, prefs);
+        return { user, prefs, activity, score };
+      }
+    `;
+
+    const res = await call("POST", "/api/curriculum/verify", {
+      taskId: "task_refactor_async_pipeline",
+      code: solution,
+    });
+
+    expect(res.status).toBe(200);
+    const result = await res.json();
+    expect(result.success).toBe(true);
+    expect(result.score).toBe(100);
+    expect(result.passedCriteria.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("flags failing refactored solution", async () => {
+    const badCode = `function processUserData(userId) { return null; }`;
+    const res = await call("POST", "/api/curriculum/verify", {
+      taskId: "task_refactor_async_pipeline",
+      code: badCode,
+    });
+
+    expect(res.status).toBe(200);
+    const result = await res.json();
+    expect(result.success).toBe(false);
+    expect(result.failedCriteria.length).toBeGreaterThan(0);
+  });
+});

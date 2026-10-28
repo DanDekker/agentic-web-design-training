@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loom — Weaver Agent Curriculum & Monochrome Task Suite</title>
+    <meta name="description" content="Monochrome task management & desktop/weaver agent curriculum training suite. Bun + vanilla JS, zero build step." />
+    <meta name="color-scheme" content="light dark" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230e0e0e'/%3E%3Cpath d='M9 16.6l4.6 4.6L23.5 11' stroke='%23f4f4f2' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script>
+      try {
+        const asked = new URLSearchParams(location.search).get("theme");
+        const saved = localStorage.getItem("loom.theme");
+        const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme =
+          asked === "dark" || asked === "light" ? asked : saved || (dark ? "dark" : "light");
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div class="veil" aria-hidden="true"></div>
+
+    <main class="app">
+      <!-- Masthead -->
+      <header class="bar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M6.2 12.6l3.7 3.7L17.8 8.3" /></svg>
+          </span>
+          <span class="brand-name">Loom</span>
+          <span class="version-tag">Weaver 1M</span>
+        </div>
+
+        <div class="bar-actions">
+          <button type="button" class="btn-subtle" id="btn-oauth-portal" title="OAuth 2.0 Applications (O)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v3H9V7z"/></svg>
+            <span>OAuth</span>
+          </button>
+
+          <button type="button" class="btn-subtle" id="btn-curriculum" title="Weaver Refactoring Tasks (R)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/></svg>
+            <span>Curriculum</span>
+          </button>
+
+          <button type="button" class="user-pill" id="user-pill" aria-label="Account menu">
+            <span class="status-dot"></span>
+            <span id="user-name">Guest</span>
+          </button>
+
+          <button type="button" class="ghost" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme (T)">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="4.2" />
+              <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" />
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 14.4A8.4 8.4 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Board Tabs -->
+      <nav class="board-nav" aria-label="Boards">
+        <div class="board-tabs" id="board-tabs"></div>
+        <button type="button" class="add-board-btn" id="btn-add-board" title="New Board">+ Board</button>
+      </nav>
+
+      <!-- Hero Header -->
+      <section class="lede">
+        <div class="lede-title-row">
+          <h1 id="board-title">Today.</h1>
+          <span class="board-badge" id="board-stats">0 tasks</span>
+        </div>
+        <p id="date"></p>
+      </section>
+
+      <!-- Controls: Filter & Search -->
+      <div class="controls-row">
+        <div class="segmented" role="tablist" aria-label="Filter tasks">
+          <button type="button" role="tab" data-filter="all" aria-selected="true">All</button>
+          <button type="button" role="tab" data-filter="active" aria-selected="false">Active</button>
+          <button type="button" role="tab" data-filter="done" aria-selected="false">Done</button>
+          <button type="button" role="tab" data-filter="refactor" aria-selected="false">Refactoring</button>
+        </div>
+
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" id="search-input" placeholder="Search tasks & tags (/)" autocomplete="off" spellcheck="false" />
+        </div>
+      </div>
+
+      <!-- Task Composer -->
+      <form class="composer" id="composer" autocomplete="off">
+        <input
+          id="new-task"
+          name="title"
+          type="text"
+          maxlength="300"
+          placeholder="What needs doing? (Press N or type here)"
+          aria-label="New task"
+          spellcheck="false"
+        />
+        <select id="task-priority" aria-label="Priority" title="Priority">
+          <option value="0">Normal</option>
+          <option value="1">Medium</option>
+          <option value="2">Urgent</option>
+        </select>
+        <button type="submit" class="add" aria-label="Add task" title="Add (Enter)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13" /></svg>
+        </button>
+      </form>
+
+      <!-- Progress Meter -->
+      <div class="meter" aria-hidden="true"><span id="meter-fill"></span></div>
+
+      <!-- Task List -->
+      <ul class="tasks" id="list" aria-label="Tasks"></ul>
+      <p class="empty" id="empty" hidden></p>
+
+      <!-- Status Footer -->
+      <footer class="statusbar">
+        <span id="counts">No tasks</span>
+        <button type="button" id="clear" hidden>Clear completed</button>
+      </footer>
+
+      <!-- Keyboard Hints -->
+      <div class="hints" aria-hidden="true">
+        <span><kbd>N</kbd> new</span>
+        <span><kbd>J</kbd><kbd>K</kbd> move</span>
+        <span><kbd>X</kbd> done</span>
+        <span><kbd>⏎</kbd> edit</span>
+        <span><kbd>R</kbd> curriculum</span>
+        <span><kbd>O</kbd> oauth</span>
+        <span><kbd>⌘K</kbd> commands</span>
+      </div>
+    </main>
+
+    <!-- Refactor Task Inspector Drawer / Modal -->
+    <div class="modal" id="refactor-modal" hidden>
+      <div class="modal-card refactor-card" role="dialog" aria-modal="true" aria-label="Refactoring Task Inspector">
+        <header class="modal-header">
+          <div>
+            <div class="badge-row">
+              <span class="badge" id="refactor-difficulty">Intermediate</span>
+              <span class="badge category" id="refactor-category">Async</span>
+            </div>
+            <h2 id="refactor-title" class="modal-title">Refactor Callback Hell to Pipeline</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-refactor" aria-label="Close modal">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p id="refactor-instructions" class="refactor-desc"></p>
+
+          <div class="criteria-box">
+            <h3>Verification Criteria Checklist</h3>
+            <ul id="refactor-criteria-list" class="criteria-list"></ul>
+          </div>
+
+          <div class="code-tabs">
+            <button type="button" class="code-tab active" data-tab="starter">Legacy Starter Code</button>
+            <button type="button" class="code-tab" data-tab="solution">Target Idiomatic Solution</button>
+            <button type="button" class="code-tab" data-tab="verify">Agent Verification</button>
+          </div>
+
+          <div id="tab-starter" class="tab-pane active">
+            <pre><code id="code-starter"></code></pre>
+          </div>
+
+          <div id="tab-solution" class="tab-pane">
+            <pre><code id="code-solution"></code></pre>
+          </div>
+
+          <div id="tab-verify" class="tab-pane">
+            <p class="verify-intro">Submit refactored JavaScript code to run automated Weaver evaluator tests:</p>
+            <textarea id="refactor-submit-code" rows="7" placeholder="// Paste or type your refactored code here..."></textarea>
+            <div style="display:flex;gap:0.75rem;margin-top:0.75rem;">
+              <button type="button" class="btn-primary" id="btn-run-verify">Run Refactor Tests</button>
+              <button type="button" class="btn-secondary" id="btn-load-solution">Load Solution</button>
+            </div>
+            <div id="verify-result" class="verify-feedback" hidden></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1st-Party Authentication Modal -->
+    <div class="modal" id="auth-modal" hidden>
+      <div class="modal-card auth-card" role="dialog" aria-modal="true" aria-label="Authentication">
+        <header class="modal-header">
+          <h2 class="modal-title" id="auth-title">Sign In to Loom</h2>
+          <button type="button" class="close-btn" id="btn-close-auth" aria-label="Close modal">×</button>
+        </header>
+
+        <div class="modal-body">
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab active" id="tab-login">Login</button>
+            <button type="button" class="auth-tab" id="tab-register">Register</button>
+          </div>
+
+          <form id="auth-form" class="auth-form">
+            <label>
+              <span>Username</span>
+              <input type="text" id="auth-username" required autocomplete="username" />
+            </label>
+            <label id="auth-display-group" hidden>
+              <span>Display Name</span>
+              <input type="text" id="auth-displayname" autocomplete="name" />
+            </label>
+            <label>
+              <span>Password</span>
+              <input type="password" id="auth-password" required autocomplete="current-password" />
+            </label>
+            <button type="submit" class="btn-primary" id="btn-auth-submit" style="width:100%;margin-top:0.75rem;">Sign In</button>
+          </form>
+
+          <div class="quick-signins">
+            <p>1st-Party Pre-Configured Accounts:</p>
+            <div class="quick-btn-row">
+              <button type="button" class="btn-secondary" id="btn-quick-weaver">Weaver Agent</button>
+              <button type="button" class="btn-secondary" id="btn-quick-pp">Lead Architect (pp)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1st-Party Proprietary OAuth Portal & PKCE Simulator Modal -->
+    <div class="modal" id="oauth-modal" hidden>
+      <div class="modal-card oauth-card" role="dialog" aria-modal="true" aria-label="OAuth 2.0 Applications">
+        <header class="modal-header">
+          <div>
+            <span class="badge">1st-Party Provider</span>
+            <h2 class="modal-title">OAuth 2.0 & OIDC Portal</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-oauth" aria-label="Close modal">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="oauth-desc">
+            First-party proprietary OAuth 2.0 / OIDC identity & authorization server for desktop agent execution harnesses and weaver automated evaluators.
+          </p>
+
+          <div class="oauth-section">
+            <h3>Registered OAuth 2.0 Clients</h3>
+            <div id="oauth-clients-list" class="clients-list"></div>
+          </div>
+
+          <div class="oauth-section">
+            <h3>Simulate Desktop Weaver Agent PKCE Authorization</h3>
+            <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;">
+              Executes a full OAuth 2.0 Authorization Code flow with SHA-256 PKCE code challenge and verifier right in the browser.
+            </p>
+            <button type="button" class="btn-primary" id="btn-simulate-oauth">Run Agent PKCE Auth Flow</button>
+            <div id="oauth-sim-output" class="sim-output" hidden></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div class="palette" id="palette" hidden>
+      <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Command palette">
+        <input id="palette-input" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false" />
+        <ul id="palette-list" role="listbox" aria-label="Commands"></ul>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

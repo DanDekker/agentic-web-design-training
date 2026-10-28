@@ -1,0 +1,51 @@
+import { join } from "node:path";
+import { TaskStore } from "./store.js";
+import { AuthStore } from "./auth.js";
+import { OAuthServer } from "./oauth.js";
+import { createHandler } from "./api.js";
+import { createStatic } from "./static.js";
+import { createHub } from "./events.js";
+
+const ROOT = join(import.meta.dir, "..");
+const PUBLIC_DIR = join(ROOT, "public");
+const DATA_DIR = process.env.LOOM_DATA_DIR ?? join(ROOT, "data");
+const DATA_FILE = process.env.LOOM_DATA ?? join(DATA_DIR, "tasks.json");
+const AUTH_FILE = process.env.LOOM_AUTH_DATA ?? join(DATA_DIR, "auth.json");
+const OAUTH_FILE = process.env.LOOM_OAUTH_DATA ?? join(DATA_DIR, "oauth.json");
+const PORT = Number(process.env.PORT ?? 3000);
+
+const store = await new TaskStore(DATA_FILE).load();
+if (store.listTasks().length === 0) {
+  await store.seedCurriculumTasks();
+}
+const authStore = await new AuthStore(AUTH_FILE).load();
+const oauthServer = await new OAuthServer(OAUTH_FILE).load();
+const hub = createHub();
+
+const handleApi = createHandler(store, hub, authStore, oauthServer);
+const serveStatic = createStatic(PUBLIC_DIR);
+
+const server = Bun.serve({
+  port: PORT,
+  development: process.env.NODE_ENV !== "production",
+  async fetch(req) {
+    const { pathname } = new URL(req.url);
+
+    if (
+      pathname.startsWith("/api/") ||
+      pathname.startsWith("/oauth/") ||
+      pathname.startsWith("/.well-known/")
+    ) {
+      const res = await handleApi(req);
+      if (!["GET", "HEAD"].includes(req.method) && res.status < 400) {
+        hub.broadcast({ type: "state", at: Date.now() });
+      }
+      return res;
+    }
+
+    return serveStatic(pathname);
+  },
+});
+
+console.log(`Loom  →  http://localhost:${server.port}`);
+console.log(`data  →  ${DATA_FILE}`);
