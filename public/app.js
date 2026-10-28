@@ -1,4 +1,4 @@
-/* Loom — Weaver Agent Curriculum & Monochrome Task Management Suite.
+/* Loom — Agentic Curriculum & Monochrome Task Management Suite.
    Vanilla JS, zero dependencies, Bun backend. */
 
 const el = {
@@ -54,7 +54,7 @@ const el = {
   authDisplayName: document.querySelector("#auth-displayname"),
   authPassword: document.querySelector("#auth-password"),
   btnAuthSubmit: document.querySelector("#btn-auth-submit"),
-  btnQuickWeaver: document.querySelector("#btn-quick-weaver"),
+  btnQuickAgent: document.querySelector("#btn-quick-agent"),
   btnQuickPp: document.querySelector("#btn-quick-pp"),
 
   // OAuth modal
@@ -90,7 +90,6 @@ const state = {
   searchQuery: "",
   editing: null,
   cursor: -1,
-  paletteOpen: false,
   matches: [],
   activeCommandIdx: 0,
   dragId: null,
@@ -103,6 +102,8 @@ const CROSS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M1
 
 /* ── API helpers ─────────────────────────────────────────── */
 
+let mutationVersion = 0;
+
 async function api(method, path, body) {
   const init = { method, headers: {} };
   if (body !== undefined) {
@@ -110,9 +111,13 @@ async function api(method, path, body) {
     init.body = JSON.stringify(body);
   }
   const res = await fetch(path, init);
-  if (res.status === 204) return null;
+  if (res.status === 204) {
+    if (method !== "GET") mutationVersion++;
+    return null;
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (method !== "GET") mutationVersion++;
   return data;
 }
 
@@ -130,6 +135,22 @@ const clamp = (n, lo, hi) => Math.min(Math.max(n, lo), hi);
 const isTyping = (node) =>
   !!node &&
   (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT" || node.isContentEditable);
+
+const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.palette].filter(Boolean);
+
+function openDialog(dialog) {
+  if (dialog && !dialog.open) dialog.showModal();
+}
+
+function closeDialog(dialog) {
+  if (dialog?.open) dialog.close();
+}
+
+function upsert(items, item) {
+  const index = items.findIndex((existing) => existing.id === item.id);
+  if (index === -1) items.push(item);
+  else Object.assign(items[index], item);
+}
 
 /* ── Filtering & Visibility ──────────────────────────────── */
 
@@ -188,7 +209,12 @@ function renderBoardsNav() {
       btn.type = "button";
       btn.className = `board-tab ${board.id === state.activeBoardId ? "active" : ""}`;
       const count = state.tasks.filter((t) => t.boardId === board.id).length;
-      btn.innerHTML = `<span>${board.name}</span><span class="count">${count}</span>`;
+      const label = document.createElement("span");
+      label.textContent = board.name;
+      const badge = document.createElement("span");
+      badge.className = "count";
+      badge.textContent = count;
+      btn.append(label, badge);
       btn.addEventListener("click", () => switchBoard(board.id));
       return btn;
     }),
@@ -289,7 +315,7 @@ function row(task, index) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "refactor-inspect-btn";
-    btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/></svg> Refactor Inspect (${task.refactorData.difficulty})`;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/></svg> Refactor Inspect (${escapeHtml(task.refactorData.difficulty)})`;
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       openRefactorModal(task);
@@ -366,7 +392,7 @@ function editField(task) {
 
     if (!next || next === task.title) return render();
     try {
-      Object.assign(task, await api("PATCH", `/api/tasks/${task.id}`, { title: next }));
+      upsert(state.tasks, await api("PATCH", `/api/tasks/${task.id}`, { title: next }));
     } catch (err) {
       toast(err.message);
     }
@@ -404,7 +430,7 @@ async function addTask(title, priority = 0) {
       boardId: board ? board.id : state.activeBoardId,
       priority: Number(priority),
     });
-    state.tasks.push(task);
+    upsert(state.tasks, task);
     if (state.filter === "done") setFilter("all");
     state.cursor = visibleTasks().length - 1;
     render();
@@ -415,18 +441,24 @@ async function addTask(title, priority = 0) {
 }
 
 async function toggleTask(task) {
+  task = state.tasks.find((current) => current.id === task.id);
+  if (!task) return false;
   const before = { done: task.done, doneAt: task.doneAt };
   task.done = !task.done;
   task.doneAt = task.done ? new Date().toISOString() : null;
   render();
 
   try {
-    Object.assign(task, await api("PATCH", `/api/tasks/${task.id}`, { done: task.done }));
+    upsert(state.tasks, await api("PATCH", `/api/tasks/${task.id}`, { done: task.done }));
   } catch (err) {
-    Object.assign(task, before);
+    const current = state.tasks.find((current) => current.id === task.id);
+    if (current) Object.assign(current, before);
     toast(err.message);
+    render();
+    return false;
   }
   render();
+  return true;
 }
 
 async function deleteTask(task) {
@@ -437,7 +469,7 @@ async function deleteTask(task) {
   try {
     await api("DELETE", `/api/tasks/${task.id}`);
   } catch (err) {
-    state.tasks.splice(index, 0, task);
+    if (!state.tasks.some((current) => current.id === task.id)) state.tasks.splice(index, 0, task);
     toast(err.message);
   }
   render();
@@ -504,7 +536,7 @@ async function createBoardPrompt() {
   if (!name || !name.trim()) return;
   try {
     const board = await api("POST", "/api/boards", { name: name.trim() });
-    state.boards.push(board);
+    upsert(state.boards, board);
     switchBoard(board.id);
     toast(`Created board “${board.name}”.`);
   } catch (err) {
@@ -532,7 +564,7 @@ function toggleTheme() {
 /* ── Refactoring Tasks Curriculum ────────────────────────── */
 
 async function seedCurriculum() {
-  toast("Seeding Weaver 1M Curriculum tasks...");
+  toast("Seeding Agentic 1M Curriculum tasks...");
   try {
     const res = await api("POST", "/api/curriculum/seed");
     // Reload state
@@ -544,13 +576,17 @@ async function seedCurriculum() {
   }
 }
 
+let verificationRun = 0;
+
 function openRefactorModal(task) {
   if (!task.refactorData) return;
+  verificationRun++;
   state.currentRefactorTask = task;
   const data = task.refactorData;
 
   if (el.refactorTitle) el.refactorTitle.textContent = task.title;
   if (el.refactorDifficulty) el.refactorDifficulty.textContent = (data.difficulty || "intermediate").toUpperCase();
+  el.refactorDifficulty?.setAttribute("level", data.difficulty || "intermediate");
   if (el.refactorCategory) el.refactorCategory.textContent = (task.category || "Refactor").toUpperCase();
   if (el.refactorInstructions) el.refactorInstructions.textContent = data.instructions || "";
 
@@ -568,14 +604,22 @@ function openRefactorModal(task) {
   if (el.codeSolution) el.codeSolution.textContent = data.solutionCode || "";
   if (el.refactorSubmitCode) el.refactorSubmitCode.value = data.starterCode || "";
   if (el.verifyResult) el.verifyResult.hidden = true;
+  if (el.btnRunVerify) el.btnRunVerify.disabled = false;
 
   switchRefactorTab("starter");
-  if (el.refactorModal) el.refactorModal.hidden = false;
+  renderDiff();
+  openDialog(el.refactorModal);
 }
 
 function closeRefactorModal() {
-  if (el.refactorModal) el.refactorModal.hidden = true;
+  closeDialog(el.refactorModal);
+  resetRefactorModal();
+}
+
+function resetRefactorModal() {
+  verificationRun++;
   state.currentRefactorTask = null;
+  if (el.btnRunVerify) el.btnRunVerify.disabled = false;
 }
 
 function switchRefactorTab(tabName) {
@@ -588,51 +632,30 @@ function switchRefactorTab(tabName) {
 }
 
 function renderDiff() {
-  const container = document.querySelector("#diff-output");
-  if (!container || !state.currentRefactorTask) return;
+  const viewer = document.querySelector("#loom-diff-component");
+  if (!viewer || !state.currentRefactorTask) return;
 
   const starter = state.currentRefactorTask.refactorData.starterCode || "";
-  const current = el.refactorSubmitCode?.value || starter;
-
-  const starterLines = starter.split("\n");
-  const currentLines = current.split("\n");
-
-  const diffLines = [];
-  const max = Math.max(starterLines.length, currentLines.length);
-
-  for (let i = 0; i < max; i++) {
-    const s = starterLines[i];
-    const c = currentLines[i];
-
-    if (s === undefined && c !== undefined) {
-      diffLines.push({ type: "added", text: `+ ${c}` });
-    } else if (c === undefined && s !== undefined) {
-      diffLines.push({ type: "removed", text: `- ${s}` });
-    } else if (s !== c) {
-      diffLines.push({ type: "removed", text: `- ${s}` });
-      diffLines.push({ type: "added", text: `+ ${c}` });
-    } else {
-      diffLines.push({ type: "unchanged", text: `  ${s}` });
-    }
-  }
-
-  container.innerHTML = diffLines
-    .map((l) => `<div class="diff-line ${l.type}">${escapeHtml(l.text)}</div>`)
-    .join("");
+  viewer.setAttribute("original", starter);
+  viewer.setAttribute("modified", el.refactorSubmitCode?.value ?? starter);
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 async function runRefactorVerification() {
-  if (!state.currentRefactorTask) return;
+  const task = state.currentRefactorTask;
+  if (!task || el.btnRunVerify?.disabled) return;
+  const run = ++verificationRun;
   const code = el.refactorSubmitCode.value;
+  if (el.btnRunVerify) el.btnRunVerify.disabled = true;
   try {
     const result = await api("POST", "/api/curriculum/evaluate", {
-      taskId: state.currentRefactorTask.id,
+      taskId: task.id,
       code,
     });
+    if (run !== verificationRun || !el.refactorModal?.open) return;
 
     if (el.verifyResult) {
       el.verifyResult.hidden = false;
@@ -676,12 +699,14 @@ async function runRefactorVerification() {
       `;
     }
 
-    if (result.passed && !state.currentRefactorTask.done) {
-      toggleTask(state.currentRefactorTask);
-      toast("Challenge verified and marked complete!");
+    const currentTask = state.tasks.find((current) => current.id === task.id);
+    if (result.passed && currentTask && !currentTask.done) {
+      if (await toggleTask(currentTask)) toast("Challenge verified and marked complete!");
     }
   } catch (err) {
-    toast(err.message);
+    if (run === verificationRun) toast(err.message);
+  } finally {
+    if (run === verificationRun && el.btnRunVerify) el.btnRunVerify.disabled = false;
   }
 }
 
@@ -696,12 +721,12 @@ function openAuthModal() {
     return;
   }
   setAuthMode("login");
-  if (el.authModal) el.authModal.hidden = false;
+  openDialog(el.authModal);
   if (el.authUsername) el.authUsername.focus();
 }
 
 function closeAuthModal() {
-  if (el.authModal) el.authModal.hidden = true;
+  closeDialog(el.authModal);
 }
 
 function setAuthMode(mode) {
@@ -711,6 +736,7 @@ function setAuthMode(mode) {
   if (el.authTitle) el.authTitle.textContent = mode === "login" ? "Sign In to Loom" : "Create Loom Account";
   if (el.btnAuthSubmit) el.btnAuthSubmit.textContent = mode === "login" ? "Sign In" : "Register Account";
   if (el.authDisplayGroup) el.authDisplayGroup.hidden = mode === "login";
+  el.authPassword?.setAttribute("autocomplete", mode === "login" ? "current-password" : "new-password");
 }
 
 async function handleAuthSubmit(event) {
@@ -763,11 +789,11 @@ async function logout() {
 
 function openOAuthModal() {
   renderOAuthClients();
-  if (el.oauthModal) el.oauthModal.hidden = false;
+  openDialog(el.oauthModal);
 }
 
 function closeOAuthModal() {
-  if (el.oauthModal) el.oauthModal.hidden = true;
+  closeDialog(el.oauthModal);
 }
 
 function renderOAuthClients() {
@@ -781,10 +807,10 @@ function renderOAuthClients() {
     .map(
       (c) => `
     <div class="client-item">
-      <div class="client-title">${c.name} ${c.isFirstParty ? `<span class="badge" style="margin-left:0.4rem;">1st-Party</span>` : ""}</div>
-      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.4rem;">${c.description || ""}</div>
-      <div class="client-meta">client_id: ${c.clientId}</div>
-      <div class="client-meta">allowed_scopes: ${(c.allowedScopes || []).join(" ")}</div>
+      <div class="client-title">${escapeHtml(c.name)} ${c.isFirstParty ? `<span class="badge" style="margin-left:0.4rem;">1st-Party</span>` : ""}</div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.4rem;">${escapeHtml(c.description)}</div>
+      <div class="client-meta">client_id: ${escapeHtml(c.clientId)}</div>
+      <div class="client-meta">allowed_scopes: ${escapeHtml((c.allowedScopes || []).join(" "))}</div>
     </div>
   `,
     )
@@ -812,14 +838,14 @@ async function generatePkce() {
 async function simulateAgentOAuthPkce() {
   if (!el.oauthSimOutput) return;
   el.oauthSimOutput.hidden = false;
-  el.oauthSimOutput.textContent = "Initiating Weaver 1M Agent PKCE Authorization Flow...\n";
+  el.oauthSimOutput.textContent = "Initiating Agent PKCE Authorization Flow...\n";
 
   try {
     const { codeVerifier, codeChallenge } = await generatePkce();
     el.oauthSimOutput.textContent += `[Step 1] Generated PKCE Code Verifier: ${codeVerifier.slice(0, 16)}...\n`;
     el.oauthSimOutput.textContent += `[Step 1] SHA-256 Code Challenge: ${codeChallenge}\n`;
 
-    const clientId = "weaver-agent-runner";
+    const clientId = "agent-runner";
     const redirectUri = "http://localhost:3000/oauth/callback";
     const scope = "read:tasks write:tasks tasks:refactor";
 
@@ -863,18 +889,20 @@ async function simulateAgentOAuthPkce() {
   }
 }
 
-/* ── Weaver 1M Benchmark Suite Modal ───────────────────── */
+/* ── Agentic 1M Benchmark Suite Modal ───────────────────── */
 
 async function openBenchmarkModal() {
-  if (el.benchmarkModal) el.benchmarkModal.hidden = false;
+  openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
     if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 12;
-  } catch {}
+  } catch (err) {
+    toast(err.message);
+  }
 }
 
 function closeBenchmarkModal() {
-  if (el.benchmarkModal) el.benchmarkModal.hidden = true;
+  closeDialog(el.benchmarkModal);
 }
 
 async function runFullBenchmarkUI() {
@@ -923,15 +951,16 @@ async function runFullBenchmarkUI() {
 async function downloadBenchmarkMarkdown() {
   try {
     const res = await fetch("/api/curriculum/benchmark?format=markdown");
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const md = await res.text();
     const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `weaver-1m-benchmark-${new Date().toISOString().slice(0, 10)}.md`;
+    a.download = `agentic-benchmark-${new Date().toISOString().slice(0, 10)}.md`;
     a.click();
     URL.revokeObjectURL(url);
-    toast("Downloaded Weaver Benchmark Report (Markdown).");
+    toast("Downloaded Agentic Benchmark Report (Markdown).");
   } catch (err) {
     toast(`Failed to download report: ${err.message}`);
   }
@@ -941,11 +970,11 @@ async function downloadBenchmarkMarkdown() {
 const commands = [
   { label: "New task", hint: "N", run: () => el.input?.focus() },
   { label: "Toggle theme", hint: "T", run: toggleTheme },
-  { label: "Weaver Refactoring Curriculum", hint: "R", run: seedCurriculum },
-  { label: "Weaver 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
+  { label: "Agentic Refactoring Curriculum", hint: "R", run: seedCurriculum },
+  { label: "Agentic 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "OAuth 2.0 Applications & Simulator", hint: "O", run: openOAuthModal },
   { label: "Switch to Today board", hint: "", run: () => switchBoard("board_today") },
-  { label: "Switch to Weaver Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
+  { label: "Switch to Agentic Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
   { label: "New Board...", hint: "", run: createBoardPrompt },
   { label: "Sign In / Switch User", hint: "", run: openAuthModal },
   { label: "Show all tasks", hint: "1", run: () => setFilter("all") },
@@ -992,9 +1021,8 @@ function renderPalette(query) {
 }
 
 function openPalette() {
-  state.paletteOpen = true;
   state.activeCommandIdx = 0;
-  if (el.palette) el.palette.hidden = false;
+  openDialog(el.palette);
   if (el.paletteInput) {
     el.paletteInput.value = "";
     renderPalette("");
@@ -1003,12 +1031,15 @@ function openPalette() {
 }
 
 function closePalette() {
-  state.paletteOpen = false;
-  if (el.palette) el.palette.hidden = true;
+  closeDialog(el.palette);
 }
 
 function runCommand(command) {
   closePalette();
+  closeRefactorModal();
+  closeAuthModal();
+  closeOAuthModal();
+  closeBenchmarkModal();
   command.run();
 }
 
@@ -1055,7 +1086,7 @@ function connectEvents() {
     try {
       const data = JSON.parse(event.data);
       if (data.type === "state") {
-        loadInitialState(false);
+        loadInitialState();
       }
     } catch {}
   };
@@ -1103,13 +1134,18 @@ el.searchInput?.addEventListener("input", (e) => {
 
 // Refactor Modal Wiring
 el.btnCloseRefactor?.addEventListener("click", closeRefactorModal);
+el.refactorModal?.addEventListener("close", () => {
+  if (!el.refactorModal.open) resetRefactorModal();
+});
 document.querySelectorAll(".code-tab").forEach((btn) => {
   btn.addEventListener("click", () => switchRefactorTab(btn.dataset.tab));
 });
 el.btnRunVerify?.addEventListener("click", runRefactorVerification);
+el.refactorSubmitCode?.addEventListener("input", renderDiff);
 el.btnLoadSolution?.addEventListener("click", () => {
   if (state.currentRefactorTask?.refactorData?.solutionCode && el.refactorSubmitCode) {
     el.refactorSubmitCode.value = state.currentRefactorTask.refactorData.solutionCode;
+    renderDiff();
   }
 });
 
@@ -1118,7 +1154,7 @@ el.btnCloseAuth?.addEventListener("click", closeAuthModal);
 el.tabLogin?.addEventListener("click", () => setAuthMode("login"));
 el.tabRegister?.addEventListener("click", () => setAuthMode("register"));
 el.authForm?.addEventListener("submit", handleAuthSubmit);
-el.btnQuickWeaver?.addEventListener("click", () => quickSignIn("weaver", "weaver-agent-2026"));
+el.btnQuickAgent?.addEventListener("click", () => quickSignIn("agent", "agent-demo-2026"));
 el.btnQuickPp?.addEventListener("click", () => quickSignIn("pp", "curriculum-1m"));
 
 // OAuth Modal Wiring
@@ -1141,7 +1177,7 @@ el.paletteInput?.addEventListener("input", () => {
 });
 
 el.paletteInput?.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowDown" || event.key === "Tab") {
+  if (event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey)) {
     event.preventDefault();
     state.activeCommandIdx = clamp(state.activeCommandIdx + 1, 0, state.matches.length - 1);
     renderPalette(el.paletteInput.value);
@@ -1161,29 +1197,24 @@ el.paletteInput?.addEventListener("keydown", (event) => {
 
 // Global Keyboard shortcuts
 document.addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.isComposing) return;
   const mod = event.metaKey || event.ctrlKey;
 
   if (mod && event.key.toLowerCase() === "k") {
     event.preventDefault();
-    state.paletteOpen ? closePalette() : openPalette();
+    el.palette?.open ? closePalette() : openPalette();
     return;
   }
 
   if (event.key === "Escape") {
-    if (state.paletteOpen) closePalette();
-    if (!el.refactorModal?.hidden) closeRefactorModal();
-    if (!el.authModal?.hidden) closeAuthModal();
-    if (!el.oauthModal?.hidden) closeOAuthModal();
-    if (!el.benchmarkModal?.hidden) closeBenchmarkModal();
+    // Native dialogs dismiss only the topmost dialog and restore its opener's focus.
     return;
   }
 
   if (
-    state.paletteOpen ||
-    !el.refactorModal?.hidden ||
-    !el.authModal?.hidden ||
-    !el.oauthModal?.hidden ||
-    !el.benchmarkModal?.hidden ||
+    mod ||
+    event.altKey ||
+    dialogs.some((dialog) => dialog.open) ||
     isTyping(event.target) ||
     state.editing
   ) {
@@ -1287,9 +1318,16 @@ if (el.date) {
   }).format(new Date());
 }
 
-async function loadInitialState(shouldRerender = true) {
+let stateLoadVersion = 0;
+let initialStateLoaded = false;
+
+async function loadInitialState() {
+  const version = ++stateLoadVersion;
+  const mutations = mutationVersion;
   try {
     const data = await api("GET", "/api/state");
+    if (version !== stateLoadVersion) return;
+    if (mutations !== mutationVersion) return loadInitialState();
     state.boards = Array.isArray(data.boards) ? data.boards : [];
     state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
     state.user = data.user || null;
@@ -1297,22 +1335,32 @@ async function loadInitialState(shouldRerender = true) {
 
     const urlParams = new URLSearchParams(window.location.search);
     const askedBoard = urlParams.get("board");
-    if (askedBoard && state.boards.some((b) => b.id === askedBoard || b.slug === askedBoard)) {
+    if (!initialStateLoaded && askedBoard && state.boards.some((b) => b.id === askedBoard || b.slug === askedBoard)) {
       const found = state.boards.find((b) => b.id === askedBoard || b.slug === askedBoard);
       state.activeBoardId = found.id;
     } else if (!state.boards.some((b) => b.id === state.activeBoardId)) {
       state.activeBoardId = state.boards[0]?.id || "board_today";
     }
 
-    if (shouldRerender) render();
+    initialStateLoaded = true;
+    if (state.editing) {
+      renderBoardsNav();
+      renderUserPill();
+    } else {
+      render();
+    }
   } catch (err) {
+    if (version !== stateLoadVersion) return;
     // Fallback: load /api/tasks directly
     try {
       const { tasks } = await api("GET", "/api/tasks");
+      if (version !== stateLoadVersion) return;
+      if (mutations !== mutationVersion) return loadInitialState();
       state.tasks = tasks || [];
-      render();
+      if (!state.editing) render();
     } catch {
-      render();
+      if (version !== stateLoadVersion) return;
+      if (!state.editing) render();
       toast("Could not reach the server.");
     }
   }

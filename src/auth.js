@@ -37,14 +37,14 @@ export class AuthStore {
   }
 
   async #seedDefaults() {
-    const weaverHash = await Bun.password.hash("weaver-agent-2026", { algorithm: "bcrypt", cost: 4 });
+    const agentHash = await Bun.password.hash("agent-demo-2026", { algorithm: "bcrypt", cost: 4 });
     const ppHash = await Bun.password.hash("curriculum-1m", { algorithm: "bcrypt", cost: 4 });
     this.#users = [
       {
-        id: "usr_weaver",
-        username: "weaver",
-        displayName: "Weaver Curriculum Agent",
-        passwordHash: weaverHash,
+        id: "usr_agent",
+        username: "agent",
+        displayName: "Demo Agent",
+        passwordHash: agentHash,
         role: "agent",
         createdAt: new Date().toISOString(),
       },

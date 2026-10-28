@@ -108,7 +108,7 @@ export class TaskStore {
 
   async #seedFresh() {
     const today = makeBoard("Today", "board_today");
-    const refactorBoard = makeBoard("Weaver Refactoring", "board_refactor_curriculum");
+    const refactorBoard = makeBoard("Agentic Refactoring", "board_refactor_curriculum");
     this.#boards = [today, refactorBoard];
     this.#tasks = [];
     await this.#persist();
@@ -439,12 +439,12 @@ export class TaskStore {
   }
 
   /**
-   * Seed Weaver Curriculum Refactoring Tasks into the "Weaver Refactoring" board.
+   * Seed Agentic Curriculum Refactoring Tasks into the "Agentic Refactoring" board.
    */
   async seedCurriculumTasks() {
     let board = this.#boards.find((b) => b.id === "board_refactor_curriculum");
     if (!board) {
-      board = await this.addBoard("Weaver Refactoring", "board_refactor_curriculum");
+      board = await this.addBoard("Agentic Refactoring", "board_refactor_curriculum");
     }
 
     const created = [];

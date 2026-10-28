@@ -1,5 +1,5 @@
 /**
- * Desktop / Weaver Curriculum 1M Agentic Tasks — Code Evaluator & Execution Sandbox.
+ * Agentic Curriculum 1M Tasks — Code Evaluator & Execution Sandbox.
  * Provides isolated evaluation, assertion checking, and telemetry metrics for agent-submitted refactorings.
  */
 
@@ -211,7 +211,7 @@ export class Evaluator {
     const results = [];
     const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
 
-    if (task?.category === "css" || code.trim().startsWith("<") || code.trim().startsWith("/*")) {
+    if (task?.category === "css" || taskId === "task_refactor_semantic_a11y") {
       results.push({
         name: "Markup / Stylesheet Valid",
         passed: true,

@@ -1,5 +1,5 @@
 /**
- * Desktop / Weaver Curriculum 1M Agentic Tasks — Benchmark Suite.
+ * Agentic Curriculum 1M Tasks — Benchmark Suite.
  * Computes aggregate evaluation metrics, agent test coverage, and benchmark reports across all curriculum tasks.
  */
 
@@ -27,7 +27,7 @@ export class BenchmarkSuite {
       byDifficulty,
       byCategory,
       catalogVersion: "1.2.0",
-      curriculumName: "Weaver 1M Desktop Agentic Benchmark",
+      curriculumName: "Agentic Curriculum Benchmark",
     };
   }
 
@@ -60,7 +60,7 @@ export class BenchmarkSuite {
     const avgScore = Math.round(taskResults.reduce((acc, t) => acc + t.score, 0) / taskResults.length);
 
     return {
-      suite: "Weaver Curriculum 1M Agentic Benchmark",
+      suite: "Agentic Curriculum Benchmark",
       timestamp: new Date().toISOString(),
       summary: {
         totalTasks: taskResults.length,
@@ -81,7 +81,7 @@ export class BenchmarkSuite {
   formatMarkdown(benchmark) {
     const { summary, results } = benchmark;
     const lines = [
-      `# Weaver 1M Agentic Benchmark Report`,
+      `# Agentic 1M Benchmark Report`,
       ``,
       `*Generated at: ${benchmark.timestamp}*`,
       ``,

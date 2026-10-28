@@ -1,11 +1,11 @@
- 1M Agentic Tasks & Monochrome Suite
+# 1M Agentic Tasks & Monochrome Suite
 
 A modern, minimalist monochrome web application built entirely with **vanilla JavaScript, Bun, HTML, and CSS**. Zero frontend frameworks, zero runtime npm dependencies, zero build step.
 
 ```bash
 bun run start   # http://localhost:3000
 bun run dev     # same, with --watch
-bun test        # 34 pass, 0 fail (auth, oauth, store, api, curriculum, evaluator, benchmark)
+bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, components, client
 ```
 
 ---
@@ -16,7 +16,7 @@ bun test        # 34 pass, 0 fail (auth, oauth, store, api, curriculum, evaluato
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Weaver 1M Agentic Curriculum refactoring challenges (12 tasks across 6 categories)
+  curriculum.js   Agentic Curriculum refactoring challenges (12 tasks across 6 categories)
   evaluator.js    Isolated execution sandbox with AST checks, assertion runners, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
   store.js        Multi-board task store, atomic JSON writes, corrupt-file quarantine
@@ -28,13 +28,16 @@ public/
   index.html      Semantic HTML5 monochrome layout, benchmark modal, diff tabs, & modals
   styles.css      Monochrome design system (light + dark mode, editorial typography, telemetry grid, diff styling)
   app.js          Reactive client state, boards, refactor inspector, auth, PKCE simulator, and benchmark runner
+  components/     Custom elements for badges, diffs, tasks, and platform capability detection
 tests/
   store.test.js       Task store persistence, validation, reordering
   api.test.js         API routes, lifecycle, validation, status codes
   auth_oauth.test.js  Proprietary Auth + OAuth 2.0 PKCE, client_credentials, & RFC 7662 Introspection
-  curriculum.test.js  Weaver refactoring curriculum tasks & code verification
+  curriculum.test.js  Agentic refactoring curriculum tasks & code verification
   evaluator.test.js   Sandboxed VM execution, test assertions, and runtime error capture
   benchmark.test.js   Catalog statistics, automated reference solution benchmarking, & markdown report
+  components.test.js  Custom element registration, Shadow DOM, attributes, & feature detection
+  client.test.js      Dialogs, shortcuts, diff updates, live synchronization, & safe rendering
 ```
 
 ---
@@ -50,7 +53,7 @@ Built-in proprietary authentication system using `Bun.password` (bcrypt/argon2id
 - Supports both `Authorization: Bearer <token>` and `Cookie: loom_session=<token>`.
 
 ### Pre-Configured Accounts:
-- **Agent**: `weaver` / `weaver-agent-2026` (role: `agent`)
+- **Agent**: `agent` / `agent-demo-2026` (role: `agent`)
 - **Lead Architect**: `pp` / `curriculum-1m` (role: `admin`)
 
 ---
@@ -67,11 +70,11 @@ Full RFC 6749, RFC 7636, and RFC 7662 Authorization Server:
 - `GET /oauth/userinfo` — Validates Bearer access token and returns user claims.
 - `POST /oauth/introspect` — RFC 7662 token introspection (returns active status, scope, client_id, and exp).
 - `POST /oauth/revoke` — Revokes access or refresh tokens.
-- `GET /oauth/clients` — Lists registered clients (e.g. `weaver-agent-runner`, `desktop-curriculum-suite`).
+- `GET /oauth/clients` — Lists registered clients (e.g. `agent-runner`, `desktop-curriculum-suite`).
 
 ---
 
-##  1M Refactoring Curriculum Tasks
+## 1M Refactoring Curriculum Tasks
 
 Designed for training and evaluating autonomous agents (12 curated challenges):
 

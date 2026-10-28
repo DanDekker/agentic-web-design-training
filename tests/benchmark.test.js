@@ -35,7 +35,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe("Weaver 1M Curriculum Benchmark Suite", () => {
+describe("Agentic 1M Curriculum Benchmark Suite", () => {
   test("generates catalog stats with difficulty and category distribution", async () => {
     const stats = suite.getCatalogStats();
     expect(stats.totalTasks).toBeGreaterThanOrEqual(12);
@@ -54,7 +54,8 @@ describe("Weaver 1M Curriculum Benchmark Suite", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.summary.totalTasks).toBeGreaterThanOrEqual(12);
-    expect(data.summary.passedTasks).toBeGreaterThanOrEqual(10);
+    expect(data.summary.passedTasks).toBe(data.summary.totalTasks);
+    expect(data.summary.failedTasks).toBe(0);
     expect(typeof data.summary.totalDurationMs).toBe("number");
     expect(data.results.length).toBe(data.summary.totalTasks);
   });
@@ -64,7 +65,7 @@ describe("Weaver 1M Curriculum Benchmark Suite", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/markdown");
     const markdown = await res.text();
-    expect(markdown).toContain("# Weaver 1M Agentic Benchmark Report");
+    expect(markdown).toContain("# Agentic 1M Benchmark Report");
     expect(markdown).toContain("| Task Title | Category | Difficulty |");
     expect(markdown).toContain("PASSED");
   });

@@ -1,6 +1,6 @@
 /**
- * Desktop / Weaver Curriculum: 1M Agentic Tasks — Refactoring Suite.
- * Pre-seeded high-signal refactoring challenges designed for desktop/weaver agent training.
+ * Agentic Curriculum: 1M Tasks — Refactoring Suite.
+ * Pre-seeded high-signal refactoring challenges designed for agent-agnostic training.
  */
 
 export const REFACTORING_CURRICULUM_TASKS = [

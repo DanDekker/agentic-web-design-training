@@ -46,11 +46,11 @@ export class OAuthServer {
   #seedDefaultClients() {
     this.#clients = [
       {
-        id: "cli_weaver_agent",
-        clientId: "weaver-agent-runner",
-        clientSecret: "weaver-agent-secret-2026",
-        name: "Weaver 1M Desktop Agent Runner",
-        description: "Official desktop agent execution harness for the Weaver curriculum tasks.",
+        id: "cli_agent_runner",
+        clientId: "agent-runner",
+        clientSecret: "agent-secret-2026",
+        name: "Agent Runner",
+        description: "Agent-agnostic execution harness for curriculum tasks.",
         redirectUris: [
           "http://localhost:3000/oauth/callback",
           "http://localhost:3311/oauth/callback",
@@ -214,7 +214,7 @@ export class OAuthServer {
     const tokenRecord = {
       token: accessToken,
       clientId,
-      userId: "usr_weaver",
+      userId: "usr_agent",
       scope: scope || "read:tasks",
       expiresAt: Date.now() + expiresIn * 1000,
       createdAt: new Date().toISOString(),

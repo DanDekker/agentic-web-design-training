@@ -1,6 +1,11 @@
 /* ── cascade layers (MDN CSS Cascade Layers) ──────────────── */
 @layer reset, tokens, base, components, overrides;
 
+/* Keep hidden controls hidden even when component styles set display. */
+[hidden] {
+  display: none !important;
+}
+
 /* ── tokens layer: OKLCH color spaces & design tokens ──────── */
 @layer tokens {
   :root {
@@ -814,6 +819,15 @@
     max-height: 100vh;
     outline: none;
     overflow: visible;
+    width: min(540px, calc(100vw - 2rem));
+
+    &:has(.refactor-card) {
+      width: min(720px, calc(100vw - 2rem));
+    }
+
+    &:has(.benchmark-card) {
+      width: min(780px, calc(100vw - 2rem));
+    }
 
     /* Discrete transition animation */
     opacity: 0;
@@ -1081,6 +1095,20 @@
     }
   }
 
+  .sim-output {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
   .verify-feedback {
     margin-top: 0.9rem;
     padding: 0.85rem;
@@ -1238,7 +1266,14 @@
     position: fixed;
     inset: 0;
     z-index: 40;
-    display: flex;
+    display: none;
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    color: var(--ink);
     align-items: flex-start;
     justify-content: center;
     padding: clamp(3rem, 14vh, 9rem) 1.25rem 2rem;
@@ -1246,8 +1281,8 @@
     backdrop-filter: blur(6px);
     animation: fade 0.18s var(--ease);
 
-    &[hidden] {
-      display: none;
+    &[open] {
+      display: flex;
     }
   }
 

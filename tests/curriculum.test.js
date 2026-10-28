@@ -34,7 +34,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe("Desktop / Weaver Curriculum Refactoring Tasks", () => {
+describe("Agentic Curriculum Refactoring Tasks", () => {
   test("lists pre-configured refactoring curriculum tasks", async () => {
     const res = await call("GET", "/api/curriculum/tasks");
     expect(res.status).toBe(200);
@@ -47,7 +47,7 @@ describe("Desktop / Weaver Curriculum Refactoring Tasks", () => {
     expect(tasks.some((t) => t.id === "task_refactor_middleware_pipeline")).toBe(true);
   });
 
-  test("seeds curriculum tasks into the Weaver Refactoring board", async () => {
+  test("seeds curriculum tasks into the Agentic Refactoring board", async () => {
     const seedRes = await call("POST", "/api/curriculum/seed");
     expect(seedRes.status).toBe(200);
     const { seededCount, tasks } = await seedRes.json();

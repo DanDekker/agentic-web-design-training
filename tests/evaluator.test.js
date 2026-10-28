@@ -35,7 +35,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe("Weaver Agent Evaluator & Execution Sandbox", () => {
+describe("Agentic Evaluator & Execution Sandbox", () => {
   test("evaluates O(N^2) optimization with real sandboxed execution", async () => {
     const code = `
       function reconcileTransactions(orders, payments) {
@@ -96,5 +96,14 @@ describe("Weaver Agent Evaluator & Execution Sandbox", () => {
     expect(result.passed).toBe(false);
     expect(result.score).toBeLessThan(100);
     expect(result.assertionResults.some((a) => !a.passed)).toBe(true);
+  });
+
+  test.each([
+    "/* new Map() */ function broken( {",
+    "<div>new Map()</div>",
+  ])("does not let a JavaScript submission bypass execution: %s", async (code) => {
+    const result = await evaluator.evaluate("task_refactor_o_n2_lookup", code);
+    expect(result.passed).toBe(false);
+    expect(result.assertionResults.some((assertion) => assertion.name === "Sandbox Execution" && !assertion.passed)).toBe(true);
   });
 });

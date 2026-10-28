@@ -49,20 +49,20 @@ afterEach(async () => {
 });
 
 describe("1st-Party Proprietary Authentication", () => {
-  test("seeds default users (weaver, pp)", async () => {
+  test("seeds default users (agent, pp)", async () => {
     const users = authStore.listUsers();
-    expect(users.map((u) => u.username)).toContain("weaver");
+    expect(users.map((u) => u.username)).toContain("agent");
     expect(users.map((u) => u.username)).toContain("pp");
   });
 
   test("verifies credentials and logs in via API", async () => {
     const res = await call("POST", "/api/auth/login", {
-      username: "weaver",
-      password: "weaver-agent-2026",
+      username: "agent",
+      password: "agent-demo-2026",
     });
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.user.username).toBe("weaver");
+    expect(data.user.username).toBe("agent");
     expect(typeof data.token).toBe("string");
     expect(res.headers.get("set-cookie")).toContain("loom_session=");
 
@@ -72,7 +72,7 @@ describe("1st-Party Proprietary Authentication", () => {
     });
     expect(meRes.status).toBe(200);
     const me = await meRes.json();
-    expect(me.user.username).toBe("weaver");
+    expect(me.user.username).toBe("agent");
   });
 
   test("registers new user and rejects duplicate username", async () => {
@@ -95,7 +95,7 @@ describe("1st-Party Proprietary Authentication", () => {
 
   test("rejects invalid login", async () => {
     const badRes = await call("POST", "/api/auth/login", {
-      username: "weaver",
+      username: "agent",
       password: "wrong_password",
     });
     expect(badRes.status).toBe(401);
@@ -137,11 +137,11 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     const res = await call("GET", "/oauth/clients");
     expect(res.status).toBe(200);
     const { clients } = await res.json();
-    expect(clients.some((c) => c.clientId === "weaver-agent-runner")).toBe(true);
+    expect(clients.some((c) => c.clientId === "agent-runner")).toBe(true);
   });
 
   test("complete OAuth Authorization Code flow with PKCE S256", async () => {
-    const clientId = "weaver-agent-runner";
+    const clientId = "agent-runner";
     const redirectUri = "http://localhost:3000/oauth/callback";
     const codeVerifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     const codeChallenge = sha256Base64Url(codeVerifier);
@@ -213,8 +213,8 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     const tokenRes = await (
       await call("POST", "/oauth/token", {
         grant_type: "client_credentials",
-        client_id: "weaver-agent-runner",
-        client_secret: "weaver-agent-secret-2026",
+        client_id: "agent-runner",
+        client_secret: "agent-secret-2026",
         scope: "read:tasks tasks:refactor",
       })
     ).json();
@@ -226,9 +226,9 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect(activeRes.status).toBe(200);
     const activeData = await activeRes.json();
     expect(activeData.active).toBe(true);
-    expect(activeData.client_id).toBe("weaver-agent-runner");
+    expect(activeData.client_id).toBe("agent-runner");
     expect(activeData.scope).toBe("read:tasks tasks:refactor");
-    expect(activeData.sub).toBe("usr_weaver");
+    expect(activeData.sub).toBe("usr_agent");
     expect(typeof activeData.exp).toBe("number");
 
     // 2. Revoke and introspect again -> active should be false
@@ -242,8 +242,8 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
   test("OAuth machine-to-machine client_credentials flow", async () => {
     const res = await call("POST", "/oauth/token", {
       grant_type: "client_credentials",
-      client_id: "weaver-agent-runner",
-      client_secret: "weaver-agent-secret-2026",
+      client_id: "agent-runner",
+      client_secret: "agent-secret-2026",
       scope: "read:tasks tasks:refactor",
     });
 
@@ -256,6 +256,6 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
         authorization: `Bearer ${token.access_token}`,
       })
     ).json();
-    expect(userinfo.client_id).toBe("weaver-agent-runner");
+    expect(userinfo.client_id).toBe("agent-runner");
   });
 });

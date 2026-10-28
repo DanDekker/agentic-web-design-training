@@ -204,7 +204,7 @@ const benchmarkSuite = new BenchmarkSuite();
       ${scope.split(" ").map((s) => `<li><span class="scope-tag">${s}</span><span>Permission to access ${s}</span></li>`).join("")}
     </ul>
     <div style="font-size:0.75rem;color:var(--faint);font-family:var(--font-mono);">
-      Account: ${currentUser ? currentUser.username : "guest (default weaver)"}
+      Account: ${currentUser ? currentUser.username : "guest (default agent)"}
     </div>
     <form method="POST" action="/oauth/authorize/decision">
       <input type="hidden" name="client_id" value="${clientId}">
@@ -245,7 +245,7 @@ const benchmarkSuite = new BenchmarkSuite();
           return Response.redirect(target.toString(), 302);
         }
 
-        const userId = currentUser?.id || "usr_weaver";
+        const userId = currentUser?.id || "usr_agent";
         const code = oauthServer.createAuthorizationCode({
           clientId: body.client_id,
           userId,
@@ -331,8 +331,8 @@ const benchmarkSuite = new BenchmarkSuite();
 
         const user = authStore.getUserById(verified.userId) || {
           id: verified.userId,
-          username: "weaver",
-          displayName: "Weaver Agent",
+          username: "agent",
+          displayName: "Demo Agent",
           role: "agent",
         };
 

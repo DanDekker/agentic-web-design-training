@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Loom — Weaver Agent Curriculum & Monochrome Task Suite</title>
-    <meta name="description" content="Monochrome task management & desktop/weaver agent curriculum training suite. Bun + vanilla JS, zero build step." />
+    <title>Loom — Agentic Curriculum & Monochrome Task Suite</title>
+    <meta name="description" content="Monochrome task management & agent-agnostic curriculum training suite. Bun + vanilla JS, zero build step." />
     <meta name="color-scheme" content="light dark" />
     <link
       rel="icon"
@@ -38,7 +38,7 @@
             <svg viewBox="0 0 24 24"><path d="M6.2 12.6l3.7 3.7L17.8 8.3" /></svg>
           </span>
           <span class="brand-name">Loom</span>
-          <span class="version-tag">Weaver 1M</span>
+          <span class="version-tag">Agentic 1M</span>
         </div>
 
         <div class="bar-actions">
@@ -53,7 +53,7 @@
             <span>OAuth</span>
           </button>
 
-          <button type="button" class="btn-subtle" id="btn-curriculum" title="Weaver Refactoring Tasks (R)">
+          <button type="button" class="btn-subtle" id="btn-curriculum" title="Agentic Refactoring Tasks (R)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6M14 4l-4 16"/></svg>
             <span>Curriculum</span>
           </button>
@@ -199,7 +199,7 @@
     </div>
 
     <!-- Native HTML5 <dialog>: Refactor Task Inspector -->
-    <dialog class="native-modal" id="refactor-modal">
+    <dialog class="native-modal" id="refactor-modal" aria-labelledby="refactor-title">
       <div class="modal-card refactor-card" role="document">
         <header class="modal-header">
           <div>
@@ -238,11 +238,10 @@
           <div id="tab-diff" class="tab-pane">
             <!-- Web Component: Shadow DOM Diff Viewer -->
             <loom-diff-viewer id="loom-diff-component"></loom-diff-viewer>
-            <div id="diff-output" class="diff-container" style="display:none;"></div>
           </div>
 
           <div id="tab-verify" class="tab-pane">
-            <p class="verify-intro">Submit refactored JavaScript code to run automated Weaver evaluator tests:</p>
+            <p class="verify-intro">Submit refactored JavaScript code to run automated agentic evaluator tests:</p>
             <textarea id="refactor-submit-code" rows="7" placeholder="// Paste or type your refactored code here..."></textarea>
             <div style="display:flex;gap:0.75rem;margin-top:0.75rem;">
               <button type="button" class="btn-primary" id="btn-run-verify">Run Refactor Tests</button>
@@ -255,7 +254,7 @@
     </dialog>
 
     <!-- Native HTML5 <dialog>: 1st-Party Authentication -->
-    <dialog class="native-modal" id="auth-modal">
+    <dialog class="native-modal" id="auth-modal" aria-labelledby="auth-title">
       <div class="modal-card auth-card" role="document">
         <header class="modal-header">
           <h2 class="modal-title" id="auth-title">Sign In to Loom</h2>
@@ -287,7 +286,7 @@
           <div class="quick-signins">
             <p>1st-Party Pre-Configured Accounts:</p>
             <div class="quick-btn-row">
-              <button type="button" class="btn-secondary" id="btn-quick-weaver">Weaver Agent</button>
+              <button type="button" class="btn-secondary" id="btn-quick-agent">Demo Agent</button>
               <button type="button" class="btn-secondary" id="btn-quick-pp">Lead Architect (pp)</button>
             </div>
           </div>
@@ -296,19 +295,19 @@
     </dialog>
 
     <!-- Native HTML5 <dialog>: 1st-Party Proprietary OAuth Portal -->
-    <dialog class="native-modal" id="oauth-modal">
+    <dialog class="native-modal" id="oauth-modal" aria-labelledby="oauth-title">
       <div class="modal-card oauth-card" role="document">
         <header class="modal-header">
           <div>
             <span class="badge">1st-Party Provider</span>
-            <h2 class="modal-title">OAuth 2.0 & OIDC Portal</h2>
+            <h2 class="modal-title" id="oauth-title">OAuth 2.0 & OIDC Portal</h2>
           </div>
           <button type="button" class="close-btn" id="btn-close-oauth" aria-label="Close dialog">×</button>
         </header>
 
         <div class="modal-body">
           <p class="oauth-desc">
-            First-party proprietary OAuth 2.0 / OIDC identity & authorization server for desktop agent execution harnesses and weaver automated evaluators.
+            First-party proprietary OAuth 2.0 / OIDC identity & authorization server for desktop agent execution harnesses and agentic evaluators.
           </p>
 
           <div class="oauth-section">
@@ -317,7 +316,7 @@
           </div>
 
           <div class="oauth-section">
-            <h3>Simulate Desktop Weaver Agent PKCE Authorization</h3>
+            <h3>Simulate Desktop Demo Agent PKCE Authorization</h3>
             <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem;">
               Executes a full OAuth 2.0 Authorization Code flow with SHA-256 PKCE code challenge and verifier right in the browser.
             </p>
@@ -329,12 +328,12 @@
     </dialog>
 
     <!-- Native HTML5 <dialog>: Benchmark Suite Modal -->
-    <dialog class="native-modal" id="benchmark-modal">
+    <dialog class="native-modal" id="benchmark-modal" aria-labelledby="benchmark-title">
       <div class="modal-card benchmark-card" role="document">
         <header class="modal-header">
           <div>
             <span class="badge">Curriculum 1M</span>
-            <h2 class="modal-title">Agentic Benchmark Suite</h2>
+            <h2 class="modal-title" id="benchmark-title">Agentic Benchmark Suite</h2>
           </div>
           <button type="button" class="close-btn" id="btn-close-benchmark" aria-label="Close dialog">×</button>
         </header>
@@ -350,15 +349,15 @@
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="bench-pass-rate">100%</div>
+              <div class="stat-value" id="bench-pass-rate">—</div>
               <div class="stat-label">Reference Pass Rate</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="bench-avg-score">100%</div>
+              <div class="stat-value" id="bench-avg-score">—</div>
               <div class="stat-label">Average Score</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value" id="bench-avg-duration">1.8ms</div>
+              <div class="stat-value" id="bench-avg-duration">—</div>
               <div class="stat-label">Avg Execution Time</div>
             </div>
           </div>
@@ -388,12 +387,12 @@
     </dialog>
 
     <!-- Command Palette -->
-    <div class="palette" id="palette" hidden>
-      <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Command palette">
-        <input id="palette-input" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false" />
+    <dialog class="palette" id="palette" aria-label="Command palette">
+      <div class="palette-panel">
+        <input id="palette-input" type="text" placeholder="Type a command…" aria-label="Search commands" autocomplete="off" spellcheck="false" />
         <ul id="palette-list" role="listbox" aria-label="Commands"></ul>
       </div>
-    </div>
+    </dialog>
 
     <!-- Toast Notification -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
