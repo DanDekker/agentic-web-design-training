@@ -42,6 +42,9 @@ describe("Desktop / Weaver Curriculum Refactoring Tasks", () => {
     expect(tasks.length).toBeGreaterThanOrEqual(6);
     expect(tasks.some((t) => t.id === "task_refactor_async_pipeline")).toBe(true);
     expect(tasks.some((t) => t.id === "task_refactor_o_n2_lookup")).toBe(true);
+    expect(tasks.length).toBeGreaterThanOrEqual(12);
+    expect(tasks.some((t) => t.id === "task_refactor_buffer_alloc")).toBe(true);
+    expect(tasks.some((t) => t.id === "task_refactor_middleware_pipeline")).toBe(true);
   });
 
   test("seeds curriculum tasks into the Weaver Refactoring board", async () => {
@@ -53,6 +56,7 @@ describe("Desktop / Weaver Curriculum Refactoring Tasks", () => {
     const boardTasks = await (await call("GET", "/api/tasks?boardId=board_refactor_curriculum")).json();
     expect(boardTasks.tasks.length).toBeGreaterThanOrEqual(6);
     const asyncTask = boardTasks.tasks.find((t) => t.id === "task_refactor_async_pipeline");
+    expect(boardTasks.tasks.length).toBeGreaterThanOrEqual(12);
     expect(asyncTask).toBeTruthy();
     expect(asyncTask.refactorData.starterCode).toContain("fetchUser");
   });
@@ -93,5 +97,21 @@ describe("Desktop / Weaver Curriculum Refactoring Tasks", () => {
     const result = await res.json();
     expect(result.success).toBe(false);
     expect(result.failedCriteria.length).toBeGreaterThan(0);
+  });
+  test("verifies advanced zero-allocation buffer solution", async () => {
+    const solution = `
+      function processTelemetryStream(chunks) {
+        let buffer = new Uint8Array(1024);
+        let slice = buffer.subarray(0, 10);
+      }
+    `;
+    const res = await call("POST", "/api/curriculum/verify", {
+      taskId: "task_refactor_buffer_alloc",
+      code: solution,
+    });
+    expect(res.status).toBe(200);
+    const result = await res.json();
+    expect(result.success).toBe(true);
+    expect(result.passedCriteria).toContain("Uses typed Uint8Arrays instead of raw string concatenation");
   });
 });

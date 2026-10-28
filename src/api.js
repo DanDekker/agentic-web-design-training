@@ -407,6 +407,44 @@ export function createHandler(store, hub, authStore, oauthServer) {
           const guardsProto = cleanSubmitted.includes("__proto__") && cleanSubmitted.includes("constructor");
           if (guardsProto) passedCriteria.push("Guards against __proto__ and constructor prototype pollution");
           else failedCriteria.push("Does not explicitly sanitize __proto__ or constructor keys");
+          } else if (taskId === "task_refactor_buffer_alloc") {
+           const usesUint8 = cleanSubmitted.includes("Uint8Array");
+           const usesSlicing = cleanSubmitted.includes("subarray") || cleanSubmitted.includes("copyWithin");
+           if (usesUint8) passedCriteria.push("Uses typed Uint8Arrays instead of raw string concatenation");
+           else failedCriteria.push("Missing typed Uint8Array allocation");
+           if (usesSlicing) passedCriteria.push("Maintains ring/sliding buffer with copyWithin or subarray offsets");
+           else failedCriteria.push("Should use zero-copy subarray or copyWithin offsets");
+          } else if (taskId === "task_refactor_middleware_pipeline") {
+           const hasUse = cleanSubmitted.includes("use(");
+           const hasNext = cleanSubmitted.includes("next()") || cleanSubmitted.includes("dispatch(");
+           if (hasUse) passedCriteria.push("Implements extensible middleware registration");
+           else failedCriteria.push("Missing use() middleware registration method");
+           if (hasNext) passedCriteria.push("Implements standard (context, next) onion dispatch pattern");
+           else failedCriteria.push("Missing onion dispatch or next() execution");
+          } else if (taskId === "task_refactor_debounce_search") {
+           const hasTimer = cleanSubmitted.includes("clearTimeout") && cleanSubmitted.includes("setTimeout");
+           const hasAbort = cleanSubmitted.includes("AbortController");
+           if (hasTimer) passedCriteria.push("Throttles rapid keystrokes with configurable timeout delay");
+           else failedCriteria.push("Missing timer clearance and delayed debounce execution");
+           if (hasAbort) passedCriteria.push("Aborts in-flight outdated HTTP requests using AbortController");
+           else failedCriteria.push("Should abort previous in-flight request on new input");
+          } else if (taskId === "task_refactor_semantic_a11y") {
+           const hasButton = cleanSubmitted.includes("<button");
+           const hasRole = cleanSubmitted.includes('role="switch"') || cleanSubmitted.includes("role='switch'");
+           const hasAria = cleanSubmitted.includes("aria-checked");
+           if (hasButton) passedCriteria.push("Replaces non-semantic div with button element");
+           else failedCriteria.push("Did not replace div with semantic button element");
+           if (hasRole && hasAria) passedCriteria.push("Applies correct ARIA role and aria-checked attribute");
+           else failedCriteria.push("Missing ARIA switch role or aria-checked attribute");
+          } else if (taskId === "task_refactor_typed_schema") {
+           const hasTypeChecks = cleanSubmitted.includes("typeof ") && cleanSubmitted.includes("throw ");
+           if (hasTypeChecks) passedCriteria.push("Validates nested fields with composable type guards");
+           else failedCriteria.push("Missing type verification and validation errors");
+          } else if (taskId === "task_refactor_worker_pool") {
+           const hasConcurrency = cleanSubmitted.includes("concurrency") || cleanSubmitted.includes("pool");
+           const hasPromiseAll = cleanSubmitted.includes("Promise.all");
+           if (hasConcurrency && hasPromiseAll) passedCriteria.push("Controls concurrency with bounded worker pool");
+           else failedCriteria.push("Should implement bounded concurrency pool with Promise.all");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");
