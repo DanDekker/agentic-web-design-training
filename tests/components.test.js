@@ -13,6 +13,10 @@ class MockShadowRoot {
     return null;
   }
 
+  replaceChildren(...nodes) {
+    this.children = nodes;
+  }
+
   querySelectorAll(selector) {
     return [new MockElement("div"), new MockElement("div")];
   }
@@ -23,6 +27,8 @@ class MockElement {
   #listeners = new Map();
   shadowRoot = null;
   dataset = {};
+  className = "";
+  children = [];
 
   constructor(tagName = "DIV") {
     this.tagName = String(tagName || "DIV").toUpperCase();
@@ -47,6 +53,10 @@ class MockElement {
     if (typeof this.attributeChangedCallback === "function") {
       this.attributeChangedCallback(name, old, String(value));
     }
+  }
+
+  append(...nodes) {
+    this.children.push(...nodes);
   }
 
   addEventListener(event, fn) {
@@ -82,6 +92,7 @@ class MockCustomElementRegistry {
 describe("MDN Web Components & Shadow DOM Suite", () => {
   test("defines custom elements in registry", async () => {
     globalThis.HTMLElement = MockElement;
+    globalThis.document = { createElement: (tag) => new MockElement(tag) };
     globalThis.customElements = new MockCustomElementRegistry();
     globalThis.CustomEvent = class {
       constructor(type, init) {
@@ -96,10 +107,12 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     await import("../public/components/loom-task-item.js");
     await import("../public/components/loom-diff-viewer.js");
     await import("../public/components/loom-badge.js");
+    await import("../public/components/loom-platform.js");
 
     expect(globalThis.customElements.get("loom-task-item")).toBeDefined();
     expect(globalThis.customElements.get("loom-diff-viewer")).toBeDefined();
     expect(globalThis.customElements.get("loom-badge")).toBeDefined();
+    expect(globalThis.customElements.get("loom-capabilities")).toBeDefined();
   });
 
   test("loom-task-item encapsulates Shadow DOM and manages attributes", async () => {
@@ -135,5 +148,23 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     badge.variant = "category";
     expect(badge.variant).toBe("category");
     expect(badge.shadowRoot).toBeDefined();
+  });
+
+  test("loom-capabilities probes the platform surface without throwing", async () => {
+    const { probeCapabilities, LoomCapabilities } = await import("../public/components/loom-platform.js");
+
+    const results = probeCapabilities();
+    expect(Array.isArray(results)).toBe(true);
+    expect(results.length).toBeGreaterThanOrEqual(10);
+    for (const r of results) {
+      expect(typeof r.name).toBe("string");
+      expect(typeof r.supported).toBe("boolean");
+    }
+
+    // Hydration path: no declarative shadow root in the mock, so it attaches cleanly.
+    const el = new LoomCapabilities();
+    expect(el.shadowRoot).toBeDefined();
+    el.connectedCallback();
+    expect(el.getAttribute("data-score")).toMatch(/^\d+$/);
   });
 });
