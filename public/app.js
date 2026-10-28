@@ -570,40 +570,104 @@ function closeRefactorModal() {
 function switchRefactorTab(tabName) {
   document.querySelectorAll(".code-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tabName));
   document.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabName}`));
+
+  if (tabName === "diff" && state.currentRefactorTask) {
+    renderDiff();
+  }
+}
+
+function renderDiff() {
+  const container = document.querySelector("#diff-output");
+  if (!container || !state.currentRefactorTask) return;
+
+  const starter = state.currentRefactorTask.refactorData.starterCode || "";
+  const current = el.refactorSubmitCode?.value || starter;
+
+  const starterLines = starter.split("\n");
+  const currentLines = current.split("\n");
+
+  const diffLines = [];
+  const max = Math.max(starterLines.length, currentLines.length);
+
+  for (let i = 0; i < max; i++) {
+    const s = starterLines[i];
+    const c = currentLines[i];
+
+    if (s === undefined && c !== undefined) {
+      diffLines.push({ type: "added", text: `+ ${c}` });
+    } else if (c === undefined && s !== undefined) {
+      diffLines.push({ type: "removed", text: `- ${s}` });
+    } else if (s !== c) {
+      diffLines.push({ type: "removed", text: `- ${s}` });
+      diffLines.push({ type: "added", text: `+ ${c}` });
+    } else {
+      diffLines.push({ type: "unchanged", text: `  ${s}` });
+    }
+  }
+
+  container.innerHTML = diffLines
+    .map((l) => `<div class="diff-line ${l.type}">${escapeHtml(l.text)}</div>`)
+    .join("");
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 async function runRefactorVerification() {
   if (!state.currentRefactorTask) return;
   const code = el.refactorSubmitCode.value;
   try {
-    const result = await api("POST", "/api/curriculum/verify", {
+    const result = await api("POST", "/api/curriculum/evaluate", {
       taskId: state.currentRefactorTask.id,
       code,
     });
 
     if (el.verifyResult) {
       el.verifyResult.hidden = false;
-      const passColor = result.success ? "color: #10b981;" : "color: #ef4444;";
+      const passColor = result.passed ? "color: #10b981;" : "color: #ef4444;";
       el.verifyResult.innerHTML = `
-        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; ${passColor}">
-          ${result.success ? "✓ Refactor Verification Passed!" : "✗ Refactor Verification Incomplete"} (Score: ${result.score}%)
+        <div class="telemetry-grid">
+          <div class="stat-card">
+            <div class="stat-value">${result.telemetry.durationMs}ms</div>
+            <div class="stat-label">Execution Time</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${result.telemetry.assertions.passed}/${result.telemetry.assertions.total}</div>
+            <div class="stat-label">Assertions Passed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${result.score}%</div>
+            <div class="stat-label">Evaluator Score</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${result.diff.lineDelta >= 0 ? "+" : ""}${result.diff.lineDelta}</div>
+            <div class="stat-label">Line Delta</div>
+          </div>
         </div>
-        <div style="margin-bottom: 0.4rem; color: var(--ink);">Passed Criteria:</div>
+
+        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.6rem; ${passColor}">
+          ${result.passed ? "✓ Sandbox Evaluation Passed!" : "✗ Sandbox Evaluation Incomplete"}
+        </div>
+        <div style="margin-bottom: 0.4rem; color: var(--ink);">Test Assertions & Criteria:</div>
         <ul style="margin: 0 0 0.5rem 1.2rem; padding: 0;">
-          ${result.passedCriteria.map((c) => `<li style="color: var(--muted);">${c}</li>`).join("")}
+          ${result.assertionResults
+            .map(
+              (a) => `
+            <li style="color: ${a.passed ? "#10b981" : "#ef4444"}; margin-bottom: 0.25rem;">
+              <strong>${a.passed ? "✓" : "✗"} ${escapeHtml(a.name)}:</strong>
+              <span style="color: var(--muted);">${escapeHtml(a.detail || "")}</span>
+            </li>
+          `,
+            )
+            .join("")}
         </ul>
-        ${result.failedCriteria.length ? `
-          <div style="margin-bottom: 0.4rem; color: #ef4444;">Failed Requirements:</div>
-          <ul style="margin: 0 0 0.5rem 1.2rem; padding: 0;">
-            ${result.failedCriteria.map((c) => `<li style="color: #ef4444;">${c}</li>`).join("")}
-          </ul>
-        ` : ""}
       `;
     }
 
-    if (result.success && !state.currentRefactorTask.done) {
+    if (result.passed && !state.currentRefactorTask.done) {
       toggleTask(state.currentRefactorTask);
-      toast("Challenge marked complete!");
+      toast("Challenge verified and marked complete!");
     }
   } catch (err) {
     toast(err.message);

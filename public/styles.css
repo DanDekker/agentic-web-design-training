@@ -1027,6 +1027,66 @@ textarea#refactor-submit-code {
   background: color-mix(in srgb, var(--panel-card) 60%, transparent);
   font-size: 0.82rem;
 }
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.stat-card {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.stat-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.2rem;
+}
+
+.diff-container {
+  max-height: 380px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 85%, black);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.diff-line {
+  display: flex;
+  padding: 0.12rem 0.6rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff-line.removed {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #f87171;
+}
+
+.diff-line.added {
+  background: color-mix(in srgb, #10b981 12%, transparent);
+  color: #34d399;
+}
+
+.diff-line.unchanged {
+  color: var(--muted);
+}
 
 /* ── auth modal styling ──────────────────────────────────── */
 .auth-tabs {

@@ -164,7 +164,8 @@
           <div class="code-tabs">
             <button type="button" class="code-tab active" data-tab="starter">Legacy Starter Code</button>
             <button type="button" class="code-tab" data-tab="solution">Target Idiomatic Solution</button>
-            <button type="button" class="code-tab" data-tab="verify">Agent Verification</button>
+            <button type="button" class="code-tab" data-tab="diff">Live Code Diff</button>
+            <button type="button" class="code-tab" data-tab="verify">Agent Verification & Telemetry</button>
           </div>
 
           <div id="tab-starter" class="tab-pane active">
@@ -173,6 +174,9 @@
 
           <div id="tab-solution" class="tab-pane">
             <pre><code id="code-solution"></code></pre>
+          </div>
+          <div id="tab-diff" class="tab-pane">
+            <div id="diff-output" class="diff-container"></div>
           </div>
 
           <div id="tab-verify" class="tab-pane">
