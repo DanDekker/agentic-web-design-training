@@ -1,5 +1,6 @@
 import { ValidationError } from "./store.js";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
+import { Evaluator } from "./evaluator.js";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -39,6 +40,7 @@ async function readJson(req) {
 const notFound = (what) => json({ error: `No such ${what}.` }, 404);
 
 export function createHandler(store, hub, authStore, oauthServer) {
+const evaluator = new Evaluator();
   return async function handle(req) {
     const url = new URL(req.url);
     const { pathname, searchParams } = url;
@@ -349,6 +351,11 @@ export function createHandler(store, hub, authStore, oauthServer) {
       }
 
       /* ── Curriculum Refactoring Tasks ─────────────────────── */
+      if (pathname === "/api/curriculum/evaluate" && req.method === "POST") {
+        const { taskId, code, options } = await readJson(req);
+        const result = await evaluator.evaluate(taskId, code, options);
+        return json(result);
+      }
       if (pathname === "/api/curriculum/tasks") {
         return json({ tasks: REFACTORING_CURRICULUM_TASKS });
       }
