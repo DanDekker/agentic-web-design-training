@@ -50,7 +50,7 @@ Built-in proprietary authentication system using `Bun.password` (bcrypt/argon2id
 - Supports both `Authorization: Bearer <token>` and `Cookie: loom_session=<token>`.
 
 ### Pre-Configured Accounts:
-- **Weaver Agent**: `weaver` / `weaver-agent-2026` (role: `agent`)
+- **Agent**: `weaver` / `weaver-agent-2026` (role: `agent`)
 - **Lead Architect**: `pp` / `curriculum-1m` (role: `admin`)
 
 ---
