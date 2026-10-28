@@ -15,6 +15,7 @@
     <script type="module" src="/components/loom-task-item.js"></script>
     <script type="module" src="/components/loom-diff-viewer.js"></script>
     <script type="module" src="/components/loom-badge.js"></script>
+    <script type="module" src="/components/loom-platform.js"></script>
     <script>
       try {
         const asked = new URLSearchParams(location.search).get("theme");
@@ -27,6 +28,7 @@
   </head>
   <body>
     <div class="veil" aria-hidden="true"></div>
+    <div class="scroll-progress" aria-hidden="true"></div>
 
     <main class="app">
       <!-- Masthead -->
@@ -41,7 +43,7 @@
 
         <div class="bar-actions">
           <!-- MDN Popover API Trigger -->
-          <button type="button" class="btn-subtle" popovertarget="shortcuts-popover" title="Keyboard Shortcuts (MDN Popover API)">
+          <button type="button" class="btn-subtle" popovertarget="shortcuts-popover" interestfor="shortcuts-popover" title="Keyboard Shortcuts — hover to preview">
             <svg viewBox="0 0 24 24" class="icon"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zm-6 0a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zm-6 0a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3z"/></svg>
             <span>Shortcuts</span>
           </button>
@@ -65,6 +67,13 @@
             <span class="status-dot"></span>
             <span id="user-name">Guest</span>
           </button>
+
+          <input type="checkbox" id="density-toggle" class="visually-hidden" />
+          <label for="density-toggle" class="ghost density-toggle" title="Compact density (CSS style container query)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16M4 12h10M4 18h13" />
+            </svg>
+          </label>
 
           <button type="button" class="ghost" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme (T)">
             <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
@@ -141,6 +150,21 @@
         <span id="counts">No tasks</span>
         <button type="button" id="clear" hidden>Clear completed</button>
       </footer>
+
+
+      <!-- Declarative Shadow DOM: server-rendered content, hydrated by loom-platform.js -->
+      <details class="platform-panel">
+        <summary>Platform capabilities</summary>
+        <loom-capabilities>
+          <template shadowrootmode="open">
+            <style>
+              ul { list-style: none; margin: 0; padding: 0; }
+              .summary { font-family: ui-monospace, monospace; font-size: 0.68rem; color: #888; }
+            </style>
+            <ul><li>Detecting platform features…</li></ul>
+          </template>
+        </loom-capabilities>
+      </details>
 
       <!-- Keyboard Hints -->
       <div class="hints" aria-hidden="true">
