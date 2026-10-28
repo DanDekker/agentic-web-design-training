@@ -1,4 +1,4 @@
-# Loom — Desktop / Weaver Curriculum 1M Agentic Tasks & Monochrome Suite
+ 1M Agentic Tasks & Monochrome Suite
 
 A modern, minimalist monochrome web application built entirely with **vanilla JavaScript, Bun, HTML, and CSS**. Zero frontend frameworks, zero runtime npm dependencies, zero build step.
 
@@ -71,9 +71,9 @@ Full RFC 6749, RFC 7636, and RFC 7662 Authorization Server:
 
 ---
 
-## Weaver 1M Refactoring Curriculum Tasks
+##  1M Refactoring Curriculum Tasks
 
-Designed for training and evaluating autonomous desktop and weaver agents (12 curated challenges):
+Designed for training and evaluating autonomous agents (12 curated challenges):
 
 1. **Async Pipeline**: Refactor nested callback hell into an idiomatic `async/await` pipeline with `Promise.all`.
 2. **DOM Memory Leak**: Eliminate unbounded event listener subscriptions using `AbortController` signals.
