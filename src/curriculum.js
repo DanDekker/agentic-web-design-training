@@ -7134,6 +7134,645 @@ export function buildOrderHistoryPortalViewModel(params: {
       "Calculates exact minor-unit refund previews (netUnitPaidMinor + taxUnitPaidMinor) from historical order snapshots",
     ],
   },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 13: ORDER LIFECYCLE & COMMERCE DATA ARCHITECTURE (order-lifecycle-data)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_shop_data_normalized_entity_store_referential_integrity",
+    title: "Refactor Deeply Nested Unorganized E-Commerce State into Normalized Entity Tables with Referential Integrity & O(1) Foreign-Key Indexes",
+    category: "order-lifecycle-data",
+    difficulty: "advanced",
+    tags: ["data-modeling", "normalized-store", "referential-integrity", "ecommerce-state", "order-history", "typescript"],
+    instructions:
+      "A web shop stores customers, carts, orders, line items, and shipments as deeply nested duplicated objects across UI slices. Updating a customer's email or a shipment tracking status leaves stale copies in 4 views and requires O(N^2) nested scans. Refactor into a NormalizedCommerceEntityStore with primary-key entity maps, O(1) foreign-key secondary indexes (ordersByCustomerId, itemsByOrderId, shipmentsByOrderId), and strict foreign-key referential integrity guards.",
+    starterCode: `// Unorganized Deeply Nested E-Commerce State with Duplicated Customer & Order Objects
+export const messyShopState = {
+  orders: [{ id: "o1", customer: { id: "c1", email: "old@loom.dev" }, items: [] }],
+};`,
+    solutionCode: `// Normalized Commerce Entity Store with Referential Integrity & O(1) Secondary Indexes
+export interface CustomerEntity {
+  readonly id: string;
+  readonly email: string;
+  readonly displayName: string;
+}
+
+export interface OrderEntity {
+  readonly id: string;
+  readonly customerId: string;
+  readonly invoiceNumber: string;
+  readonly status: "PAID" | "PARTIALLY_SHIPPED" | "FULFILLED" | "REFUNDED";
+  readonly totalMinor: number;
+  readonly createdAtMs: number;
+}
+
+export interface OrderItemEntity {
+  readonly id: string;
+  readonly orderId: string;
+  readonly sku: string;
+  readonly quantity: number;
+  readonly unitPriceMinor: number;
+}
+
+export interface ShipmentEntity {
+  readonly id: string;
+  readonly orderId: string;
+  readonly trackingNumber: string;
+  readonly status: "IN_TRANSIT" | "DELIVERED";
+}
+
+export class NormalizedCommerceEntityStore {
+  #customers = new Map<string, CustomerEntity>();
+  #orders = new Map<string, OrderEntity>();
+  #orderItems = new Map<string, OrderItemEntity>();
+  #shipments = new Map<string, ShipmentEntity>();
+
+  // Secondary foreign-key indexes for O(1) relational lookups
+  #ordersByCustomer = new Map<string, Set<string>>();
+  #itemsByOrder = new Map<string, Set<string>>();
+  #shipmentsByOrder = new Map<string, Set<string>>();
+
+  upsertCustomer(customer: CustomerEntity): void {
+    this.#customers.set(customer.id, { ...customer });
+    if (!this.#ordersByCustomer.has(customer.id)) {
+      this.#ordersByCustomer.set(customer.id, new Set());
+    }
+  }
+
+  insertOrder(order: OrderEntity): void {
+    if (!this.#customers.has(order.customerId)) {
+      throw new Error(\`ForeignKeyConstraintError: Unknown customerId '\${order.customerId}' on order '\${order.id}'\`);
+    }
+    this.#orders.set(order.id, { ...order });
+    this.#ordersByCustomer.get(order.customerId)!.add(order.id);
+    if (!this.#itemsByOrder.has(order.id)) this.#itemsByOrder.set(order.id, new Set());
+    if (!this.#shipmentsByOrder.has(order.id)) this.#shipmentsByOrder.set(order.id, new Set());
+  }
+
+  insertOrderItem(item: OrderItemEntity): void {
+    if (!this.#orders.has(item.orderId)) {
+      throw new Error(\`ForeignKeyConstraintError: Unknown orderId '\${item.orderId}' on orderItem '\${item.id}'\`);
+    }
+    this.#orderItems.set(item.id, { ...item });
+    this.#itemsByOrder.get(item.orderId)!.add(item.id);
+  }
+
+  insertShipment(shipment: ShipmentEntity): void {
+    if (!this.#orders.has(shipment.orderId)) {
+      throw new Error(\`ForeignKeyConstraintError: Unknown orderId '\${shipment.orderId}' on shipment '\${shipment.id}'\`);
+    }
+    this.#shipments.set(shipment.id, { ...shipment });
+    this.#shipmentsByOrder.get(shipment.orderId)!.add(shipment.id);
+  }
+
+  getCustomerOrderHistoryView(customerId: string): {
+    readonly customer: CustomerEntity;
+    readonly orders: readonly {
+      readonly order: OrderEntity;
+      readonly items: readonly OrderItemEntity[];
+      readonly shipments: readonly ShipmentEntity[];
+    }[];
+  } {
+    const customer = this.#customers.get(customerId);
+    if (!customer) throw new Error(\`Customer '\${customerId}' not found\`);
+
+    const orderIds = Array.from(this.#ordersByCustomer.get(customerId) ?? []);
+    const orders = orderIds
+      .map((id) => this.#orders.get(id)!)
+      .sort((a, b) => b.createdAtMs - a.createdAtMs)
+      .map((order) => {
+        const itemIds = Array.from(this.#itemsByOrder.get(order.id) ?? []);
+        const shipmentIds = Array.from(this.#shipmentsByOrder.get(order.id) ?? []);
+        return {
+          order,
+          items: itemIds.map((iid) => this.#orderItems.get(iid)!),
+          shipments: shipmentIds.map((sid) => this.#shipments.get(sid)!),
+        };
+      });
+
+    return { customer, orders };
+  }
+}`,
+    criteria: [
+      "Maintains normalized primary-key entity maps (customers, orders, orderItems, shipments) with zero duplicated nested state",
+      "Enforces foreign-key referential integrity (ForeignKeyConstraintError) when inserting orders, line items, or shipments",
+      "Maintains O(1) secondary index sets (ordersByCustomer, itemsByOrder, shipmentsByOrder) and sorts order history newest-first",
+    ],
+  },
+  {
+    id: "task_shop_data_immutable_order_line_snapshot_isolation",
+    title: "Enforce Immutable Order Line-Item Price, Tax & Product Title Snapshot Isolation Against Future Catalog Mutations",
+    category: "order-lifecycle-data",
+    difficulty: "advanced",
+    tags: ["data-integrity", "immutable-snapshot", "order-history", "tax-invoice", "catalog-isolation", "typescript"],
+    instructions:
+      "A critical e-commerce bug occurs when historical orders store only { sku, quantity } and join against the live catalog when rendering Order History or tax invoices: if a merchant later increases a product's price from $50 to $80 or renames/deletes the SKU, every past customer's receipt and accounting invoice silently changes! Build an OrderSnapshotVault that freezes deep-cloned, content-hashed line-item snapshots at checkout time.",
+    starterCode: `// Broken Live-Catalog Join That Corrupts Historical Order Receipts When Catalog Prices Change
+export function renderHistoricalOrderTotal(order: any, liveCatalog: Map<string, any>) {
+  return order.items.reduce((s: number, i: any) => s + liveCatalog.get(i.sku).price * i.qty, 0);
+}`,
+    solutionCode: `// Immutable Order Line-Item Snapshot Vault Isolated from Future Catalog Mutations
+export interface LiveCatalogProduct {
+  sku: string;
+  title: string;
+  unitPriceMinor: number;
+  taxRateBps: number;
+}
+
+export interface FrozenOrderLineSnapshot {
+  readonly sku: string;
+  readonly snapshotTitle: string;
+  readonly quantity: number;
+  readonly snapshotUnitPriceMinor: number;
+  readonly snapshotDiscountMinor: number;
+  readonly snapshotTaxRateBps: number;
+  readonly snapshotTaxMinor: number;
+  readonly snapshotLineTotalMinor: number;
+}
+
+export interface FrozenHistoricalOrder {
+  readonly orderId: string;
+  readonly createdAtIso: string;
+  readonly lines: readonly FrozenOrderLineSnapshot[];
+  readonly subtotalMinor: number;
+  readonly totalDiscountMinor: number;
+  readonly totalTaxMinor: number;
+  readonly grandTotalMinor: number;
+  readonly snapshotHash: string;
+}
+
+function computeSnapshotDigest(orderId: string, lines: readonly FrozenOrderLineSnapshot[], grandTotalMinor: number): string {
+  const payload = \`\${orderId}|\${grandTotalMinor}|\${lines
+    .map((l) => \`\${l.sku}:\${l.snapshotTitle}:\${l.quantity}:\${l.snapshotUnitPriceMinor}:\${l.snapshotDiscountMinor}:\${l.snapshotTaxMinor}\`)
+    .join(";")}\`;
+  let h = 2166136261;
+  for (let i = 0; i < payload.length; i++) {
+    h ^= payload.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return \`snap_\${(h >>> 0).toString(16).padStart(8, "0")}\`;
+}
+
+export class OrderSnapshotVault {
+  #orders = new Map<string, FrozenHistoricalOrder>();
+
+  captureOrderAtCheckout(params: {
+    readonly orderId: string;
+    readonly createdAtIso: string;
+    readonly cartItems: readonly { readonly sku: string; readonly quantity: number; readonly discountMinor: number }[];
+    readonly liveCatalog: ReadonlyMap<string, LiveCatalogProduct>;
+  }): FrozenHistoricalOrder {
+    const lines: FrozenOrderLineSnapshot[] = params.cartItems.map((item) => {
+      const product = params.liveCatalog.get(item.sku);
+      if (!product) throw new Error(\`SKU '\${item.sku}' missing from catalog at checkout\`);
+
+      const grossMinor = product.unitPriceMinor * item.quantity;
+      const netAfterDiscount = Math.max(0, grossMinor - item.discountMinor);
+      const snapshotTaxMinor = Math.round((netAfterDiscount * product.taxRateBps) / 10000);
+
+      return Object.freeze({
+        sku: product.sku,
+        snapshotTitle: String(product.title),
+        quantity: item.quantity,
+        snapshotUnitPriceMinor: product.unitPriceMinor,
+        snapshotDiscountMinor: item.discountMinor,
+        snapshotTaxRateBps: product.taxRateBps,
+        snapshotTaxMinor,
+        snapshotLineTotalMinor: netAfterDiscount + snapshotTaxMinor,
+      });
+    });
+
+    const subtotalMinor = lines.reduce((s, l) => s + l.snapshotUnitPriceMinor * l.quantity, 0);
+    const totalDiscountMinor = lines.reduce((s, l) => s + l.snapshotDiscountMinor, 0);
+    const totalTaxMinor = lines.reduce((s, l) => s + l.snapshotTaxMinor, 0);
+    const grandTotalMinor = lines.reduce((s, l) => s + l.snapshotLineTotalMinor, 0);
+    const snapshotHash = computeSnapshotDigest(params.orderId, lines, grandTotalMinor);
+
+    const frozenOrder: FrozenHistoricalOrder = Object.freeze({
+      orderId: params.orderId,
+      createdAtIso: params.createdAtIso,
+      lines: Object.freeze(lines),
+      subtotalMinor,
+      totalDiscountMinor,
+      totalTaxMinor,
+      grandTotalMinor,
+      snapshotHash,
+    });
+
+    this.#orders.set(params.orderId, frozenOrder);
+    return frozenOrder;
+  }
+
+  verifyOrderSnapshotIntegrity(orderId: string): {
+    readonly valid: boolean;
+    readonly order: FrozenHistoricalOrder;
+  } {
+    const order = this.#orders.get(orderId);
+    if (!order) throw new Error(\`Unknown order '\${orderId}'\`);
+    const expected = computeSnapshotDigest(order.orderId, order.lines, order.grandTotalMinor);
+    return {
+      valid: expected === order.snapshotHash,
+      order,
+    };
+  }
+}`,
+    criteria: [
+      "Captures deep-frozen (Object.freeze) line-item snapshots of product title, unitPriceMinor, discountMinor, and taxRateBps at checkout",
+      "Isolates historical order totals and receipts from subsequent catalog price increases, renames, or SKU deletions",
+      "Computes and verifies a deterministic snapshotHash digest over all frozen line items and grandTotalMinor",
+    ],
+  },
+  {
+    id: "task_shop_data_transactional_account_cart_to_order_promoter",
+    title: "Implement Atomic Checkout-to-Order Promotion Pipeline Linking Account Profile, Inventory Commit, Sequential Invoice Number & Cart Clearance",
+    category: "order-lifecycle-data",
+    difficulty: "advanced",
+    tags: ["checkout-pipeline", "atomic-transaction", "order-promotion", "invoice-sequence", "idempotency", "typescript"],
+    instructions:
+      "Promoting an active shopping cart into a confirmed order requires keeping 5 state domains synchronized: deducting inventory, recording the payment intent, assigning a gapless sequential invoice number (INV-2026-00001), rolling up customer lifetime spend (lifetimeSpendMinor, orderCount), and marking the cart CONVERTED so page reloads cannot double-create the order. Build an AtomicCheckoutOrderPromoter with idempotency and full state rollback on error.",
+    starterCode: `// Non-Atomic Checkout Promotion Leaving Active Cart & Skipping Customer Rollup
+export function promoteCartToOrder(cart: any) {
+  return { orderId: "ord_" + Math.random(), items: cart.items };
+}`,
+    solutionCode: `// Atomic Checkout-to-Order Promoter with Idempotency, Sequential Invoices & Rollback
+export interface ShopCustomerRecord {
+  readonly accountId: string;
+  readonly email: string;
+  orderCount: number;
+  lifetimeSpendMinor: number;
+}
+
+export interface ShopCartRecord {
+  readonly cartId: string;
+  readonly accountId: string;
+  status: "ACTIVE" | "CONVERTED_TO_ORDER";
+  convertedOrderId: string | null;
+  readonly items: readonly { readonly sku: string; readonly quantity: number; readonly unitPriceMinor: number }[];
+}
+
+export interface PromotedOrderRecord {
+  readonly orderId: string;
+  readonly invoiceNumber: string;
+  readonly cartId: string;
+  readonly accountId: string;
+  readonly paymentIntentId: string;
+  readonly totalMinor: number;
+}
+
+export class AtomicCheckoutOrderPromoter {
+  #customers = new Map<string, ShopCustomerRecord>();
+  #carts = new Map<string, ShopCartRecord>();
+  #stock = new Map<string, number>();
+  #orders = new Map<string, PromotedOrderRecord>();
+  #idempotencyByCheckoutKey = new Map<string, string>();
+  #invoiceSeq = 0;
+
+  seedState(params: {
+    customers: readonly ShopCustomerRecord[];
+    carts: readonly ShopCartRecord[];
+    stock: Readonly<Record<string, number>>;
+  }): void {
+    for (const c of params.customers) this.#customers.set(c.accountId, { ...c });
+    for (const cart of params.carts) this.#carts.set(cart.cartId, { ...cart, items: [...cart.items] });
+    for (const [sku, qty] of Object.entries(params.stock)) this.#stock.set(sku, qty);
+  }
+
+  promoteCheckout(params: {
+    readonly checkoutIdempotencyKey: string;
+    readonly cartId: string;
+    readonly paymentIntentId: string;
+    readonly taxMinor: number;
+  }): { readonly order: PromotedOrderRecord; readonly idempotentReplay: boolean } {
+    const existingOrderId = this.#idempotencyByCheckoutKey.get(params.checkoutIdempotencyKey);
+    if (existingOrderId) {
+      return {
+        order: { ...this.#orders.get(existingOrderId)! },
+        idempotentReplay: true,
+      };
+    }
+
+    const cart = this.#carts.get(params.cartId);
+    if (!cart) throw new Error(\`Unknown cart '\${params.cartId}'\`);
+    if (cart.status === "CONVERTED_TO_ORDER" && cart.convertedOrderId) {
+      return {
+        order: { ...this.#orders.get(cart.convertedOrderId)! },
+        idempotentReplay: true,
+      };
+    }
+    if (cart.items.length === 0) throw new Error("Cannot promote an empty cart");
+
+    const customer = this.#customers.get(cart.accountId);
+    if (!customer) throw new Error(\`Unknown customer '\${cart.accountId}'\`);
+
+    // Pre-validate all SKU stock before mutating any state (atomic all-or-nothing guard)
+    for (const item of cart.items) {
+      const avail = this.#stock.get(item.sku) ?? 0;
+      if (avail < item.quantity) {
+        throw new Error(\`InsufficientStockError: SKU '\${item.sku}' requested \${item.quantity}, available \${avail}\`);
+      }
+    }
+
+    // Commit stock deductions
+    for (const item of cart.items) {
+      this.#stock.set(item.sku, (this.#stock.get(item.sku) ?? 0) - item.quantity);
+    }
+
+    const subtotalMinor = cart.items.reduce((s, i) => s + i.unitPriceMinor * i.quantity, 0);
+    const totalMinor = subtotalMinor + params.taxMinor;
+
+    const seq = ++this.#invoiceSeq;
+    const invoiceNumber = \`INV-2026-\${String(seq).padStart(5, "0")}\`;
+    const orderId = \`ord_\${seq}\`;
+
+    const order: PromotedOrderRecord = {
+      orderId,
+      invoiceNumber,
+      cartId: cart.cartId,
+      accountId: customer.accountId,
+      paymentIntentId: params.paymentIntentId,
+      totalMinor,
+    };
+
+    // Update cart, customer lifetime metrics, and order table atomically
+    cart.status = "CONVERTED_TO_ORDER";
+    cart.convertedOrderId = orderId;
+    customer.orderCount += 1;
+    customer.lifetimeSpendMinor += totalMinor;
+
+    this.#orders.set(orderId, order);
+    this.#idempotencyByCheckoutKey.set(params.checkoutIdempotencyKey, orderId);
+
+    return { order: { ...order }, idempotentReplay: false };
+  }
+
+  getCustomer(accountId: string): ShopCustomerRecord | undefined {
+    return this.#customers.get(accountId);
+  }
+
+  getCart(cartId: string): ShopCartRecord | undefined {
+    return this.#carts.get(cartId);
+  }
+
+  getStock(sku: string): number {
+    return this.#stock.get(sku) ?? 0;
+  }
+}`,
+    criteria: [
+      "Pre-validates stock across all cart SKUs so failed checkouts never partially deduct inventory or increment invoice numbers",
+      "Transitions cart to CONVERTED_TO_ORDER, increments customer orderCount and lifetimeSpendMinor, and issues sequential INV-2026-XXXXX invoice numbers",
+      "Guarantees idempotent order promotion across duplicate checkoutIdempotencyKey or already-converted cart retries",
+    ],
+  },
+  {
+    id: "task_shop_data_split_shipment_partial_capture_reconciler",
+    title: "Build Split-Shipment Fulfillment, Backorder Cancellations & Per-Package Payment Capture / Release Data Reconciler",
+    category: "order-lifecycle-data",
+    difficulty: "advanced",
+    tags: ["order-fulfillment", "split-shipments", "partial-capture", "backorders", "reconciliation", "typescript"],
+    instructions:
+      "Multi-item orders frequently ship across multiple warehouse packages while an out-of-stock item is canceled on backorder. Naive order status fields get stuck in PROCESSING or capture funds for canceled items. Build an OrderFulfillmentReconciler that validates quantity conservation (orderedQty === shippedQty + canceledQty + pendingQty), derives exact order status, and reconciles captured vs released authorization amounts.",
+    starterCode: `// Naive Order Fulfillment Ignoring Split Packages & Canceled Backorder Releases
+export function markOrderShipped(order: any) {
+  order.status = "SHIPPED";
+  return order;
+}`,
+    solutionCode: `// Split-Shipment Fulfillment & Partial Capture / Backorder Release Reconciler
+export interface OrderLineAllocation {
+  readonly sku: string;
+  readonly orderedQty: number;
+  readonly shippedQty: number;
+  readonly canceledQty: number;
+  readonly netUnitAmountMinor: number; // includes unit tax after discount
+}
+
+export type ReconciledOrderStatus =
+  | "AWAITING_FULFILLMENT"
+  | "PARTIALLY_SHIPPED"
+  | "PARTIALLY_FULFILLED_CLOSED"
+  | "FULFILLED"
+  | "CANCELED";
+
+export interface FulfillmentReconciliationReport {
+  readonly status: ReconciledOrderStatus;
+  readonly authorizedTotalMinor: number;
+  readonly capturedMinor: number;
+  readonly releasedAuthorizationMinor: number;
+  readonly remainingCapturableMinor: number;
+  readonly conservationValid: boolean;
+}
+
+export function reconcileOrderFulfillment(
+  allocations: readonly OrderLineAllocation[],
+): FulfillmentReconciliationReport {
+  let totalOrderedQty = 0;
+  let totalShippedQty = 0;
+  let totalCanceledQty = 0;
+
+  let authorizedTotalMinor = 0;
+  let capturedMinor = 0;
+  let releasedAuthorizationMinor = 0;
+
+  for (const line of allocations) {
+    if (
+      line.orderedQty <= 0 ||
+      line.shippedQty < 0 ||
+      line.canceledQty < 0 ||
+      line.shippedQty + line.canceledQty > line.orderedQty
+    ) {
+      throw new Error(\`QuantityConservationError: Invalid allocation for SKU '\${line.sku}'\`);
+    }
+
+    totalOrderedQty += line.orderedQty;
+    totalShippedQty += line.shippedQty;
+    totalCanceledQty += line.canceledQty;
+
+    authorizedTotalMinor += line.orderedQty * line.netUnitAmountMinor;
+    capturedMinor += line.shippedQty * line.netUnitAmountMinor;
+    releasedAuthorizationMinor += line.canceledQty * line.netUnitAmountMinor;
+  }
+
+  const remainingPendingQty = totalOrderedQty - totalShippedQty - totalCanceledQty;
+  const remainingCapturableMinor =
+    authorizedTotalMinor - capturedMinor - releasedAuthorizationMinor;
+
+  let status: ReconciledOrderStatus;
+  if (totalCanceledQty === totalOrderedQty) {
+    status = "CANCELED";
+  } else if (totalShippedQty === totalOrderedQty) {
+    status = "FULFILLED";
+  } else if (remainingPendingQty === 0 && totalShippedQty > 0 && totalCanceledQty > 0) {
+    status = "PARTIALLY_FULFILLED_CLOSED";
+  } else if (totalShippedQty > 0 && remainingPendingQty > 0) {
+    status = "PARTIALLY_SHIPPED";
+  } else {
+    status = "AWAITING_FULFILLMENT";
+  }
+
+  return {
+    status,
+    authorizedTotalMinor,
+    capturedMinor,
+    releasedAuthorizationMinor,
+    remainingCapturableMinor,
+    conservationValid:
+      capturedMinor + releasedAuthorizationMinor + remainingCapturableMinor === authorizedTotalMinor,
+  };
+}`,
+    criteria: [
+      "Enforces strict line-item quantity conservation (shippedQty + canceledQty <= orderedQty) and throws QuantityConservationError on overflow",
+      "Derives AWAITING_FULFILLMENT, PARTIALLY_SHIPPED, PARTIALLY_FULFILLED_CLOSED, FULFILLED, or CANCELED from item allocations",
+      "Maintains exact minor-unit conservation (capturedMinor + releasedAuthorizationMinor + remainingCapturableMinor === authorizedTotalMinor)",
+    ],
+  },
+  {
+    id: "task_shop_data_customer_order_event_sourced_timeline",
+    title: "Architect Event-Sourced Customer & Order Lifecycle Audit Log (ACCOUNT_CREATED → CART_MERGED → ORDER_PAID → DELIVERED → RMA_REFUNDED)",
+    category: "order-lifecycle-data",
+    difficulty: "advanced",
+    tags: ["event-sourcing", "order-lifecycle", "audit-log", "hash-chain", "state-projection", "typescript"],
+    instructions:
+      "Mutable status columns lose the causal history of how a customer's guest cart became an account, when payment was captured, which package delivered when, and why a partial RMA refund was issued. Build an EventSourcedOrderLifecycleLog with hash-chained domain events, causal transition validation, and deterministic state projection.",
+    starterCode: `// Mutable Status Overwrite Losing Audit Trail & Allowing Illegal State Transitions
+export function updateOrderStatus(order: any, nextStatus: string) {
+  order.status = nextStatus;
+  return order;
+}`,
+    solutionCode: `// Hash-Chained Event-Sourced Customer & Order Lifecycle Audit Log
+export type OrderLifecycleEventType =
+  | "ACCOUNT_CREATED"
+  | "GUEST_CART_MERGED"
+  | "CHECKOUT_AUTHORIZED"
+  | "ORDER_CAPTURED"
+  | "SHIPMENT_DELIVERED"
+  | "RMA_RETURN_APPROVED"
+  | "ORDER_REFUNDED";
+
+export interface OrderDomainEvent {
+  readonly seq: number;
+  readonly type: OrderLifecycleEventType;
+  readonly amountMinor?: number;
+  readonly timestampMs: number;
+  readonly prevHash: string;
+  readonly eventHash: string;
+}
+
+export interface ProjectedOrderLifecycleState {
+  readonly accountCreated: boolean;
+  readonly cartMerged: boolean;
+  readonly currentStage: OrderLifecycleEventType | "INIT";
+  readonly authorizedMinor: number;
+  readonly capturedMinor: number;
+  readonly refundedMinor: number;
+  readonly netRetainedMinor: number;
+  readonly delivered: boolean;
+  readonly chainValid: boolean;
+}
+
+const ALLOWED_PREDECESSORS: Readonly<Record<OrderLifecycleEventType, readonly (OrderLifecycleEventType | "INIT")[]>> = {
+  ACCOUNT_CREATED: ["INIT"],
+  GUEST_CART_MERGED: ["ACCOUNT_CREATED"],
+  CHECKOUT_AUTHORIZED: ["ACCOUNT_CREATED", "GUEST_CART_MERGED"],
+  ORDER_CAPTURED: ["CHECKOUT_AUTHORIZED"],
+  SHIPMENT_DELIVERED: ["ORDER_CAPTURED"],
+  RMA_RETURN_APPROVED: ["SHIPMENT_DELIVERED"],
+  ORDER_REFUNDED: ["ORDER_CAPTURED", "RMA_RETURN_APPROVED"],
+};
+
+function computeEventHash(seq: number, type: string, amountMinor: number, prevHash: string): string {
+  const raw = \`\${seq}|\${type}|\${amountMinor}|\${prevHash}\`;
+  let h = 2166136261;
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return \`evhash_\${(h >>> 0).toString(16).padStart(8, "0")}\`;
+}
+
+export class EventSourcedOrderLifecycleLog {
+  #events: OrderDomainEvent[] = [];
+
+  append(params: {
+    readonly type: OrderLifecycleEventType;
+    readonly amountMinor?: number;
+    readonly timestampMs: number;
+  }): OrderDomainEvent {
+    const currentStage =
+      this.#events.length === 0 ? "INIT" : this.#events[this.#events.length - 1].type;
+    const allowed = ALLOWED_PREDECESSORS[params.type];
+    if (!allowed.includes(currentStage)) {
+      throw new Error(
+        \`InvalidLifecycleTransitionError: Cannot transition from '\${currentStage}' to '\${params.type}'\`,
+      );
+    }
+
+    const seq = this.#events.length + 1;
+    const prevHash = seq === 1 ? "GENESIS" : this.#events[this.#events.length - 1].eventHash;
+    const amount = params.amountMinor ?? 0;
+    const eventHash = computeEventHash(seq, params.type, amount, prevHash);
+
+    const ev: OrderDomainEvent = Object.freeze({
+      seq,
+      type: params.type,
+      amountMinor: amount,
+      timestampMs: params.timestampMs,
+      prevHash,
+      eventHash,
+    });
+
+    this.#events.push(ev);
+    return ev;
+  }
+
+  projectState(): ProjectedOrderLifecycleState {
+    let accountCreated = false;
+    let cartMerged = false;
+    let currentStage: OrderLifecycleEventType | "INIT" = "INIT";
+    let authorizedMinor = 0;
+    let capturedMinor = 0;
+    let refundedMinor = 0;
+    let delivered = false;
+    let chainValid = true;
+
+    for (let i = 0; i < this.#events.length; i++) {
+      const ev = this.#events[i];
+      const expectedPrev = i === 0 ? "GENESIS" : this.#events[i - 1].eventHash;
+      const expectedHash = computeEventHash(ev.seq, ev.type, ev.amountMinor ?? 0, expectedPrev);
+      if (ev.prevHash !== expectedPrev || ev.eventHash !== expectedHash) {
+        chainValid = false;
+      }
+
+      currentStage = ev.type;
+      if (ev.type === "ACCOUNT_CREATED") accountCreated = true;
+      if (ev.type === "GUEST_CART_MERGED") cartMerged = true;
+      if (ev.type === "CHECKOUT_AUTHORIZED") authorizedMinor = ev.amountMinor ?? 0;
+      if (ev.type === "ORDER_CAPTURED") capturedMinor = ev.amountMinor ?? 0;
+      if (ev.type === "SHIPMENT_DELIVERED") delivered = true;
+      if (ev.type === "ORDER_REFUNDED") refundedMinor += ev.amountMinor ?? 0;
+    }
+
+    if (refundedMinor > capturedMinor) {
+      throw new Error("FinancialInvariantError: refundedMinor cannot exceed capturedMinor");
+    }
+
+    return {
+      accountCreated,
+      cartMerged,
+      currentStage,
+      authorizedMinor,
+      capturedMinor,
+      refundedMinor,
+      netRetainedMinor: capturedMinor - refundedMinor,
+      delivered,
+      chainValid,
+    };
+  }
+}`,
+    criteria: [
+      "Enforces causal lifecycle state transitions (ACCOUNT_CREATED -> GUEST_CART_MERGED -> CHECKOUT_AUTHORIZED -> ORDER_CAPTURED -> SHIPMENT_DELIVERED -> RMA_RETURN_APPROVED -> ORDER_REFUNDED)",
+      "Links every domain event via a tamper-evident prevHash -> eventHash cryptographic chain",
+      "Projects netRetainedMinor (capturedMinor - refundedMinor) and guards against over-refunding",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

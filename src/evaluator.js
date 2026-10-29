@@ -1163,6 +1163,91 @@ export class Evaluator {
           code.includes("totalRefundableMinor"),
         detail: "Calculates remaining returnable quantities and exact minor-unit refund previews",
       });
+    } else if (id === "task_shop_data_normalized_entity_store_referential_integrity") {
+      results.push({
+        name: "Normalized Entity Maps & Foreign-Key Referential Integrity",
+        passed:
+          code.includes("ForeignKeyConstraintError") &&
+          code.includes("upsertCustomer") &&
+          code.includes("insertOrder"),
+        detail: "Enforces foreign-key constraints across customers, orders, orderItems, and shipments",
+      });
+      results.push({
+        name: "O(1) Secondary Relational Indexes & Sorted Order History Projection",
+        passed:
+          code.includes("ordersByCustomer") &&
+          code.includes("itemsByOrder") &&
+          code.includes("getCustomerOrderHistoryView"),
+        detail: "Projects customer order history via O(1) secondary index sets sorted newest-first",
+      });
+    } else if (id === "task_shop_data_immutable_order_line_snapshot_isolation") {
+      results.push({
+        name: "Deep-Frozen Checkout Line-Item Snapshot Isolation",
+        passed:
+          code.includes("Object.freeze") &&
+          code.includes("snapshotUnitPriceMinor") &&
+          code.includes("snapshotTitle"),
+        detail: "Freezes line-item title, price, discount, and tax rate at checkout time",
+      });
+      results.push({
+        name: "Tamper-Evident Order Snapshot Digest Verification",
+        passed:
+          code.includes("snapshotHash") &&
+          code.includes("verifyOrderSnapshotIntegrity") &&
+          code.includes("captureOrderAtCheckout"),
+        detail: "Verifies historical order integrity independently of live catalog mutations",
+      });
+    } else if (id === "task_shop_data_transactional_account_cart_to_order_promoter") {
+      results.push({
+        name: "All-or-Nothing Stock Pre-Validation & Sequential Invoice Generation",
+        passed:
+          code.includes("InsufficientStockError") &&
+          code.includes("INV-2026-") &&
+          code.includes("CONVERTED_TO_ORDER"),
+        detail: "Pre-validates SKU stock, marks cart CONVERTED_TO_ORDER, and issues sequential INV-2026-* numbers",
+      });
+      results.push({
+        name: "Customer Lifetime Spend Rollup & Idempotent Replay Guard",
+        passed:
+          code.includes("lifetimeSpendMinor") &&
+          code.includes("orderCount") &&
+          code.includes("idempotentReplay"),
+        detail: "Updates customer orderCount/lifetimeSpendMinor atomically and deduplicates checkout retries",
+      });
+    } else if (id === "task_shop_data_split_shipment_partial_capture_reconciler") {
+      results.push({
+        name: "Line-Item Quantity Conservation & Split-Fulfillment Status Derivation",
+        passed:
+          code.includes("QuantityConservationError") &&
+          code.includes("PARTIALLY_SHIPPED") &&
+          code.includes("PARTIALLY_FULFILLED_CLOSED"),
+        detail: "Validates shippedQty + canceledQty <= orderedQty and derives split-fulfillment status",
+      });
+      results.push({
+        name: "Authorized vs Captured vs Released Minor-Unit Reconciliation",
+        passed:
+          code.includes("capturedMinor") &&
+          code.includes("releasedAuthorizationMinor") &&
+          code.includes("remainingCapturableMinor"),
+        detail: "Reconciles exact captured funds and canceled backorder authorization releases",
+      });
+    } else if (id === "task_shop_data_customer_order_event_sourced_timeline") {
+      results.push({
+        name: "Causal Order Lifecycle State Machine & Hash-Chained Audit Log",
+        passed:
+          code.includes("InvalidLifecycleTransitionError") &&
+          code.includes("ALLOWED_PREDECESSORS") &&
+          code.includes("prevHash"),
+        detail: "Enforces causal transition rules from ACCOUNT_CREATED through ORDER_REFUNDED with hash chaining",
+      });
+      results.push({
+        name: "Deterministic Order State Projection & Over-Refund Guard",
+        passed:
+          code.includes("projectState") &&
+          code.includes("netRetainedMinor") &&
+          code.includes("FinancialInvariantError"),
+        detail: "Folds domain events into current state and blocks refunds exceeding captured funds",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -4168,6 +4253,253 @@ export class Evaluator {
         name: "Order History Split-Shipment & RMA Return Eligibility Verification",
         passed: Boolean(res?.rmaEligibilityOk),
         detail: "Allows 1 remaining hardware unit return ($216.00) while blocking non-returnable digital license keys",
+      });
+    } else if (taskId === "task_shop_data_normalized_entity_store_referential_integrity") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Store = typeof NormalizedCommerceEntityStore === "function"
+            ? NormalizedCommerceEntityStore
+            : exports.NormalizedCommerceEntityStore;
+
+          const store = new Store();
+          store.upsertCustomer({ id: "c_1", email: "initial@loom.dev", displayName: "Ada" });
+
+          let orphanBlocked = false;
+          try {
+            store.insertOrder({ id: "o_bad", customerId: "c_missing", invoiceNumber: "INV-0", status: "PAID", totalMinor: 100, createdAtMs: 1 });
+          } catch (err) {
+            orphanBlocked = String(err.message).includes("ForeignKeyConstraintError");
+          }
+
+          store.insertOrder({ id: "o_1", customerId: "c_1", invoiceNumber: "INV-1", status: "PAID", totalMinor: 5000, createdAtMs: 100 });
+          store.insertOrder({ id: "o_2", customerId: "c_1", invoiceNumber: "INV-2", status: "FULFILLED", totalMinor: 9000, createdAtMs: 200 });
+          store.insertOrderItem({ id: "item_1", orderId: "o_2", sku: "SKU-A", quantity: 1, unitPriceMinor: 9000 });
+          store.insertShipment({ id: "ship_1", orderId: "o_2", trackingNumber: "1Z999", status: "DELIVERED" });
+
+          // Updating customer email in one place immediately reflects in order history view
+          store.upsertCustomer({ id: "c_1", email: "updated@loom.dev", displayName: "Ada Lovelace" });
+          const view = store.getCustomerOrderHistoryView("c_1");
+
+          return {
+            fkAndNormalizedUpdateOk:
+              orphanBlocked === true &&
+              view.customer.email === "updated@loom.dev" &&
+              view.orders.length === 2 &&
+              view.orders[0].order.id === "o_2" &&
+              view.orders[0].items.length === 1 &&
+              view.orders[0].shipments[0].trackingNumber === "1Z999",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Normalized Foreign-Key Integrity & Single-Source Customer/Order Projection",
+        passed: Boolean(res?.fkAndNormalizedUpdateOk),
+        detail: "Blocks orphan foreign keys, updates customer email in O(1), and projects newest-first order history",
+      });
+    } else if (taskId === "task_shop_data_immutable_order_line_snapshot_isolation") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Vault = typeof OrderSnapshotVault === "function"
+            ? OrderSnapshotVault
+            : exports.OrderSnapshotVault;
+
+          const catalog = new Map([
+            ["HW-KEY", { sku: "HW-KEY", title: "Loom Mechanical Keyboard v1", unitPriceMinor: 15000, taxRateBps: 1000 }],
+          ]);
+
+          const vault = new Vault();
+          const captured = vault.captureOrderAtCheckout({
+            orderId: "ord_snap_1",
+            createdAtIso: "2026-10-29T00:00:00Z",
+            cartItems: [{ sku: "HW-KEY", quantity: 2, discountMinor: 2000 }],
+            liveCatalog: catalog,
+          });
+
+          // Mutate live catalog price ($150 -> $250) and title, then delete SKU!
+          catalog.get("HW-KEY").unitPriceMinor = 25000;
+          catalog.get("HW-KEY").title = "Mutated Keyboard v2";
+          catalog.delete("HW-KEY");
+
+          const verified = vault.verifyOrderSnapshotIntegrity("ord_snap_1");
+
+          return {
+            snapshotIsolatedOk:
+              verified.valid === true &&
+              verified.order.subtotalMinor === 30000 &&
+              verified.order.totalDiscountMinor === 2000 &&
+              verified.order.totalTaxMinor === 2800 &&
+              verified.order.grandTotalMinor === 30800 &&
+              verified.order.lines[0].snapshotTitle === "Loom Mechanical Keyboard v1",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Immutable Order Snapshot Isolation Against Live Catalog Mutations",
+        passed: Boolean(res?.snapshotIsolatedOk),
+        detail: "Preserves $308.00 historical invoice and v1 title even after catalog price hike and deletion",
+      });
+    } else if (taskId === "task_shop_data_transactional_account_cart_to_order_promoter") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Promoter = typeof AtomicCheckoutOrderPromoter === "function"
+            ? AtomicCheckoutOrderPromoter
+            : exports.AtomicCheckoutOrderPromoter;
+
+          const promoter = new Promoter();
+          promoter.seedState({
+            customers: [{ accountId: "acc_1", email: "pp@loom.dev", orderCount: 0, lifetimeSpendMinor: 0 }],
+            carts: [
+              {
+                cartId: "cart_ok",
+                accountId: "acc_1",
+                status: "ACTIVE",
+                convertedOrderId: null,
+                items: [{ sku: "SERVER-BLADE", quantity: 2, unitPriceMinor: 100000 }],
+              },
+              {
+                cartId: "cart_oom",
+                accountId: "acc_1",
+                status: "ACTIVE",
+                convertedOrderId: null,
+                items: [
+                  { sku: "SERVER-BLADE", quantity: 1, unitPriceMinor: 100000 },
+                  { sku: "RARE-ASIC", quantity: 5, unitPriceMinor: 50000 }, // only 1 in stock!
+                ],
+              },
+            ],
+            stock: { "SERVER-BLADE": 3, "RARE-ASIC": 1 },
+          });
+
+          // 1. Atomic failure on cart_oom must NOT deduct SERVER-BLADE stock!
+          let failedAtomically = false;
+          try {
+            promoter.promoteCheckout({
+              checkoutIdempotencyKey: "chk_fail_1",
+              cartId: "cart_oom",
+              paymentIntentId: "pi_0",
+              taxMinor: 0,
+            });
+          } catch {
+            failedAtomically = promoter.getStock("SERVER-BLADE") === 3;
+          }
+
+          // 2. Successful promotion + idempotent replay
+          const p1 = promoter.promoteCheckout({
+            checkoutIdempotencyKey: "chk_success_1",
+            cartId: "cart_ok",
+            paymentIntentId: "pi_live_1",
+            taxMinor: 16000,
+          });
+          const p1Replay = promoter.promoteCheckout({
+            checkoutIdempotencyKey: "chk_success_1",
+            cartId: "cart_ok",
+            paymentIntentId: "pi_live_1",
+            taxMinor: 16000,
+          });
+
+          const customer = promoter.getCustomer("acc_1");
+          const cart = promoter.getCart("cart_ok");
+
+          return {
+            atomicRollbackOk: failedAtomically,
+            promotionAndRollupOk:
+              p1.idempotentReplay === false &&
+              p1Replay.idempotentReplay === true &&
+              p1.order.invoiceNumber === "INV-2026-00001" &&
+              customer?.orderCount === 1 &&
+              customer?.lifetimeSpendMinor === 216000 &&
+              cart?.status === "CONVERTED_TO_ORDER" &&
+              promoter.getStock("SERVER-BLADE") === 1,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Transactional Cart-to-Order Promotion, Stock Rollback & Customer Rollup",
+        passed: Boolean(res?.atomicRollbackOk && res?.promotionAndRollupOk),
+        detail: "Preserves stock on partial SKU failure, issues INV-2026-00001, and rolls up customer lifetimeSpendMinor",
+      });
+    } else if (taskId === "task_shop_data_split_shipment_partial_capture_reconciler") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const reconcile = typeof reconcileOrderFulfillment === "function"
+            ? reconcileOrderFulfillment
+            : exports.reconcileOrderFulfillment;
+
+          // 3 units ordered at $100 (10000c) each: 2 shipped, 1 canceled on backorder, 0 pending
+          const report = reconcile([
+            { sku: "NODE-BOX", orderedQty: 3, shippedQty: 2, canceledQty: 1, netUnitAmountMinor: 10000 },
+          ]);
+
+          return {
+            splitReconciledOk:
+              report.status === "PARTIALLY_FULFILLED_CLOSED" &&
+              report.authorizedTotalMinor === 30000 &&
+              report.capturedMinor === 20000 &&
+              report.releasedAuthorizationMinor === 10000 &&
+              report.remainingCapturableMinor === 0 &&
+              report.conservationValid === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Split-Shipment & Backorder Authorization Release Reconciliation",
+        passed: Boolean(res?.splitReconciledOk),
+        detail: "Transitions to PARTIALLY_FULFILLED_CLOSED with $200 captured and $100 backorder auth released",
+      });
+    } else if (taskId === "task_shop_data_customer_order_event_sourced_timeline") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Log = typeof EventSourcedOrderLifecycleLog === "function"
+            ? EventSourcedOrderLifecycleLog
+            : exports.EventSourcedOrderLifecycleLog;
+
+          const log = new Log();
+          let illegalBlocked = false;
+          try {
+            // Cannot deliver before account creation & payment capture!
+            log.append({ type: "SHIPMENT_DELIVERED", timestampMs: 100 });
+          } catch (err) {
+            illegalBlocked = String(err.message).includes("InvalidLifecycleTransitionError");
+          }
+
+          log.append({ type: "ACCOUNT_CREATED", timestampMs: 1000 });
+          log.append({ type: "GUEST_CART_MERGED", timestampMs: 2000 });
+          log.append({ type: "CHECKOUT_AUTHORIZED", amountMinor: 15000, timestampMs: 3000 });
+          log.append({ type: "ORDER_CAPTURED", amountMinor: 15000, timestampMs: 4000 });
+          log.append({ type: "SHIPMENT_DELIVERED", timestampMs: 5000 });
+          log.append({ type: "RMA_RETURN_APPROVED", timestampMs: 6000 });
+          log.append({ type: "ORDER_REFUNDED", amountMinor: 5000, timestampMs: 7000 });
+
+          const state = log.projectState();
+
+          return {
+            causalAndProjectedOk:
+              illegalBlocked === true &&
+              state.chainValid === true &&
+              state.accountCreated === true &&
+              state.cartMerged === true &&
+              state.delivered === true &&
+              state.capturedMinor === 15000 &&
+              state.refundedMinor === 5000 &&
+              state.netRetainedMinor === 10000 &&
+              state.currentStage === "ORDER_REFUNDED",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Event-Sourced Lifecycle Causal Guard & Hash-Chained Projection",
+        passed: Boolean(res?.causalAndProjectedOk),
+        detail: "Blocks out-of-order lifecycle transitions and projects netRetainedMinor ($100.00) over hash chain",
       });
     } else {
       // General syntax evaluation
