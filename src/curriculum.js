@@ -8270,6 +8270,461 @@ export class CookieConsentPolicyGatekeeper {
       "Generates immediate Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT eviction headers for existing cookies when consent is revoked",
     ],
   },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 15: CLIENT WEB DATA & STORAGE ENGINEERING (web-storage-data)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_webdata_indexeddb_schema_migration_cursor_index",
+    title: "Build Transactional IndexedDB Schema Migration Runner (v1 → v3) with Compound Index Range Queries & Atomic Rollback",
+    category: "web-storage-data",
+    difficulty: "advanced",
+    tags: ["web-data", "indexeddb", "schema-migration", "compound-index", "client-storage", "typescript"],
+    instructions:
+      "Web apps that upgrade client-side IndexedDB schemas from v1 directly to v3 frequently lose user records or leave half-migrated object stores when a transform step fails mid-upgrade. Build a VersionedClientDataStore that executes sequential deterministic migrations (v1 -> v2 -> v3) over an atomic snapshot, builds compound index keys ([tenantId, updatedAtMs]), and executes bounded range cursor queries.",
+    starterCode: `// Destructive Client Store Upgrade That Wipes Existing Data on Version Bump
+export function upgradeClientDb(oldRecords: any[]) {
+  return [];
+}`,
+    solutionCode: `// Transactional IndexedDB-Style Versioned Schema Migration & Compound Index Engine
+export interface MigrationStep {
+  readonly fromVersion: number;
+  readonly toVersion: number;
+  readonly migrateRecord: (raw: Record<string, any>) => Record<string, any>;
+}
+
+export interface IndexedClientRecord {
+  readonly id: string;
+  readonly tenantId: string;
+  readonly updatedAtMs: number;
+  readonly schemaVersion: number;
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+export class VersionedClientDataStore {
+  #version = 1;
+  #records = new Map<string, IndexedClientRecord>();
+
+  seedV1Records(rawRecords: readonly Record<string, any>[]): void {
+    this.#version = 1;
+    this.#records.clear();
+    for (const r of rawRecords) {
+      this.#records.set(String(r.id), {
+        id: String(r.id),
+        tenantId: String(r.tenantId ?? "default"),
+        updatedAtMs: Number(r.updatedAtMs ?? 0),
+        schemaVersion: 1,
+        payload: { ...r },
+      });
+    }
+  }
+
+  runUpgradeTransaction(targetVersion: number, migrations: readonly MigrationStep[]): {
+    readonly currentVersion: number;
+    readonly migratedCount: number;
+  } {
+    if (targetVersion <= this.#version) {
+      return { currentVersion: this.#version, migratedCount: 0 };
+    }
+
+    // Snapshot for atomic rollback if any migration step throws
+    const backupVersion = this.#version;
+    const backupRecords = new Map<string, IndexedClientRecord>();
+    for (const [k, v] of this.#records.entries()) {
+      backupRecords.set(k, { ...v, payload: { ...v.payload } });
+    }
+
+    try {
+      let curr = this.#version;
+      let migratedCount = 0;
+
+      while (curr < targetVersion) {
+        const step = migrations.find((m) => m.fromVersion === curr && m.toVersion === curr + 1);
+        if (!step) {
+          throw new Error(\`MissingMigrationStepError: No migration from v\${curr} to v\${curr + 1}\`);
+        }
+
+        for (const [id, rec] of this.#records.entries()) {
+          const nextPayload = step.migrateRecord({ ...rec.payload });
+          if (!nextPayload || typeof nextPayload !== "object") {
+            throw new Error(\`MigrationCorruptionError at v\${step.toVersion} for record '\${id}'\`);
+          }
+          this.#records.set(id, {
+            id,
+            tenantId: String(nextPayload.tenantId ?? rec.tenantId),
+            updatedAtMs: Number(nextPayload.updatedAtMs ?? rec.updatedAtMs),
+            schemaVersion: step.toVersion,
+            payload: Object.freeze({ ...nextPayload }),
+          });
+          migratedCount++;
+        }
+        curr = step.toVersion;
+      }
+
+      this.#version = curr;
+      return { currentVersion: this.#version, migratedCount };
+    } catch (err) {
+      this.#version = backupVersion;
+      this.#records = backupRecords;
+      throw err;
+    }
+  }
+
+  queryByCompoundIndex(params: {
+    readonly tenantId: string;
+    readonly minUpdatedAtMs: number;
+    readonly maxUpdatedAtMs: number;
+    readonly limit?: number;
+  }): readonly IndexedClientRecord[] {
+    const matches = Array.from(this.#records.values())
+      .filter(
+        (r) =>
+          r.tenantId === params.tenantId &&
+          r.updatedAtMs >= params.minUpdatedAtMs &&
+          r.updatedAtMs <= params.maxUpdatedAtMs,
+      )
+      .sort((a, b) => a.updatedAtMs - b.updatedAtMs || a.id.localeCompare(b.id));
+
+    return params.limit !== undefined ? matches.slice(0, params.limit) : matches;
+  }
+
+  getVersion(): number {
+    return this.#version;
+  }
+}`,
+    criteria: [
+      "Executes sequential step-by-step schema upgrades (v1 -> v2 -> v3) and rolls back all records atomically if any step fails",
+      "Maintains compound index attributes ([tenantId, updatedAtMs]) across schema upgrades",
+      "Supports bounded key-range cursor queries sorted deterministically by (updatedAtMs, id)",
+    ],
+  },
+  {
+    id: "task_webdata_cross_tab_broadcast_web_locks_leader",
+    title: "Implement Multi-Tab State Synchronization & Single-Leader Election using BroadcastChannel, Web Locks Lease & Lamport Clocks",
+    category: "web-storage-data",
+    difficulty: "advanced",
+    tags: ["web-data", "broadcast-channel", "web-locks", "leader-election", "lamport-clock", "multi-tab"],
+    instructions:
+      "When users open multiple browser tabs of a web app, uncoordinated tabs open redundant background sync loops and overwrite newer state in shared storage due to wall-clock skew. Build a CrossTabLeaderSyncCoordinator that elects a single leader tab with TTL lease heartbeats, orders cross-tab state updates via Lamport logical clocks (counter, tabId), and suppresses duplicate BroadcastChannel messages.",
+    starterCode: `// Uncoordinated Multi-Tab Storage Overwrite Without Leader Lease or Logical Clock
+export function syncTabState(tabId: string, state: any) {
+  return { tabId, state };
+}`,
+    solutionCode: `// Multi-Tab Leader Election (Web Locks Lease Pattern) & Lamport Clock State Synchronizer
+export interface CrossTabSyncPacket {
+  readonly messageId: string;
+  readonly originTabId: string;
+  readonly lamportCounter: number;
+  readonly key: string;
+  readonly value: unknown;
+}
+
+export class CrossTabLeaderSyncCoordinator {
+  #leaderTabId: string | null = null;
+  #leaderLeaseExpiresAtMs = 0;
+  #lamportClock = 0;
+  #state = new Map<string, { value: unknown; lamportCounter: number; originTabId: string }>();
+  #seenMessageIds = new Set<string>();
+
+  tryAcquireLeaderLease(tabId: string, nowMs: number, leaseDurationMs = 5000): {
+    readonly isLeader: boolean;
+    readonly currentLeaderTabId: string;
+    readonly leaseExpiresAtMs: number;
+  } {
+    if (
+      this.#leaderTabId === null ||
+      this.#leaderTabId === tabId ||
+      nowMs >= this.#leaderLeaseExpiresAtMs
+    ) {
+      this.#leaderTabId = tabId;
+      this.#leaderLeaseExpiresAtMs = nowMs + leaseDurationMs;
+    }
+
+    return {
+      isLeader: this.#leaderTabId === tabId,
+      currentLeaderTabId: this.#leaderTabId,
+      leaseExpiresAtMs: this.#leaderLeaseExpiresAtMs,
+    };
+  }
+
+  publishLocalMutation(tabId: string, key: string, value: unknown): CrossTabSyncPacket {
+    this.#lamportClock += 1;
+    const packet: CrossTabSyncPacket = {
+      messageId: \`msg_\${tabId}_\${this.#lamportClock}\`,
+      originTabId: tabId,
+      lamportCounter: this.#lamportClock,
+      key,
+      value,
+    };
+    this.applyIncomingBroadcast(packet);
+    return packet;
+  }
+
+  applyIncomingBroadcast(packet: CrossTabSyncPacket): {
+    readonly applied: boolean;
+    readonly deduplicated: boolean;
+    readonly reason: "APPLIED" | "DUPLICATE_MESSAGE" | "STALE_LAMPORT_CLOCK";
+  } {
+    if (this.#seenMessageIds.has(packet.messageId)) {
+      return { applied: false, deduplicated: true, reason: "DUPLICATE_MESSAGE" };
+    }
+    this.#seenMessageIds.add(packet.messageId);
+    this.#lamportClock = Math.max(this.#lamportClock, packet.lamportCounter) + 1;
+
+    const current = this.#state.get(packet.key);
+    if (current) {
+      const incomingWins =
+        packet.lamportCounter > current.lamportCounter ||
+        (packet.lamportCounter === current.lamportCounter &&
+          packet.originTabId.localeCompare(current.originTabId) > 0);
+
+      if (!incomingWins) {
+        return { applied: false, deduplicated: false, reason: "STALE_LAMPORT_CLOCK" };
+      }
+    }
+
+    this.#state.set(packet.key, {
+      value: packet.value,
+      lamportCounter: packet.lamportCounter,
+      originTabId: packet.originTabId,
+    });
+
+    return { applied: true, deduplicated: false, reason: "APPLIED" };
+  }
+
+  getValue(key: string): unknown {
+    return this.#state.get(key)?.value;
+  }
+}`,
+    criteria: [
+      "Enforces single-leader tab election with TTL lease expiration so standby tabs take over when the leader tab closes or stalls",
+      "Orders concurrent cross-tab mutations deterministically using Lamport logical clocks (lamportCounter, originTabId tie-breaker)",
+      "Deduplicates replayed BroadcastChannel packets by messageId",
+    ],
+  },
+  {
+    id: "task_webdata_quota_eviction_opfs_tiered_cache",
+    title: "Architect Quota-Aware Client Storage Manager (navigator.storage.estimate) with Pinned Draft Protection & Weighted Cost-LRU Eviction",
+    category: "web-storage-data",
+    difficulty: "advanced",
+    tags: ["web-data", "storage-quota", "opfs", "lru-eviction", "client-cache", "typescript"],
+    instructions:
+      "Browser storage quotas (IndexedDB, CacheStorage, Origin Private File System OPFS) throw QuotaExceededError when an origin exceeds its allotted disk budget. Naive eviction policies either fail to free enough space or accidentally delete unsaved user drafts. Build a QuotaAwareClientStorageManager that enforces a soft/hard byte quota, never evicts pinned user drafts, and evicts unpinned cache blobs in lowest-retention-score order until the incoming write fits.",
+    starterCode: `// Unbounded Client Storage Writer Crashing on QuotaExceededError
+export function writeClientBlob(store: Map<string, Uint8Array>, key: string, bytes: Uint8Array) {
+  store.set(key, bytes);
+}`,
+    solutionCode: `// Quota-Aware Client Storage Manager with Pinned Draft Protection & Cost-LRU Eviction
+export interface StoredClientObject {
+  readonly key: string;
+  readonly byteLength: number;
+  readonly pinned: boolean; // true for unsaved user drafts / active offline mutations
+  readonly lastAccessedMs: number;
+  readonly regenerationCostWeight: number; // higher = more expensive to re-fetch
+}
+
+export class QuotaAwareClientStorageManager {
+  readonly #quotaLimitBytes: number;
+  #objects = new Map<string, StoredClientObject>();
+  #usedBytes = 0;
+
+  constructor(quotaLimitBytes: number) {
+    if (quotaLimitBytes <= 0) throw new Error("quotaLimitBytes must be positive");
+    this.#quotaLimitBytes = quotaLimitBytes;
+  }
+
+  putObject(entry: StoredClientObject): {
+    readonly stored: boolean;
+    readonly evictedKeys: readonly string[];
+    readonly usedBytes: number;
+    readonly usageRatio: number;
+  } {
+    if (entry.byteLength > this.#quotaLimitBytes) {
+      throw new Error("QuotaExceededError: Single object exceeds total origin quota");
+    }
+
+    // If overwriting existing key, account for reclaimed bytes first
+    const existing = this.#objects.get(entry.key);
+    const currentEffectiveUsed = this.#usedBytes - (existing ? existing.byteLength : 0);
+
+    const evictedKeys: string[] = [];
+    let bytesNeeded = currentEffectiveUsed + entry.byteLength - this.#quotaLimitBytes;
+
+    if (bytesNeeded > 0) {
+      // Candidate eviction list: unpinned only, sorted by lowest retention score first
+      const evictable = Array.from(this.#objects.values())
+        .filter((o) => !o.pinned && o.key !== entry.key)
+        .sort((a, b) => {
+          const scoreA = a.lastAccessedMs * Math.max(1, a.regenerationCostWeight);
+          const scoreB = b.lastAccessedMs * Math.max(1, b.regenerationCostWeight);
+          return scoreA - scoreB || b.byteLength - a.byteLength;
+        });
+
+      for (const candidate of evictable) {
+        if (bytesNeeded <= 0) break;
+        this.#objects.delete(candidate.key);
+        this.#usedBytes -= candidate.byteLength;
+        bytesNeeded -= candidate.byteLength;
+        evictedKeys.push(candidate.key);
+      }
+
+      if (bytesNeeded > 0) {
+        throw new Error("QuotaExceededError: Insufficient unpinned space to store object");
+      }
+    }
+
+    if (existing) {
+      this.#usedBytes -= existing.byteLength;
+    }
+    this.#objects.set(entry.key, { ...entry });
+    this.#usedBytes += entry.byteLength;
+
+    return {
+      stored: true,
+      evictedKeys,
+      usedBytes: this.#usedBytes,
+      usageRatio: Math.round((this.#usedBytes / this.#quotaLimitBytes) * 1000) / 1000,
+    };
+  }
+
+  hasObject(key: string): boolean {
+    return this.#objects.has(key);
+  }
+
+  estimate(): { readonly usage: number; readonly quota: number } {
+    return { usage: this.#usedBytes, quota: this.#quotaLimitBytes };
+  }
+}`,
+    criteria: [
+      "Tracks exact byte usage against origin quota (estimate() -> { usage, quota }) and reclaims bytes on key overwrite",
+      "Protects pinned user drafts (pinned: true) from eviction even under severe storage pressure",
+      "Evicts unpinned entries by lowest retention score (lastAccessedMs * regenerationCostWeight) before throwing QuotaExceededError",
+    ],
+  },
+  {
+    id: "task_webdata_offline_mutation_outbox_etag_reconciler",
+    title: "Build Offline-First Mutation Outbox Queue with Causal Log Compaction & If-Match / 412 Precondition Failed 3-Way Field Merge",
+    category: "web-storage-data",
+    difficulty: "advanced",
+    tags: ["web-data", "offline-first", "outbox-compaction", "etag-conflict", "three-way-merge", "typescript"],
+    instructions:
+      "Offline-capable web apps queue user mutations while disconnected. If a user creates a record, edits it 4 times, or creates and then deletes it before reconnecting, replaying all raw operations wastes bandwidth and triggers avoidable conflicts. Furthermore, when replaying an UPDATE against a server resource whose ETag changed (HTTP 412 Precondition Failed), the client must perform a field-level 3-way merge (baseSnapshot, localPatch, serverCurrent) instead of blindly overwriting server fields. Build an OfflineMutationOutboxEngine.",
+    starterCode: `// Uncompacted Offline Queue Overwriting Concurrent Server Changes Without ETag Check
+export function flushOfflineQueue(ops: any[]) {
+  return ops;
+}`,
+    solutionCode: `// Offline-First Mutation Outbox with Log Compaction & 3-Way ETag Conflict Resolver
+export type OutboxOpKind = "CREATE" | "UPDATE" | "DELETE";
+
+export interface QueuedOutboxMutation {
+  readonly entityId: string;
+  readonly kind: OutboxOpKind;
+  readonly baseEtag?: string;
+  readonly fields?: Readonly<Record<string, unknown>>;
+}
+
+export class OfflineMutationOutboxEngine {
+  #queue: QueuedOutboxMutation[] = [];
+
+  enqueue(op: QueuedOutboxMutation): void {
+    this.#queue.push(op);
+  }
+
+  compactQueue(): readonly QueuedOutboxMutation[] {
+    const byEntity = new Map<string, QueuedOutboxMutation>();
+
+    for (const op of this.#queue) {
+      const prev = byEntity.get(op.entityId);
+      if (!prev) {
+        byEntity.set(op.entityId, { ...op, fields: op.fields ? { ...op.fields } : undefined });
+        continue;
+      }
+
+      if (prev.kind === "CREATE" && op.kind === "UPDATE") {
+        // Fold UPDATE into the pending CREATE
+        byEntity.set(op.entityId, {
+          entityId: op.entityId,
+          kind: "CREATE",
+          fields: { ...(prev.fields ?? {}), ...(op.fields ?? {}) },
+        });
+      } else if (prev.kind === "CREATE" && op.kind === "DELETE") {
+        // Created and deleted while still offline -> elide both!
+        byEntity.delete(op.entityId);
+      } else if (prev.kind === "UPDATE" && op.kind === "UPDATE") {
+        // Merge field patches while preserving original baseEtag
+        byEntity.set(op.entityId, {
+          entityId: op.entityId,
+          kind: "UPDATE",
+          baseEtag: prev.baseEtag ?? op.baseEtag,
+          fields: { ...(prev.fields ?? {}), ...(op.fields ?? {}) },
+        });
+      } else if (prev.kind === "UPDATE" && op.kind === "DELETE") {
+        byEntity.set(op.entityId, {
+          entityId: op.entityId,
+          kind: "DELETE",
+          baseEtag: prev.baseEtag ?? op.baseEtag,
+        });
+      }
+    }
+
+    return Array.from(byEntity.values());
+  }
+
+  resolveThreeWayEtagConflict(params: {
+    readonly baseSnapshot: Readonly<Record<string, unknown>>;
+    readonly localModified: Readonly<Record<string, unknown>>;
+    readonly serverCurrent: Readonly<Record<string, unknown>>;
+    readonly serverCurrentEtag: string;
+  }): {
+    readonly cleanMerge: boolean;
+    readonly mergedDocument: Readonly<Record<string, unknown>>;
+    readonly conflictingFields: readonly string[];
+    readonly retryIfMatchEtag: string;
+  } {
+    const allKeys = new Set([
+      ...Object.keys(params.baseSnapshot),
+      ...Object.keys(params.localModified),
+      ...Object.keys(params.serverCurrent),
+    ]);
+
+    const merged: Record<string, unknown> = {};
+    const conflictingFields: string[] = [];
+
+    for (const key of allKeys) {
+      const baseVal = params.baseSnapshot[key];
+      const localVal = params.localModified[key];
+      const serverVal = params.serverCurrent[key];
+
+      const localChanged = localVal !== baseVal;
+      const serverChanged = serverVal !== baseVal;
+
+      if (localChanged && !serverChanged) {
+        merged[key] = localVal;
+      } else if (!localChanged && serverChanged) {
+        merged[key] = serverVal;
+      } else if (localVal === serverVal) {
+        merged[key] = localVal;
+      } else {
+        // Both local and server changed the same field to different values!
+        conflictingFields.push(key);
+        merged[key] = localVal; // stage local preference while flagging conflict
+      }
+    }
+
+    return {
+      cleanMerge: conflictingFields.length === 0,
+      mergedDocument: merged,
+      conflictingFields,
+      retryIfMatchEtag: params.serverCurrentEtag,
+    };
+  }
+}`,
+    criteria: [
+      "Compacts CREATE + UPDATE into a single CREATE, folds UPDATE + UPDATE while keeping baseEtag, and elides CREATE + DELETE pairs",
+      "Performs field-level 3-way merge across baseSnapshot, localModified, and serverCurrent on HTTP 412 ETag conflicts",
+      "Auto-merges disjoint field edits cleanly (cleanMerge: true) and reports true field-level collisions in conflictingFields",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

@@ -1315,6 +1315,74 @@ export class Evaluator {
           code.includes("1970"),
         detail: "Emits immediate Max-Age=0 eviction headers for existing cookies when consent is withdrawn",
       });
+    } else if (id === "task_webdata_indexeddb_schema_migration_cursor_index") {
+      results.push({
+        name: "Sequential Schema Migration Pipeline (v1 -> v2 -> v3) & Atomic Rollback",
+        passed:
+          code.includes("runUpgradeTransaction") &&
+          code.includes("MissingMigrationStepError") &&
+          code.includes("backupRecords"),
+        detail: "Executes step-by-step schema upgrades and restores snapshot backup if any record transform throws",
+      });
+      results.push({
+        name: "Compound Index ([tenantId, updatedAtMs]) Range Cursor Query",
+        passed:
+          code.includes("queryByCompoundIndex") &&
+          code.includes("minUpdatedAtMs") &&
+          code.includes("maxUpdatedAtMs"),
+        detail: "Filters and sorts records by compound index (tenantId, updatedAtMs, id)",
+      });
+    } else if (id === "task_webdata_cross_tab_broadcast_web_locks_leader") {
+      results.push({
+        name: "Single-Leader Tab Lease Election & Failover",
+        passed:
+          code.includes("tryAcquireLeaderLease") &&
+          code.includes("leaseExpiresAtMs") &&
+          code.includes("isLeader"),
+        detail: "Elects a single leader tab and allows standby takeover upon lease expiry",
+      });
+      results.push({
+        name: "Lamport Logical Clock Ordering & Broadcast Message Deduplication",
+        passed:
+          code.includes("lamportCounter") &&
+          code.includes("STALE_LAMPORT_CLOCK") &&
+          code.includes("DUPLICATE_MESSAGE"),
+        detail: "Resolves cross-tab write conflicts via Lamport counters and deduplicates messageIds",
+      });
+    } else if (id === "task_webdata_quota_eviction_opfs_tiered_cache") {
+      results.push({
+        name: "Storage Quota Tracking & Pinned Draft Protection",
+        passed:
+          code.includes("QuotaExceededError") &&
+          code.includes("!o.pinned") &&
+          code.includes("estimate"),
+        detail: "Protects pinned user drafts from eviction and tracks exact byte usage vs quota",
+      });
+      results.push({
+        name: "Weighted Cost-LRU Unpinned Eviction",
+        passed:
+          code.includes("regenerationCostWeight") &&
+          code.includes("evictedKeys") &&
+          code.includes("usageRatio"),
+        detail: "Evicts lowest-retention-score unpinned cache blobs to make room for incoming writes",
+      });
+    } else if (id === "task_webdata_offline_mutation_outbox_etag_reconciler") {
+      results.push({
+        name: "Causal Offline Outbox Log Compaction (CREATE+UPDATE, CREATE+DELETE)",
+        passed:
+          code.includes("compactQueue") &&
+          code.includes("baseEtag") &&
+          code.includes("byEntity.delete"),
+        detail: "Folds offline CREATE+UPDATE into CREATE and elides CREATE+DELETE pairs",
+      });
+      results.push({
+        name: "3-Way Field-Level ETag Conflict Resolution",
+        passed:
+          code.includes("resolveThreeWayEtagConflict") &&
+          code.includes("conflictingFields") &&
+          code.includes("cleanMerge"),
+        detail: "Merges non-overlapping local and server field edits and isolates true field collisions",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -4745,6 +4813,181 @@ export class Evaluator {
         name: "Cookie Consent Gatekeeping & Revoked Category Eviction",
         passed: Boolean(res?.consentAndEvictionOk),
         detail: "Permits __Host-session, blocks unconsented _ad_pixel, and evicts _ga_metrics and _ad_pixel with Max-Age=0",
+      });
+    } else if (taskId === "task_webdata_indexeddb_schema_migration_cursor_index") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Store = typeof VersionedClientDataStore === "function"
+            ? VersionedClientDataStore
+            : exports.VersionedClientDataStore;
+
+          const store = new Store();
+          store.seedV1Records([
+            { id: "r1", tenantId: "t_acme", updatedAtMs: 100, name: "Alpha" },
+            { id: "r2", tenantId: "t_acme", updatedAtMs: 300, name: "Beta" },
+          ]);
+
+          // 1. Test atomic rollback when v2 -> v3 throws
+          let rolledBackToV1 = false;
+          try {
+            store.runUpgradeTransaction(3, [
+              { fromVersion: 1, toVersion: 2, migrateRecord: (r) => ({ ...r, tags: ["migrated"] }) },
+              { fromVersion: 2, toVersion: 3, migrateRecord: () => null },
+            ]);
+          } catch {
+            rolledBackToV1 = store.getVersion() === 1;
+          }
+
+          // 2. Clean upgrade v1 -> v3 + compound index query
+          const upg = store.runUpgradeTransaction(3, [
+            { fromVersion: 1, toVersion: 2, migrateRecord: (r) => ({ ...r, tags: ["v2"] }) },
+            { fromVersion: 2, toVersion: 3, migrateRecord: (r) => ({ ...r, normalizedName: String(r.name).toLowerCase() }) },
+          ]);
+
+          const range = store.queryByCompoundIndex({
+            tenantId: "t_acme",
+            minUpdatedAtMs: 150,
+            maxUpdatedAtMs: 500,
+          });
+
+          return {
+            migrationRollbackAndQueryOk:
+              rolledBackToV1 === true &&
+              upg.currentVersion === 3 &&
+              range.length === 1 &&
+              range[0].id === "r2" &&
+              range[0].payload.normalizedName === "beta",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "IndexedDB Schema Upgrade Rollback & Compound Index Cursor Query",
+        passed: Boolean(res?.migrationRollbackAndQueryOk),
+        detail: "Rolls back failed v1->v3 upgrade to v1, then upgrades cleanly and queries [tenantId, updatedAtMs]",
+      });
+    } else if (taskId === "task_webdata_cross_tab_broadcast_web_locks_leader") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Coord = typeof CrossTabLeaderSyncCoordinator === "function"
+            ? CrossTabLeaderSyncCoordinator
+            : exports.CrossTabLeaderSyncCoordinator;
+
+          const coord = new Coord();
+          const l1 = coord.tryAcquireLeaderLease("tab_A", 1000, 5000);
+          const l2Blocked = coord.tryAcquireLeaderLease("tab_B", 2000, 5000);
+          const l3Takeover = coord.tryAcquireLeaderLease("tab_B", 7000, 5000); // after 5000ms lease expiry
+
+          const pkt = coord.publishLocalMutation("tab_B", "theme", "dark");
+          const dup = coord.applyIncomingBroadcast(pkt);
+          const stale = coord.applyIncomingBroadcast({
+            messageId: "msg_tab_A_0",
+            originTabId: "tab_A",
+            lamportCounter: 0,
+            key: "theme",
+            value: "light",
+          });
+
+          return {
+            leaderAndLamportOk:
+              l1.isLeader === true &&
+              l2Blocked.isLeader === false &&
+              l3Takeover.isLeader === true &&
+              dup.deduplicated === true &&
+              stale.reason === "STALE_LAMPORT_CLOCK" &&
+              coord.getValue("theme") === "dark",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Multi-Tab Leader Lease Failover & Lamport Clock Conflict Resolution",
+        passed: Boolean(res?.leaderAndLamportOk),
+        detail: "Transfers leadership after lease expiry, deduplicates messages, and drops stale Lamport writes",
+      });
+    } else if (taskId === "task_webdata_quota_eviction_opfs_tiered_cache") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Manager = typeof QuotaAwareClientStorageManager === "function"
+            ? QuotaAwareClientStorageManager
+            : exports.QuotaAwareClientStorageManager;
+
+          const mgr = new Manager(1000);
+          mgr.putObject({ key: "draft_user_1", byteLength: 400, pinned: true, lastAccessedMs: 10, regenerationCostWeight: 1 });
+          mgr.putObject({ key: "cache_cheap_old", byteLength: 400, pinned: false, lastAccessedMs: 20, regenerationCostWeight: 1 });
+          mgr.putObject({ key: "cache_expensive_new", byteLength: 200, pinned: false, lastAccessedMs: 100, regenerationCostWeight: 10 });
+
+          // Writing 350B must evict cache_cheap_old (400B) while preserving pinned draft_user_1!
+          const writeRes = mgr.putObject({
+            key: "asset_bundle",
+            byteLength: 350,
+            pinned: false,
+            lastAccessedMs: 200,
+            regenerationCostWeight: 5,
+          });
+
+          return {
+            quotaAndPinningOk:
+              writeRes.stored === true &&
+              writeRes.evictedKeys.includes("cache_cheap_old") &&
+              mgr.hasObject("draft_user_1") === true &&
+              mgr.hasObject("cache_expensive_new") === true &&
+              mgr.estimate().usage === 950,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Quota-Aware Cost-LRU Eviction & Pinned User Draft Protection",
+        passed: Boolean(res?.quotaAndPinningOk),
+        detail: "Evicts low-score cache_cheap_old while preserving pinned draft_user_1 under 1000B quota",
+      });
+    } else if (taskId === "task_webdata_offline_mutation_outbox_etag_reconciler") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Engine = typeof OfflineMutationOutboxEngine === "function"
+            ? OfflineMutationOutboxEngine
+            : exports.OfflineMutationOutboxEngine;
+
+          const outbox = new Engine();
+          // doc_1: CREATE then UPDATE -> single CREATE
+          outbox.enqueue({ entityId: "doc_1", kind: "CREATE", fields: { title: "Draft", views: 0 } });
+          outbox.enqueue({ entityId: "doc_1", kind: "UPDATE", fields: { title: "Final" } });
+          // doc_2: CREATE then DELETE -> elided!
+          outbox.enqueue({ entityId: "doc_2", kind: "CREATE", fields: { title: "Temp" } });
+          outbox.enqueue({ entityId: "doc_2", kind: "DELETE" });
+
+          const compacted = outbox.compactQueue();
+
+          // 3-way merge: local changed title, server changed views -> clean merge!
+          const mergeClean = outbox.resolveThreeWayEtagConflict({
+            baseSnapshot: { title: "v1", views: 10 },
+            localModified: { title: "v2-local", views: 10 },
+            serverCurrent: { title: "v1", views: 25 },
+            serverCurrentEtag: '"etag_v2"',
+          });
+
+          return {
+            compactionAndMergeOk:
+              compacted.length === 1 &&
+              compacted[0].entityId === "doc_1" &&
+              compacted[0].kind === "CREATE" &&
+              compacted[0].fields?.title === "Final" &&
+              mergeClean.cleanMerge === true &&
+              mergeClean.mergedDocument.title === "v2-local" &&
+              mergeClean.mergedDocument.views === 25,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Offline Outbox Log Compaction & 3-Way ETag Conflict Merge",
+        passed: Boolean(res?.compactionAndMergeOk),
+        detail: "Compacts CREATE+UPDATE, elides CREATE+DELETE, and merges disjoint local/server field changes",
       });
     } else {
       // General syntax evaluation
