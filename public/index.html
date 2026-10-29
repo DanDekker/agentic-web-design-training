@@ -10,7 +10,7 @@
     <link rel="canonical" href="http://localhost:3000/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Loom — Agentic Curriculum &amp; Monochrome Task Suite" />
-    <meta property="og:description" content="94-task AI model training curriculum across 24 categories and 10 tracks." />
+    <meta property="og:description" content="106-task AI model training curriculum across 27 categories and 11 tracks." />
     <meta property="og:url" content="http://localhost:3000/" />
     <script type="application/ld+json">
       {
@@ -73,6 +73,7 @@
     <script type="module" src="/components/loom-diff-viewer.js"></script>
     <script type="module" src="/components/loom-badge.js"></script>
     <script type="module" src="/components/loom-platform.js"></script>
+    <script type="module" src="/components/loom-design-swatch.js"></script>
     <script>
       try {
         const asked = new URLSearchParams(location.search).get("theme");
@@ -133,6 +134,11 @@
           <button type="button" class="btn-subtle" id="btn-traffic-portal" title="Web Cookies, Client Data & HTTP Traffic Inspector (W)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1 17.93A8 8 0 0 1 4.07 13H11zm0-6.93H4.07A8 8 0 0 1 11 4.07zm2 6.93V13h6.93A8 8 0 0 1 13 19.93zM13 11V4.07A8 8 0 0 1 19.93 11z"/></svg>
             <span>Traffic</span>
+          </button>
+
+          <button type="button" class="btn-subtle" id="btn-design-portal" title="Proprietary Design System, OKLCH Tokens & Web Components Studio (D)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span>Design</span>
           </button>
 
           <button type="button" class="user-pill" id="user-pill" aria-label="Account menu">
@@ -415,12 +421,12 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Executes automated sandboxed verification across all 94 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations, Package Managers, HTML Living Standard, Technical SEO / Schema.org JSON-LD, E-Commerce Checkouts, Stripe / Polar.sh Payment Processing, Web Shop Storefront / Order Lifecycle Architecture &amp; Deep Web Cookies / Client Storage / HTTP Traffic Engineering), computing telemetry, assertion scores, and execution durations.
+            Executes automated sandboxed verification across all 106 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations, Package Managers, HTML Living Standard, Technical SEO / Schema.org JSON-LD, E-Commerce Checkouts, Stripe / Polar.sh Payment Processing, Web Shop Storefront / Order Lifecycle Architecture, Deep Web Cookies / Client Storage / HTTP Traffic &amp; Proprietary Design Systems / UI Craft / Web Components), computing telemetry, assertion scores, and execution durations.
           </p>
 
           <div class="telemetry-grid" id="benchmark-stats-grid">
             <div class="stat-card">
-              <div class="stat-value" id="bench-total-tasks">94</div>
+              <div class="stat-value" id="bench-total-tasks">106</div>
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
@@ -429,7 +435,7 @@
             </div>
             <div class="stat-card">
               <div class="stat-value" id="bench-avg-score">—</div>
-              <div class="stat-label\">Average Score</div>
+              <div class="stat-label">Average Score</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="bench-avg-duration">—</div>
@@ -439,7 +445,7 @@
 
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:1rem 0 1.2rem;">
             <select id="bench-category-filter" class="chat-sender-select" aria-label="Filter benchmark category">
-              <option value="">All 24 Categories (94 Tasks)</option>
+              <option value="">All 27 Categories (106 Tasks)</option>
               <option value="css">css (5)</option>
               <option value="html-architecture">html-architecture (5)</option>
               <option value="seo-structured-data">seo-structured-data (5)</option>
@@ -447,6 +453,9 @@
               <option value="payment-processing">payment-processing (5)</option>
               <option value="storefront-ui">storefront-ui (5)</option>
               <option value="order-lifecycle-data">order-lifecycle-data (5)</option>
+              <option value="proprietary-design-systems">proprietary-design-systems (4)</option>
+              <option value="ui-ux-interaction">ui-ux-interaction (4)</option>
+              <option value="web-components">web-components (4)</option>
               <option value="web-cookies">web-cookies (4)</option>
               <option value="web-storage-data">web-storage-data (4)</option>
               <option value="web-traffic">web-traffic (4)</option>
@@ -631,6 +640,58 @@
           </div>
 
           <div id="traffic-sim-output" class="sim-output" hidden></div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Native HTML5 <dialog>: Proprietary Design System, W3C DTCG 2025.10 Tokens & Web Components Studio -->
+    <dialog class="native-modal" id="design-modal" aria-labelledby="design-title">
+      <div class="modal-card benchmark-card" role="document">
+        <header class="modal-header">
+          <div>
+            <span class="badge">W3C DTCG 2025.10 · OKLCH · Web Components</span>
+            <h2 class="modal-title" id="design-title">Proprietary Design System &amp; Web Components Studio</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-design" aria-label="Close dialog">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="benchmark-desc">
+            Compiles W3C Design Tokens (<code>DTCG 2025.10</code>) with <code>$type</code> inheritance and alias resolution, audits perceptual <code>OKLCH</code> / <code>APCA Lc</code> contrast, and renders live Form-Associated <code>&lt;loom-design-swatch&gt;</code> Web Components using <code>ElementInternals</code> and <code>CustomStateSet</code>.
+          </p>
+
+          <div class="telemetry-grid" id="design-telemetry-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="design-stat-tokens">15</div>
+              <div class="stat-label">DTCG 2025.10 Tokens</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="design-stat-apca">102.4 Lc</div>
+              <div class="stat-label">APCA Contrast</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="design-stat-wcag">17.8:1</div>
+              <div class="stat-label">WCAG 2.2 Ratio</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="design-stat-elements">5</div>
+              <div class="stat-label">Custom Elements</div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.85rem 0;">
+            <loom-design-swatch token="--bg-obsidian-950" oklch="oklch(0.11 0.005 90)" apca-lc="102.4" selected></loom-design-swatch>
+            <loom-design-swatch token="--panel-obsidian-900" oklch="oklch(0.15 0.005 90)" apca-lc="96.8"></loom-design-swatch>
+            <loom-design-swatch token="--ink-alabaster-50" oklch="oklch(0.97 0.004 90)" apca-lc="102.4"></loom-design-swatch>
+            <loom-design-swatch token="--accent-emerald-500" oklch="oklch(0.72 0.17 155)" apca-lc="68.2"></loom-design-swatch>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.9rem 0;">
+            <button type="button" class="btn-primary" id="btn-design-compile-tokens">Compile W3C DTCG 2025.10 Tokens</button>
+            <button type="button" class="btn-secondary" id="btn-design-audit-contrast">Run OKLCH + APCA Lc Contrast Solver</button>
+          </div>
+
+          <div id="design-sim-output" class="sim-output" hidden></div>
         </div>
       </div>
     </dialog>

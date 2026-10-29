@@ -29,6 +29,7 @@ const el = {
   btnChatPortal: document.querySelector("#btn-chat-portal"),
   btnShopPortal: document.querySelector("#btn-shop-portal"),
   btnTrafficPortal: document.querySelector("#btn-traffic-portal"),
+  btnDesignPortal: document.querySelector("#btn-design-portal"),
 
   // Modals
   refactorModal: document.querySelector("#refactor-modal"),
@@ -119,6 +120,17 @@ const el = {
   trafficStatPriority: document.querySelector("#traffic-stat-priority"),
   trafficStatRatelimit: document.querySelector("#traffic-stat-ratelimit"),
 
+  // Design System modal
+  designModal: document.querySelector("#design-modal"),
+  btnCloseDesign: document.querySelector("#btn-close-design"),
+  btnDesignCompileTokens: document.querySelector("#btn-design-compile-tokens"),
+  btnDesignAuditContrast: document.querySelector("#btn-design-audit-contrast"),
+  designSimOutput: document.querySelector("#design-sim-output"),
+  designStatTokens: document.querySelector("#design-stat-tokens"),
+  designStatApca: document.querySelector("#design-stat-apca"),
+  designStatWcag: document.querySelector("#design-stat-wcag"),
+  designStatElements: document.querySelector("#design-stat-elements"),
+
   // Command palette
   palette: document.querySelector("#palette"),
   paletteInput: document.querySelector("#palette-input"),
@@ -181,7 +193,7 @@ const isTyping = (node) =>
   !!node &&
   (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT" || node.isContentEditable);
 
-const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.shopModal, el.trafficModal, el.palette].filter(Boolean);
+const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.shopModal, el.trafficModal, el.designModal, el.palette].filter(Boolean);
 
 function openDialog(dialog) {
   if (dialog && !dialog.open) dialog.showModal();
@@ -941,7 +953,7 @@ async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 94;
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 106;
   } catch (err) {
     toast(err.message);
   }
@@ -1309,6 +1321,51 @@ async function runTrafficCacheTraceSimUI() {
   }
 }
 
+/* ── Proprietary Design System, DTCG 2025.10 Tokens & Web Components Modal ── */
+
+function openDesignModal() {
+  openDialog(el.designModal);
+}
+
+function closeDesignModal() {
+  closeDialog(el.designModal);
+}
+
+async function runDesignCompileTokensUI() {
+  try {
+    const compiled = await api("POST", "/api/design/tokens/compile", {
+      selector: ":root",
+    });
+    if (el.designStatTokens) el.designStatTokens.textContent = String(compiled.tokenCount ?? 15);
+    if (el.designSimOutput) {
+      el.designSimOutput.hidden = false;
+      el.designSimOutput.textContent = `${compiled.cssText}\n\n${JSON.stringify(compiled.tokens, null, 2)}`;
+    }
+    toast(`Compiled ${compiled.tokenCount} W3C DTCG 2025.10 design tokens!`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function runDesignContrastSolverUI() {
+  try {
+    const res = await api("POST", "/api/design/oklch/contrast", {
+      text: { l: 0.42, c: 0.02, h: 90 },
+      surface: { l: 0.11, c: 0.005, h: 90 },
+      minApcaLc: 75,
+    });
+    if (el.designStatApca) el.designStatApca.textContent = `${res.finalApcaLc} Lc`;
+    if (el.designStatWcag) el.designStatWcag.textContent = `${res.finalWcagRatio}:1`;
+    if (el.designSimOutput) {
+      el.designSimOutput.hidden = false;
+      el.designSimOutput.textContent = JSON.stringify(res, null, 2);
+    }
+    toast(`OKLCH Contrast solved: ${res.finalApcaLc} Lc (${res.finalWcagRatio}:1 WCAG)`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 /* ── Command Palette ─────────────────────────────────────── */
 
 const commands = [
@@ -1319,6 +1376,7 @@ const commands = [
   { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
   { label: "Web Shop Storefront, Checkout & Order History", hint: "S", run: openShopModal },
   { label: "Web Cookies, Client Data & HTTP Traffic Inspector", hint: "W", run: openTrafficModal },
+  { label: "Proprietary Design System, OKLCH & Web Components Studio", hint: "D", run: openDesignModal },
   { label: "OAuth 2.0 Applications & Simulator", hint: "O", run: openOAuthModal },
   { label: "Switch to Today board", hint: "", run: () => switchBoard("board_today") },
   { label: "Switch to Agentic Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
@@ -1390,6 +1448,7 @@ function runCommand(command) {
   closeChatModal();
   closeShopModal();
   closeTrafficModal();
+  closeDesignModal();
   command.run();
 }
 
@@ -1538,6 +1597,12 @@ el.btnCloseTraffic?.addEventListener("click", closeTrafficModal);
 el.btnTrafficAuditCookie?.addEventListener("click", runTrafficCookieAuditUI);
 el.btnTrafficSimCache?.addEventListener("click", runTrafficCacheTraceSimUI);
 
+// Design Modal Wiring
+el.btnDesignPortal?.addEventListener("click", openDesignModal);
+el.btnCloseDesign?.addEventListener("click", closeDesignModal);
+el.btnDesignCompileTokens?.addEventListener("click", runDesignCompileTokensUI);
+el.btnDesignAuditContrast?.addEventListener("click", runDesignContrastSolverUI);
+
 // Command palette wiring
 el.palette?.addEventListener("mousedown", (event) => {
   if (event.target === el.palette) closePalette();
@@ -1643,6 +1708,11 @@ document.addEventListener("keydown", (event) => {
     case "W":
       event.preventDefault();
       openTrafficModal();
+      break;
+    case "d":
+    case "D":
+      event.preventDefault();
+      openDesignModal();
       break;
     case "1":
       setFilter("all");
