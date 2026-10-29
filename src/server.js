@@ -5,6 +5,7 @@ import { OAuthServer } from "./oauth.js";
 import { createHandler } from "./api.js";
 import { createStatic } from "./static.js";
 import { createHub } from "./events.js";
+import { ChatEngine } from "./chat.js";
 
 const ROOT = join(import.meta.dir, "..");
 const PUBLIC_DIR = join(ROOT, "public");
@@ -21,8 +22,9 @@ if (store.listTasks().length === 0) {
 const authStore = await new AuthStore(AUTH_FILE).load();
 const oauthServer = await new OAuthServer(OAUTH_FILE).load();
 const hub = createHub();
+const chatEngine = new ChatEngine();
 
-const handleApi = createHandler(store, hub, authStore, oauthServer);
+const handleApi = createHandler(store, hub, authStore, oauthServer, chatEngine);
 const serveStatic = createStatic(PUBLIC_DIR);
 
 const server = Bun.serve({

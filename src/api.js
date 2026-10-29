@@ -2,6 +2,7 @@ import { ValidationError } from "./store.js";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
 import { Evaluator } from "./evaluator.js";
 import { BenchmarkSuite } from "./benchmark.js";
+import { ChatEngine } from "./chat.js";
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -40,7 +41,7 @@ async function readJson(req) {
 
 const notFound = (what) => json({ error: `No such ${what}.` }, 404);
 
-export function createHandler(store, hub, authStore, oauthServer) {
+export function createHandler(store, hub, authStore, oauthServer, chatEngine = new ChatEngine()) {
 const evaluator = new Evaluator();
 const benchmarkSuite = new BenchmarkSuite();
   return async function handle(req) {
@@ -68,6 +69,8 @@ const benchmarkSuite = new BenchmarkSuite();
           ...state,
           user: currentUser,
           oauthClients: oauthServer?.listClients() ?? [],
+          chatRooms: chatEngine.listRooms(),
+          chatTelemetry: chatEngine.getTelemetry(),
         });
       }
 
@@ -677,6 +680,89 @@ const benchmarkSuite = new BenchmarkSuite();
           return notFound("task");
         }
         throw new HttpError(405, "Method not allowed.");
+      }
+
+      /* ── Real-Time Two-User Chat & Instrumentation ────────── */
+      if (pathname === "/api/chat/rooms") {
+        if (req.method === "GET") {
+          return json({
+            rooms: chatEngine.listRooms(),
+            telemetry: chatEngine.getTelemetry(),
+          });
+        }
+        if (req.method === "POST") {
+          const { userA, userB, roomId } = await readJson(req);
+          const room = chatEngine.ensureRoom(userA, userB, roomId);
+          hub?.broadcast({ type: "chat", event: "room", roomId: room.id, at: Date.now() });
+          return json(room, 201);
+        }
+        throw new HttpError(405, "Method not allowed.");
+      }
+
+      if (pathname === "/api/chat/messages") {
+        if (req.method === "GET") {
+          const roomId = searchParams.get("roomId") || "dm:agent:pp";
+          const afterSeq = Number(searchParams.get("afterSeq") || 0);
+          const limit = Number(searchParams.get("limit") || 100);
+          return json(chatEngine.getMessages(roomId, { afterSeq, limit }));
+        }
+        if (req.method === "POST") {
+          const body = await readJson(req);
+          const sender = body.sender || currentUser?.username || "agent";
+          const recipient = body.recipient || (sender === "agent" ? "pp" : "agent");
+          const result = chatEngine.sendMessage({
+            roomId: body.roomId,
+            sender,
+            recipient,
+            text: body.text,
+            clientMsgId: body.clientMsgId,
+            expectedSeq: body.expectedSeq,
+            replyToSeq: body.replyToSeq,
+          });
+          if (result.message) {
+            hub?.broadcast({
+              type: "chat",
+              event: "message",
+              roomId: result.message.roomId,
+              message: result.message,
+              at: Date.now(),
+            });
+          }
+          return json(result, result.deduplicated ? 200 : 201);
+        }
+        throw new HttpError(405, "Method not allowed.");
+      }
+
+      if (pathname === "/api/chat/typing" && req.method === "POST") {
+        const { roomId = "dm:agent:pp", username, isTyping = true } = await readJson(req);
+        const result = chatEngine.setTyping({
+          roomId,
+          username: username || currentUser?.username || "agent",
+          isTyping: Boolean(isTyping),
+        });
+        hub?.broadcast({ type: "chat", event: "typing", roomId: result.roomId, typingUsers: result.typingUsers, at: Date.now() });
+        return json(result);
+      }
+
+      if (pathname === "/api/chat/read" && req.method === "POST") {
+        const { roomId = "dm:agent:pp", username, upToSeq } = await readJson(req);
+        const result = chatEngine.markRead({
+          roomId,
+          username: username || currentUser?.username || "agent",
+          upToSeq: upToSeq !== undefined ? Number(upToSeq) : undefined,
+        });
+        hub?.broadcast({ type: "chat", event: "read", roomId: result.roomId, readWatermarks: result.readWatermarks, at: Date.now() });
+        return json(result);
+      }
+
+      if (pathname === "/api/chat/debug" && req.method === "GET") {
+        const roomId = searchParams.get("roomId") || "dm:agent:pp";
+        return json(chatEngine.runDiagnostics(roomId));
+      }
+
+      if (pathname === "/api/chat/benchmark" && req.method === "POST") {
+        const body = await readJson(req);
+        return json(chatEngine.runBenchmark(body));
       }
 
       return json({ error: "Unknown endpoint." }, 404);

@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ChatEngine, canonicalRoomId } from "../src/chat.js";
+import { TaskStore } from "../src/store.js";
+import { AuthStore } from "../src/auth.js";
+import { OAuthServer } from "../src/oauth.js";
+import { createHandler } from "../src/api.js";
+import { createHub } from "../src/events.js";
 
 describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
   test("creates canonical two-user room IDs regardless of participant order", () => {
@@ -95,5 +103,79 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
     expect(bench.duplicatesSuppressed).toBeGreaterThanOrEqual(8);
     expect(bench.throughputMsgsPerSec).toBeGreaterThan(0);
     expect(typeof bench.latency.p99Ms).toBe("number");
+  });
+
+  test("exposes real-time chat REST endpoints for two-user messaging, typing, read receipts, debug & benchmark", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "loom-chat-api-"));
+    try {
+      const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
+      const authStore = await new AuthStore(join(dir, "auth.json")).load();
+      const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
+      const handle = createHandler(taskStore, createHub(), authStore, oauthServer);
+
+      const call = (method, path, body) =>
+        handle(
+          new Request(`http://loom.test${path}`, {
+            method,
+            headers: body ? { "content-type": "application/json" } : undefined,
+            body: body ? JSON.stringify(body) : undefined,
+          }),
+        );
+
+      const roomsRes = await call("GET", "/api/chat/rooms");
+      expect(roomsRes.status).toBe(200);
+      const { rooms } = await roomsRes.json();
+      expect(rooms.some((r) => r.id === "dm:agent:pp")).toBe(true);
+
+      const sendRes = await call("POST", "/api/chat/messages", {
+        roomId: "dm:agent:pp",
+        sender: "pp",
+        recipient: "agent",
+        text: "Testing live chat endpoint",
+        clientMsgId: "api_msg_1",
+      });
+      expect(sendRes.status).toBe(201);
+      const sent = await sendRes.json();
+      expect(sent.message.seq).toBe(3);
+
+      // Duplicate retry returns 200 with deduplicated: true
+      const dupRes = await call("POST", "/api/chat/messages", {
+        roomId: "dm:agent:pp",
+        sender: "pp",
+        recipient: "agent",
+        text: "Testing live chat endpoint",
+        clientMsgId: "api_msg_1",
+      });
+      expect(dupRes.status).toBe(200);
+      expect((await dupRes.json()).deduplicated).toBe(true);
+
+      const typingRes = await call("POST", "/api/chat/typing", {
+        roomId: "dm:agent:pp",
+        username: "agent",
+        isTyping: true,
+      });
+      expect(typingRes.status).toBe(200);
+      expect((await typingRes.json()).typingUsers).toContain("agent");
+
+      const readRes = await call("POST", "/api/chat/read", {
+        roomId: "dm:agent:pp",
+        username: "agent",
+        upToSeq: 3,
+      });
+      expect(readRes.status).toBe(200);
+      expect((await readRes.json()).lastReadSeq).toBe(3);
+
+      const debugRes = await call("GET", "/api/chat/debug?roomId=dm:agent:pp");
+      expect(debugRes.status).toBe(200);
+      expect((await debugRes.json()).healthy).toBe(true);
+
+      const benchRes = await call("POST", "/api/chat/benchmark", { messageCount: 60 });
+      expect(benchRes.status).toBe(200);
+      const benchData = await benchRes.json();
+      expect(benchData.diagnosticsHealthy).toBe(true);
+      expect(benchData.messagesDispatched).toBe(62);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
