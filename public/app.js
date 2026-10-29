@@ -621,7 +621,7 @@ function toggleTheme() {
 /* ── Refactoring Tasks Curriculum ────────────────────────── */
 
 async function seedCurriculum() {
-  toast("Seeding 106 curriculum exercises...");
+  toast("Seeding 112 curriculum exercises...");
   try {
     const res = await api("POST", "/api/curriculum/seed");
     // Reload state
@@ -947,13 +947,13 @@ async function simulateAgentOAuthPkce() {
   }
 }
 
-/* ── Agentic 106-Exercise Benchmark Suite Modal ───────────────────── */
+/* ── Agentic 112-Exercise Benchmark Suite Modal ───────────────────── */
 
 async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 106;
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 112;
   } catch (err) {
     toast(err.message);
   }
@@ -1372,7 +1372,7 @@ const commands = [
   { label: "New task", hint: "N", run: () => el.input?.focus() },
   { label: "Toggle theme", hint: "T", run: toggleTheme },
   { label: "Agentic Refactoring Curriculum", hint: "R", run: seedCurriculum },
-  { label: "Agentic 106-Exercise Benchmark Suite", hint: "B", run: openBenchmarkModal },
+  { label: "Agentic 112-Exercise Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
   { label: "Web Shop Storefront, Checkout & Order History", hint: "S", run: openShopModal },
   { label: "Web Cookies, Client Data & HTTP Traffic Inspector", hint: "W", run: openTrafficModal },

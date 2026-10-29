@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **106 exercises in 27 categories and 11 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **112 exercises in 29 categories and 12 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -107,6 +107,7 @@ The repository currently includes **106 exercises in 27 categories and 11 tracks
 | Web platform | HTML, structured data, cookies, storage, HTTP traffic |
 | UI engineering | Design tokens, interaction patterns, web components |
 | Developer tooling | TypeScript frameworks, migrations, package management |
+| Browser platform | Web Workers, shared memory, streams |
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
@@ -122,6 +123,17 @@ Each exercise defines a prompt, starter code, acceptance criteria, and a referen
 
 GitHub's **Languages** bar counts source file types, not frameworks. These exercises contribute to **TypeScript** there; React and Angular do not appear as separate languages. The Vue and Svelte exercise models their reactive primitives in TypeScript rather than shipping `.vue` or `.svelte` components.
 
+### Browser platform exercises
+
+| Platform primitive | Exercise |
+| --- | --- |
+| Web Workers | [Transferable `ArrayBuffer` chunked reduction](exercises/platform/web_workers/transferable_offload/starter.js) |
+| Web Workers | [`SharedArrayBuffer` + `Atomics` race-free counter](exercises/platform/web_workers/shared_atomics_counter/starter.js) |
+| Web Workers | [Bounded worker pool with graceful drain](exercises/platform/web_workers/pool_lifecycle/starter.js) |
+| Streams | [Streaming NDJSON frame decoder](exercises/platform/web_streams/json_frame_decoder/starter.js) |
+| Streams | [Resumable SSE parser with `Last-Event-ID`](exercises/platform/web_streams/sse_reconnect_parser/starter.js) |
+| Streams | [Constant-memory streaming checksum](exercises/platform/web_streams/streaming_checksum/starter.js) |
+
 ## How evaluation works
 
 The [evaluator](src/evaluator.js) combines structural checks with task-specific runtime assertions. It reports pass/fail results, a score, execution time, and a line diff. TypeScript submissions are transpiled with Bun before evaluation. The [benchmark suite](src/benchmark.js) runs those same checks against the bundled reference solutions, either for one category or for the full catalog.
@@ -134,6 +146,7 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | --- | --- |
 | [`src/curriculum.js`](src/curriculum.js) | Exercise catalog and tracks |
 | [`exercises/frameworks/`](exercises/frameworks/) | TypeScript starter and reference files for framework challenges |
+| [`exercises/platform/`](exercises/platform/) | Starter and reference files for Web Worker and Streams challenges |
 | [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
 | [`src/server.js`](src/server.js) and [`src/api.js`](src/api.js) | Bun server and HTTP routes |
