@@ -41,6 +41,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Advanced HTML Living Standard, Technical SEO, JSON-LD & Schema.org",
     categories: ["html-architecture", "seo-structured-data"],
   },
+  "commerce-fintech": {
+    id: "commerce-fintech",
+    name: "E-Commerce, Checkouts, Stripe & Polar.sh Payment Processing",
+    categories: ["ecommerce-checkout", "payment-processing"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -61,6 +66,8 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "package-managers": "enterprise-typescript",
   "html-architecture": "semantic-web-seo",
   "seo-structured-data": "semantic-web-seo",
+  "ecommerce-checkout": "commerce-fintech",
+  "payment-processing": "commerce-fintech",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -5193,6 +5200,640 @@ export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec)
       "Emits a Schema.org Dataset node with license, creator @id link, and DataDownload distribution (encodingFormat + contentUrl)",
       "Configures WebSite potentialAction with a SearchAction EntryPoint urlTemplate and query-input binding",
       "Links Organization sameAs authority URLs and FAQPage Question/AcceptedAnswer entities inside a single @graph",
+    ],
+  },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 10: E-COMMERCE & CHECKOUT ENGINEERING (ecommerce-checkout)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_ecom_integer_cents_dinero_cart_engine",
+    title: "Refactor Floating-Point Cart Math to Integer Minor-Unit (Dinero Pattern) Multi-Currency Pricing & Largest-Remainder Promo Proration",
+    category: "ecommerce-checkout",
+    difficulty: "advanced",
+    tags: ["ecommerce", "checkout", "dinero-cents", "largest-remainder", "multi-currency", "typescript"],
+    instructions:
+      "A checkout cart computes line-item subtotals and coupon discounts using IEEE-754 floating-point numbers (e.g., 19.99 * 3 = 59.970000000000006), loses pennies when splitting a cart-wide discount across line items for per-item tax/refund reporting, and fails on zero-decimal currencies (JPY, KRW). Refactor to an integer minor-unit (cents) pricing engine using Hamilton's Largest Remainder method for exact line-item discount allocation.",
+    starterCode: `// Vulnerable Floating-Point Cart Math Losing Pennies on Discount Proration
+export function calculateCartFloat(items: any[], discountDollars: number) {
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  return { subtotal, total: subtotal - discountDollars };
+}`,
+    solutionCode: `// Integer Minor-Unit (Dinero Pattern) Multi-Currency Cart & Largest-Remainder Proration Engine
+export type CurrencyCode = "USD" | "EUR" | "GBP" | "JPY" | "KRW";
+
+export const CURRENCY_EXPONENTS: Readonly<Record<CurrencyCode, 0 | 2>> = {
+  USD: 2,
+  EUR: 2,
+  GBP: 2,
+  JPY: 0,
+  KRW: 0,
+};
+
+export interface CartLineInput {
+  readonly sku: string;
+  readonly unitAmountMinor: number; // integer cents for USD/EUR/GBP, integer yen for JPY
+  readonly quantity: number;
+}
+
+export interface PromoRule {
+  readonly code: string;
+  readonly kind: "FIXED_CART" | "PERCENT_BPS"; // basis points: 1500 = 15.00%
+  readonly value: number;
+}
+
+export interface ProratedLineItem {
+  readonly sku: string;
+  readonly grossMinor: number;
+  readonly discountMinor: number;
+  readonly netMinor: number;
+}
+
+export function computeCartPricingMinor(
+  currency: CurrencyCode,
+  lines: readonly CartLineInput[],
+  promos: readonly PromoRule[],
+): {
+  readonly currency: CurrencyCode;
+  readonly exponent: 0 | 2;
+  readonly subtotalMinor: number;
+  readonly totalDiscountMinor: number;
+  readonly netTotalMinor: number;
+  readonly lineItems: readonly ProratedLineItem[];
+} {
+  for (const line of lines) {
+    if (!Number.isSafeInteger(line.unitAmountMinor) || line.unitAmountMinor < 0) {
+      throw new Error(\`unitAmountMinor must be a non-negative integer for SKU \${line.sku}\`);
+    }
+    if (!Number.isSafeInteger(line.quantity) || line.quantity <= 0) {
+      throw new Error(\`quantity must be a positive integer for SKU \${line.sku}\`);
+    }
+  }
+
+  const grossLines = lines.map((l) => ({
+    sku: l.sku,
+    grossMinor: l.unitAmountMinor * l.quantity,
+  }));
+  const subtotalMinor = grossLines.reduce((acc, l) => acc + l.grossMinor, 0);
+
+  // Apply promos in deterministic order: PERCENT_BPS first, then FIXED_CART, capped at subtotalMinor
+  let runningNet = subtotalMinor;
+  const sortedPromos = [...promos].sort((a, b) =>
+    a.kind === b.kind ? a.code.localeCompare(b.code) : a.kind === "PERCENT_BPS" ? -1 : 1,
+  );
+
+  for (const promo of sortedPromos) {
+    if (promo.kind === "PERCENT_BPS") {
+      const cut = Math.floor((runningNet * promo.value) / 10000);
+      runningNet = Math.max(0, runningNet - cut);
+    } else if (promo.kind === "FIXED_CART") {
+      runningNet = Math.max(0, runningNet - promo.value);
+    }
+  }
+
+  const totalDiscountMinor = subtotalMinor - runningNet;
+
+  // Hamilton's Largest Remainder Method to prorate totalDiscountMinor across line items without losing 1 cent
+  if (subtotalMinor === 0 || totalDiscountMinor === 0) {
+    return {
+      currency,
+      exponent: CURRENCY_EXPONENTS[currency],
+      subtotalMinor,
+      totalDiscountMinor: 0,
+      netTotalMinor: subtotalMinor,
+      lineItems: grossLines.map((l) => ({
+        sku: l.sku,
+        grossMinor: l.grossMinor,
+        discountMinor: 0,
+        netMinor: l.grossMinor,
+      })),
+    };
+  }
+
+  const quotas = grossLines.map((l, idx) => {
+    const exactNumerator = totalDiscountMinor * l.grossMinor;
+    const floorShare = Math.floor(exactNumerator / subtotalMinor);
+    const remainder = exactNumerator % subtotalMinor;
+    return { idx, floorShare, remainder };
+  });
+
+  let remainderUnits =
+    totalDiscountMinor - quotas.reduce((acc, q) => acc + q.floorShare, 0);
+
+  quotas.sort((a, b) => (b.remainder !== a.remainder ? b.remainder - a.remainder : a.idx - b.idx));
+  for (let i = 0; i < remainderUnits; i++) {
+    quotas[i].floorShare += 1;
+  }
+  quotas.sort((a, b) => a.idx - b.idx);
+
+  const lineItems: ProratedLineItem[] = grossLines.map((l, idx) => {
+    const discountMinor = quotas[idx].floorShare;
+    return {
+      sku: l.sku,
+      grossMinor: l.grossMinor,
+      discountMinor,
+      netMinor: l.grossMinor - discountMinor,
+    };
+  });
+
+  return {
+    currency,
+    exponent: CURRENCY_EXPONENTS[currency],
+    subtotalMinor,
+    totalDiscountMinor,
+    netTotalMinor: subtotalMinor - totalDiscountMinor,
+    lineItems,
+  };
+}`,
+    criteria: [
+      "Enforces integer minor-unit arithmetic (Number.isSafeInteger) and supports 0-decimal (JPY/KRW) and 2-decimal (USD/EUR/GBP) currencies",
+      "Applies PERCENT_BPS and FIXED_CART promotions deterministically without negative balance underflow",
+      "Allocates cart-level discounts across line items via Hamilton's Largest Remainder method so sum(line.discountMinor) === totalDiscountMinor",
+    ],
+  },
+  {
+    id: "task_ecom_inventory_reservation_ttl_oversell_guard",
+    title: "Implement Atomic Inventory Reservation Hold Engine with TTL Lease Expiry, Idempotent Checkout Commit & Flash-Sale Oversell Prevention",
+    category: "ecommerce-checkout",
+    difficulty: "advanced",
+    tags: ["ecommerce", "inventory", "concurrency", "ttl-lease", "flash-sale", "idempotency"],
+    instructions:
+      "During high-concurrency flash sales, checking stock at cart view and decrementing only after payment webhook arrival causes massive overselling of limited inventory, while decrementing early permanently locks stock from abandoned checkouts. Implement an atomic InventoryReservationEngine with TTL-bounded hold leases, automatic expired-lease reclamation, idempotent reservation retries, and commit-on-capture.",
+    starterCode: `// Race-Prone Inventory Check Vulnerable to Flash-Sale Overselling
+export class NaiveInventory {
+  stock = new Map<string, number>();
+  canBuy(sku: string, qty: number) {
+    return (this.stock.get(sku) ?? 0) >= qty;
+  }
+}`,
+    solutionCode: `// Atomic Inventory Reservation Engine with TTL Leases & Idempotent Commit
+export interface ReservationHold {
+  readonly holdId: string;
+  readonly sku: string;
+  readonly quantity: number;
+  readonly expiresAtMs: number;
+  status: "ACTIVE" | "COMMITTED" | "RELEASED" | "EXPIRED";
+}
+
+export class InventoryReservationEngine {
+  #physicalStock = new Map<string, number>();
+  #holds = new Map<string, ReservationHold>();
+
+  setPhysicalStock(sku: string, quantity: number): void {
+    if (!Number.isSafeInteger(quantity) || quantity < 0) {
+      throw new Error("Stock must be a non-negative integer");
+    }
+    this.#physicalStock.set(sku, quantity);
+  }
+
+  reclaimExpiredHolds(nowMs: number): number {
+    let reclaimed = 0;
+    for (const hold of this.#holds.values()) {
+      if (hold.status === "ACTIVE" && nowMs >= hold.expiresAtMs) {
+        hold.status = "EXPIRED";
+        reclaimed++;
+      }
+    }
+    return reclaimed;
+  }
+
+  getAvailableStock(sku: string, nowMs: number): number {
+    this.reclaimExpiredHolds(nowMs);
+    const physical = this.#physicalStock.get(sku) ?? 0;
+    let reserved = 0;
+    for (const hold of this.#holds.values()) {
+      if (hold.sku === sku && hold.status === "ACTIVE") {
+        reserved += hold.quantity;
+      }
+    }
+    return Math.max(0, physical - reserved);
+  }
+
+  reserve(params: {
+    readonly holdId: string;
+    readonly sku: string;
+    readonly quantity: number;
+    readonly nowMs: number;
+    readonly ttlMs?: number;
+  }): { readonly ok: boolean; readonly hold?: ReservationHold; readonly availableStock: number } {
+    this.reclaimExpiredHolds(params.nowMs);
+
+    // Idempotent replay of an existing active or committed hold
+    const existing = this.#holds.get(params.holdId);
+    if (existing && (existing.status === "ACTIVE" || existing.status === "COMMITTED")) {
+      if (existing.sku !== params.sku || existing.quantity !== params.quantity) {
+        throw new Error(\`Hold ID '\${params.holdId}' reused with mismatched SKU or quantity\`);
+      }
+      return {
+        ok: true,
+        hold: { ...existing },
+        availableStock: this.getAvailableStock(params.sku, params.nowMs),
+      };
+    }
+
+    const available = this.getAvailableStock(params.sku, params.nowMs);
+    if (params.quantity <= 0 || available < params.quantity) {
+      return { ok: false, availableStock: available };
+    }
+
+    const hold: ReservationHold = {
+      holdId: params.holdId,
+      sku: params.sku,
+      quantity: params.quantity,
+      expiresAtMs: params.nowMs + (params.ttlMs ?? 600_000),
+      status: "ACTIVE",
+    };
+    this.#holds.set(params.holdId, hold);
+
+    return {
+      ok: true,
+      hold: { ...hold },
+      availableStock: available - params.quantity,
+    };
+  }
+
+  commitHold(holdId: string, nowMs: number): ReservationHold {
+    this.reclaimExpiredHolds(nowMs);
+    const hold = this.#holds.get(holdId);
+    if (!hold) throw new Error(\`Unknown hold '\${holdId}'\`);
+    if (hold.status === "COMMITTED") return { ...hold };
+    if (hold.status !== "ACTIVE") {
+      throw new Error(\`Cannot commit hold '\${holdId}' in status '\${hold.status}'\`);
+    }
+
+    const physical = this.#physicalStock.get(hold.sku) ?? 0;
+    if (physical < hold.quantity) {
+      throw new Error("Physical stock invariant violation");
+    }
+    this.#physicalStock.set(hold.sku, physical - hold.quantity);
+    hold.status = "COMMITTED";
+    return { ...hold };
+  }
+
+  releaseHold(holdId: string): boolean {
+    const hold = this.#holds.get(holdId);
+    if (!hold || hold.status !== "ACTIVE") return false;
+    hold.status = "RELEASED";
+    return true;
+  }
+}`,
+    criteria: [
+      "Prevents flash-sale overselling by subtracting active TTL-bound reservation holds from physical stock",
+      "Automatically reclaims expired holds (nowMs >= expiresAtMs) so abandoned checkouts release inventory",
+      "Supports idempotent reserve(holdId) retries and atomic physical stock deduction on commitHold()",
+    ],
+  },
+  {
+    id: "task_ecom_global_tax_vat_reverse_charge_engine",
+    title: "Build Global Cross-Border Tax, EU VAT Reverse-Charge (B2B VIES) & US Economic Nexus Threshold Calculator",
+    category: "ecommerce-checkout",
+    difficulty: "advanced",
+    tags: ["ecommerce", "tax", "eu-vat", "reverse-charge", "economic-nexus", "compliance"],
+    instructions:
+      "A checkout engine applies a hardcoded 8% tax rate to all orders, illegally charging VAT on cross-border EU B2B transactions where the buyer supplies a valid VIES VAT number (which requires 0% VAT under Article 196 Reverse Charge) and charging US state sales tax where the merchant has not crossed economic nexus ($100,000 sales or 200 transactions). Build a deterministic Global Tax & VAT Calculator.",
+    starterCode: `// Naive Flat Tax Rate Ignoring EU B2B Reverse Charge & US Economic Nexus
+export function computeTax(amountCents: number) {
+  return Math.round(amountCents * 0.08);
+}`,
+    solutionCode: `// Global Cross-Border Tax, EU VAT Reverse-Charge (B2B) & US Economic Nexus Calculator
+export interface MerchantTaxProfile {
+  readonly homeCountry: string; // e.g., "DE" or "US"
+  readonly usStateExposure: Readonly<
+    Record<string, { readonly trailingRevenueMinor: number; readonly trailingTransactions: number }>
+  >;
+}
+
+export interface TaxCalculationInput {
+  readonly amountMinor: number;
+  readonly taxInclusive: boolean;
+  readonly buyerCountry: string;
+  readonly buyerState?: string;
+  readonly buyerVatId?: string;
+  readonly merchant: MerchantTaxProfile;
+}
+
+export interface TaxQuoteResult {
+  readonly netAmountMinor: number;
+  readonly taxAmountMinor: number;
+  readonly grossAmountMinor: number;
+  readonly appliedRateBps: number;
+  readonly regime: "EU_DOMESTIC_VAT" | "EU_B2C_OSS_VAT" | "EU_B2B_REVERSE_CHARGE" | "US_STATE_NEXUS" | "EXEMPT_EXPORT";
+  readonly reverseCharge: boolean;
+  readonly invoiceNotice: string | null;
+}
+
+const EU_VAT_RATES_BPS: Readonly<Record<string, number>> = {
+  DE: 1900,
+  FR: 2000,
+  NL: 2100,
+  SE: 2500,
+  IE: 2300,
+};
+
+const US_STATE_RATES_BPS: Readonly<Record<string, number>> = {
+  CA: 725,
+  NY: 888,
+  TX: 625,
+  WA: 650,
+};
+
+export function isValidEuVatFormat(vatId: string | undefined, country: string): boolean {
+  if (!vatId) return false;
+  const normalized = vatId.replace(/\\s+/g, "").toUpperCase();
+  return normalized.startsWith(country.toUpperCase()) && /^[A-Z]{2}[A-Z0-9]{8,12}$/.test(normalized);
+}
+
+export function calculateGlobalCheckoutTax(input: TaxCalculationInput): TaxQuoteResult {
+  const buyerCountry = input.buyerCountry.toUpperCase();
+  const merchantCountry = input.merchant.homeCountry.toUpperCase();
+  const isBuyerEu = buyerCountry in EU_VAT_RATES_BPS;
+  const isMerchantEu = merchantCountry in EU_VAT_RATES_BPS;
+
+  let rateBps = 0;
+  let regime: TaxQuoteResult["regime"] = "EXEMPT_EXPORT";
+  let reverseCharge = false;
+  let invoiceNotice: string | null = null;
+
+  if (isBuyerEu && isMerchantEu) {
+    if (buyerCountry !== merchantCountry && isValidEuVatFormat(input.buyerVatId, buyerCountry)) {
+      rateBps = 0;
+      regime = "EU_B2B_REVERSE_CHARGE";
+      reverseCharge = true;
+      invoiceNotice = "Reverse charge — VAT exempt under Article 196 Council Directive 2006/112/EC";
+    } else if (buyerCountry === merchantCountry) {
+      rateBps = EU_VAT_RATES_BPS[buyerCountry];
+      regime = "EU_DOMESTIC_VAT";
+    } else {
+      rateBps = EU_VAT_RATES_BPS[buyerCountry];
+      regime = "EU_B2C_OSS_VAT";
+    }
+  } else if (buyerCountry === "US" && input.buyerState) {
+    const state = input.buyerState.toUpperCase();
+    const exposure = input.merchant.usStateExposure[state] ?? {
+      trailingRevenueMinor: 0,
+      trailingTransactions: 0,
+    };
+    const hasEconomicNexus =
+      exposure.trailingRevenueMinor >= 10_000_000 || exposure.trailingTransactions >= 200;
+    if (hasEconomicNexus && state in US_STATE_RATES_BPS) {
+      rateBps = US_STATE_RATES_BPS[state];
+      regime = "US_STATE_NEXUS";
+    }
+  }
+
+  if (input.taxInclusive && rateBps > 0) {
+    const netAmountMinor = Math.round((input.amountMinor * 10000) / (10000 + rateBps));
+    const taxAmountMinor = input.amountMinor - netAmountMinor;
+    return {
+      netAmountMinor,
+      taxAmountMinor,
+      grossAmountMinor: input.amountMinor,
+      appliedRateBps: rateBps,
+      regime,
+      reverseCharge,
+      invoiceNotice,
+    };
+  }
+
+  const taxAmountMinor = Math.round((input.amountMinor * rateBps) / 10000);
+  return {
+    netAmountMinor: input.amountMinor,
+    taxAmountMinor,
+    grossAmountMinor: input.amountMinor + taxAmountMinor,
+    appliedRateBps: rateBps,
+    regime,
+    reverseCharge,
+    invoiceNotice,
+  };
+}`,
+    criteria: [
+      "Applies 0% VAT with reverseCharge: true and statutory Article 196 notice for valid cross-border EU B2B VAT IDs",
+      "Enforces destination EU OSS VAT rates for B2C orders and US Economic Nexus thresholds ($100k revenue or 200 transactions)",
+      "Supports both tax-exclusive and tax-inclusive minor-unit price extraction",
+    ],
+  },
+  {
+    id: "task_ecom_checkout_state_machine_3ds_saga",
+    title: "Architect Multi-Step Checkout & 3-D Secure (requires_action) Saga Coordinator with Compensation Rollback",
+    category: "ecommerce-checkout",
+    difficulty: "advanced",
+    tags: ["ecommerce", "checkout", "saga-pattern", "3ds-authentication", "state-machine", "rollback"],
+    instructions:
+      "A checkout handler runs inventory hold, coupon redemption, and card authorization without a formal state machine or compensation log. When a 3-D Secure (3DS2) challenge fails or times out, the inventory hold and single-use promo code remain permanently locked. Implement a deterministic CheckoutSagaStateMachine that coordinates 3DS requires_action transitions and executes reverse-order compensation on failure.",
+    starterCode: `// Uncoordinated Checkout Leaving Orphaned Inventory & Promo Locks on 3DS Failure
+export async function runCheckout(order: any) {
+  await order.reserveStock();
+  await order.redeemCoupon();
+  return await order.chargeCard();
+}`,
+    solutionCode: `// Deterministic Checkout & 3-D Secure (requires_action) Saga Coordinator
+export type CheckoutState =
+  | "DRAFT"
+  | "INVENTORY_RESERVED"
+  | "PROMO_LOCKED"
+  | "AWAITING_3DS_ACTION"
+  | "CAPTURED"
+  | "FULFILLED"
+  | "FAILED_COMPENSATED";
+
+export interface CheckoutSagaContext {
+  readonly checkoutId: string;
+  state: CheckoutState;
+  readonly compensationStack: Array<{ readonly step: string; readonly undo: () => Promise<void> }>;
+  readonlycompensatedSteps: string[];
+  paymentIntentId: string | null;
+}
+
+export class CheckoutSagaCoordinator {
+  async executeCheckout(
+    checkoutId: string,
+    adapters: {
+      reserveInventory: () => Promise<void>;
+      releaseInventory: () => Promise<void>;
+      lockPromoCoupon: () => Promise<void>;
+      unlockPromoCoupon: () => Promise<void>;
+      createPaymentIntent: () => Promise<{ id: string; status: "succeeded" | "requires_action" | "failed" }>;
+      cancelPaymentIntent: (piId: string) => Promise<void>;
+    },
+  ): Promise<{
+    readonly checkoutId: string;
+    readonly state: CheckoutState;
+    readonly paymentIntentId: string | null;
+    readonly compensatedSteps: readonly string[];
+  }> {
+    const compensationStack: Array<{ step: string; undo: () => Promise<void> }> = [];
+    const compensatedSteps: string[] = [];
+    let state: CheckoutState = "DRAFT";
+    let paymentIntentId: string | null = null;
+
+    const compensateAll = async () => {
+      while (compensationStack.length > 0) {
+        const item = compensationStack.pop()!;
+        await item.undo();
+        compensatedSteps.push(item.step);
+      }
+      state = "FAILED_COMPENSATED";
+    };
+
+    try {
+      await adapters.reserveInventory();
+      state = "INVENTORY_RESERVED";
+      compensationStack.push({ step: "releaseInventory", undo: adapters.releaseInventory });
+
+      await adapters.lockPromoCoupon();
+      state = "PROMO_LOCKED";
+      compensationStack.push({ step: "unlockPromoCoupon", undo: adapters.unlockPromoCoupon });
+
+      const pi = await adapters.createPaymentIntent();
+      paymentIntentId = pi.id;
+      compensationStack.push({
+        step: "cancelPaymentIntent",
+        undo: () => adapters.cancelPaymentIntent(pi.id),
+      });
+
+      if (pi.status === "requires_action") {
+        state = "AWAITING_3DS_ACTION";
+        return { checkoutId, state, paymentIntentId, compensatedSteps };
+      }
+
+      if (pi.status !== "succeeded") {
+        await compensateAll();
+        return { checkoutId, state, paymentIntentId, compensatedSteps };
+      }
+
+      state = "FULFILLED";
+      return { checkoutId, state, paymentIntentId, compensatedSteps };
+    } catch {
+      await compensateAll();
+      return { checkoutId, state, paymentIntentId, compensatedSteps };
+    }
+  }
+}`,
+    criteria: [
+      "Transitions deterministically through INVENTORY_RESERVED, PROMO_LOCKED, AWAITING_3DS_ACTION, and FULFILLED",
+      "Pauses saga completion when payment status is requires_action (3-D Secure challenge pending)",
+      "Executes reverse-order LIFO compensation (cancelPaymentIntent -> unlockPromoCoupon -> releaseInventory) on failure",
+    ],
+  },
+  {
+    id: "task_ecom_polar_mor_license_entitlement_provisioning",
+    title: "Build Polar.sh Merchant-of-Record (@polar-sh/sdk) Digital Entitlement, License Key & Device Seat Activation Engine",
+    category: "ecommerce-checkout",
+    difficulty: "advanced",
+    tags: ["polar-sh", "merchant-of-record", "license-keys", "entitlements", "saas-billing", "typescript"],
+    instructions:
+      "An AI developer tool sells Pro subscriptions via Polar.sh (Merchant of Record) but lacks automated benefit provisioning, seat-bounded machine fingerprint activations, and immediate revocation when Polar emits subscription.revoked or order.refunded webhooks. Build a PolarEntitlementEngine that provisions prefix-scoped license keys, enforces maxActivations per hardware fingerprint, and revokes access on refund/expiry.",
+    starterCode: `// Unbounded Static License Check Without Polar Benefit Lifecycle or Seat Limits
+export function checkLicense(key: string) {
+  return key.startsWith("POLAR-");
+}`,
+    solutionCode: `// Polar.sh Merchant-of-Record Digital Entitlement & Seat-Bounded License Engine
+export interface PolarLicenseRecord {
+  readonly licenseKey: string;
+  readonly customerId: string;
+  readonly benefitId: string;
+  readonly subscriptionId: string;
+  readonly maxActivations: number;
+  readonly activations: Map<string, { readonly machineFingerprint: string; readonly activatedAtIso: string }>;
+  status: "active" | "revoked" | "expired";
+  expiresAtMs: number | null;
+}
+
+export class PolarEntitlementEngine {
+  #licenses = new Map<string, PolarLicenseRecord>();
+
+  provisionBenefitGrant(event: {
+    readonly customerId: string;
+    readonly subscriptionId: string;
+    readonly benefitId: string;
+    readonly keySuffix: string;
+    readonly maxActivations: number;
+    readonly expiresAtMs?: number | null;
+  }): PolarLicenseRecord {
+    const licenseKey = \`POLAR-PRO-\${event.keySuffix.toUpperCase()}\`;
+    const record: PolarLicenseRecord = {
+      licenseKey,
+      customerId: event.customerId,
+      benefitId: event.benefitId,
+      subscriptionId: event.subscriptionId,
+      maxActivations: event.maxActivations,
+      activations: new Map(),
+      status: "active",
+      expiresAtMs: event.expiresAtMs ?? null,
+    };
+    this.#licenses.set(licenseKey, record);
+    return record;
+  }
+
+  activateMachineSeat(params: {
+    readonly licenseKey: string;
+    readonly machineFingerprint: string;
+    readonly nowMs: number;
+  }): { readonly allowed: boolean; readonly reason?: string; readonly usedSeats: number; readonly maxSeats: number } {
+    const record = this.#licenses.get(params.licenseKey);
+    if (!record) return { allowed: false, reason: "UNKNOWN_LICENSE", usedSeats: 0, maxSeats: 0 };
+
+    if (record.expiresAtMs !== null && params.nowMs >= record.expiresAtMs) {
+      record.status = "expired";
+    }
+    if (record.status !== "active") {
+      return {
+        allowed: false,
+        reason: \`LICENSE_\${record.status.toUpperCase()}\`,
+        usedSeats: record.activations.size,
+        maxSeats: record.maxActivations,
+      };
+    }
+
+    // Idempotent re-activation on same machine fingerprint
+    if (record.activations.has(params.machineFingerprint)) {
+      return {
+        allowed: true,
+        usedSeats: record.activations.size,
+        maxSeats: record.maxActivations,
+      };
+    }
+
+    if (record.activations.size >= record.maxActivations) {
+      return {
+        allowed: false,
+        reason: "MAX_SEAT_ACTIVATIONS_EXCEEDED",
+        usedSeats: record.activations.size,
+        maxSeats: record.maxActivations,
+      };
+    }
+
+    record.activations.set(params.machineFingerprint, {
+      machineFingerprint: params.machineFingerprint,
+      activatedAtIso: new Date(params.nowMs).toISOString(),
+    });
+
+    return {
+      allowed: true,
+      usedSeats: record.activations.size,
+      maxSeats: record.maxActivations,
+    };
+  }
+
+  handleSubscriptionLifecycleWebhook(event: {
+    readonly type: "subscription.revoked" | "order.refunded" | "benefit_grant.revoked";
+    readonly subscriptionId: string;
+  }): number {
+    let revokedCount = 0;
+    for (const record of this.#licenses.values()) {
+      if (record.subscriptionId === event.subscriptionId && record.status !== "revoked") {
+        record.status = "revoked";
+        record.activations.clear();
+        revokedCount++;
+      }
+    }
+    return revokedCount;
+  }
+}`,
+    criteria: [
+      "Provisions Polar.sh benefit grants with scoped license keys and bounded maxActivations seat limits",
+      "Supports idempotent machine fingerprint re-activation while blocking seat limit overflows (MAX_SEAT_ACTIVATIONS_EXCEEDED)",
+      "Revokes license keys and clears active machine seats upon subscription.revoked or order.refunded webhooks",
     ],
   },
 ];

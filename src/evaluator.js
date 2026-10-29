@@ -907,6 +907,91 @@ export class Evaluator {
           code.includes("sameAs"),
         detail: "Connects Organization sameAs, WebSite SearchAction, and FAQPage Question/Answer nodes",
       });
+    } else if (id === "task_ecom_integer_cents_dinero_cart_engine") {
+      results.push({
+        name: "Integer Minor-Unit (Dinero) & Multi-Currency Exponent Guard",
+        passed:
+          code.includes("Number.isSafeInteger") &&
+          code.includes("CURRENCY_EXPONENTS") &&
+          code.includes("JPY"),
+        detail: "Validates safe integer minor units and handles 0-decimal vs 2-decimal currencies",
+      });
+      results.push({
+        name: "Hamilton Largest-Remainder Discount Proration",
+        passed:
+          code.includes("Math.floor") &&
+          code.includes("remainder") &&
+          code.includes("totalDiscountMinor"),
+        detail: "Allocates cart-wide discounts across line items without losing rounding pennies",
+      });
+    } else if (id === "task_ecom_inventory_reservation_ttl_oversell_guard") {
+      results.push({
+        name: "TTL-Bounded Reservation Leases & Expired Hold Reclamation",
+        passed:
+          code.includes("expiresAtMs") &&
+          code.includes("reclaimExpiredHolds") &&
+          code.includes("EXPIRED"),
+        detail: "Reclaims expired inventory holds before computing available stock",
+      });
+      results.push({
+        name: "Idempotent Reservation & Atomic Stock Commit",
+        passed:
+          code.includes("COMMITTED") &&
+          code.includes("commitHold") &&
+          code.includes("releaseHold"),
+        detail: "Supports idempotent hold retries and deducts physical stock atomically on commitHold",
+      });
+    } else if (id === "task_ecom_global_tax_vat_reverse_charge_engine") {
+      results.push({
+        name: "EU VAT B2B Reverse Charge (Article 196) & VIES Validation",
+        passed:
+          code.includes("EU_B2B_REVERSE_CHARGE") &&
+          code.includes("reverseCharge") &&
+          code.includes("Article 196"),
+        detail: "Applies 0% VAT with reverseCharge flag and Article 196 notice for cross-border EU B2B buyers",
+      });
+      results.push({
+        name: "US Economic Nexus Threshold & Tax-Inclusive Extraction",
+        passed:
+          code.includes("US_STATE_NEXUS") &&
+          code.includes("taxInclusive") &&
+          code.includes("10_000_000"),
+        detail: "Evaluates $100k / 200-transaction US state nexus and extracts tax-inclusive net amounts",
+      });
+    } else if (id === "task_ecom_checkout_state_machine_3ds_saga") {
+      results.push({
+        name: "3-D Secure (requires_action) State Transition",
+        passed:
+          code.includes("requires_action") &&
+          code.includes("AWAITING_3DS_ACTION") &&
+          code.includes("FULFILLED"),
+        detail: "Transitions cleanly to AWAITING_3DS_ACTION when 3DS authentication is required",
+      });
+      results.push({
+        name: "Reverse-Order LIFO Saga Compensation Rollback",
+        passed:
+          code.includes("compensationStack") &&
+          code.includes("FAILED_COMPENSATED") &&
+          code.includes(".pop()"),
+        detail: "Rolls back payment intent, promo lock, and inventory reservation in reverse LIFO order",
+      });
+    } else if (id === "task_ecom_polar_mor_license_entitlement_provisioning") {
+      results.push({
+        name: "Polar.sh Benefit Provisioning & Seat Activation Limits",
+        passed:
+          code.includes("maxActivations") &&
+          code.includes("MAX_SEAT_ACTIVATIONS_EXCEEDED") &&
+          code.includes("machineFingerprint"),
+        detail: "Enforces per-license device seat limits and idempotent machine fingerprint re-activation",
+      });
+      results.push({
+        name: "Subscription & Refund Webhook Entitlement Revocation",
+        passed:
+          code.includes("subscription.revoked") &&
+          code.includes("order.refunded") &&
+          code.includes('.clear()'),
+        detail: "Revokes Polar license keys and clears active seats when subscription is revoked or refunded",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -944,6 +1029,7 @@ export class Evaluator {
     if (
       task?.track === "enterprise-typescript" ||
       task?.track === "semantic-web-seo" ||
+      task?.track === "commerce-fintech" ||
       /\b(interface|type\s+[A-Za-z0-9_]+\s*=|readonly\s+|:\s*(string|number|boolean|unknown|any|Record|Promise|Readonly))\b/.test(code)
     ) {
       const transpiler = new Bun.Transpiler({ loader: "tsx", target: "bun" });
@@ -3132,6 +3218,262 @@ export class Evaluator {
         name: "Dataset DataDownload, WebSite SearchAction & FAQPage @graph Verification",
         passed: Boolean(res?.datasetOk && res?.searchActionOk && res?.faqOk),
         detail: "Verifies linked Dataset distribution, SearchAction urlTemplate, and FAQPage Question/Answer graph",
+      });
+    } else if (taskId === "task_ecom_integer_cents_dinero_cart_engine") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const calc = typeof computeCartPricingMinor === "function"
+            ? computeCartPricingMinor
+            : exports.computeCartPricingMinor;
+
+          // 3 items at 1000 cents ($10.00 each) = 3000 cents, with a 100 cent ($1.00) FIXED_CART discount
+          // Largest remainder should split 100 cents into 34 + 33 + 33 = 100 cents!
+          const res = calc(
+            "USD",
+            [
+              { sku: "A", unitAmountMinor: 1000, quantity: 1 },
+              { sku: "B", unitAmountMinor: 1000, quantity: 1 },
+              { sku: "C", unitAmountMinor: 1000, quantity: 1 },
+            ],
+            [{ code: "SAVE100", kind: "FIXED_CART", value: 100 }],
+          );
+
+          const sumLineDiscounts = res.lineItems.reduce((s, l) => s + l.discountMinor, 0);
+          const sumLineNets = res.lineItems.reduce((s, l) => s + l.netMinor, 0);
+          const jpyRes = calc("JPY", [{ sku: "JP1", unitAmountMinor: 1500, quantity: 2 }], []);
+
+          return {
+            exactPennyProration:
+              res.subtotalMinor === 3000 &&
+              res.totalDiscountMinor === 100 &&
+              sumLineDiscounts === 100 &&
+              sumLineNets === 2900 &&
+              res.lineItems[0].discountMinor === 34 &&
+              res.lineItems[1].discountMinor === 33 &&
+              res.lineItems[2].discountMinor === 33,
+            jpyZeroDecimalOk: jpyRes.exponent === 0 && jpyRes.netTotalMinor === 3000,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Minor-Unit Cart Math & Hamilton Largest-Remainder Penny Proration",
+        passed: Boolean(res?.exactPennyProration && res?.jpyZeroDecimalOk),
+        detail: "Splits $1.00 across 3 equal items as 34c/33c/33c (sum=100c) and supports 0-decimal JPY",
+      });
+    } else if (taskId === "task_ecom_inventory_reservation_ttl_oversell_guard") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Engine = typeof InventoryReservationEngine === "function"
+            ? InventoryReservationEngine
+            : exports.InventoryReservationEngine;
+
+          const inv = new Engine();
+          inv.setPhysicalStock("GPU-H200", 5);
+
+          const r1 = inv.reserve({ holdId: "h1", sku: "GPU-H200", quantity: 3, nowMs: 1000, ttlMs: 5000 });
+          const r1Retry = inv.reserve({ holdId: "h1", sku: "GPU-H200", quantity: 3, nowMs: 1200, ttlMs: 5000 });
+          const r2Oversell = inv.reserve({ holdId: "h2", sku: "GPU-H200", quantity: 3, nowMs: 2000, ttlMs: 5000 });
+
+          // Advance clock past h1 expiry (1000 + 5000 = 6000)
+          const r2AfterExpiry = inv.reserve({ holdId: "h2", sku: "GPU-H200", quantity: 4, nowMs: 7000, ttlMs: 5000 });
+          const committed = inv.commitHold("h2", 7500);
+
+          return {
+            oversellBlocked: r1.ok === true && r1Retry.ok === true && r2Oversell.ok === false && r2Oversell.availableStock === 2,
+            ttlReclaimedAndCommitted:
+              r2AfterExpiry.ok === true &&
+              committed.status === "COMMITTED" &&
+              inv.getAvailableStock("GPU-H200", 8000) === 1,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Flash-Sale Oversell Guard, TTL Lease Expiry & Atomic Commit",
+        passed: Boolean(res?.oversellBlocked && res?.ttlReclaimedAndCommitted),
+        detail: "Blocks concurrent oversell, reclaims expired holds after TTL, and deducts committed stock",
+      });
+    } else if (taskId === "task_ecom_global_tax_vat_reverse_charge_engine") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const calcTax = typeof calculateGlobalCheckoutTax === "function"
+            ? calculateGlobalCheckoutTax
+            : exports.calculateGlobalCheckoutTax;
+
+          const merchant = {
+            homeCountry: "DE",
+            usStateExposure: {
+              CA: { trailingRevenueMinor: 15_000_000, trailingTransactions: 40 },
+              TX: { trailingRevenueMinor: 1_000_000, trailingTransactions: 10 },
+            },
+          };
+
+          // 1. Cross-border EU B2B with valid French VAT ID -> 0% Reverse Charge
+          const b2bEu = calcTax({
+            amountMinor: 10000,
+            taxInclusive: false,
+            buyerCountry: "FR",
+            buyerVatId: "FR12345678901",
+            merchant,
+          });
+
+          // 2. Cross-border EU B2C to France -> 20% French OSS VAT
+          const b2cEu = calcTax({
+            amountMinor: 10000,
+            taxInclusive: false,
+            buyerCountry: "FR",
+            merchant,
+          });
+
+          // 3. US California (above $100k nexus) vs Texas (below nexus)
+          const usCa = calcTax({
+            amountMinor: 10000,
+            taxInclusive: false,
+            buyerCountry: "US",
+            buyerState: "CA",
+            merchant,
+          });
+          const usTx = calcTax({
+            amountMinor: 10000,
+            taxInclusive: false,
+            buyerCountry: "US",
+            buyerState: "TX",
+            merchant,
+          });
+
+          return {
+            reverseChargeOk:
+              b2bEu.regime === "EU_B2B_REVERSE_CHARGE" &&
+              b2bEu.reverseCharge === true &&
+              b2bEu.taxAmountMinor === 0 &&
+              Boolean(b2bEu.invoiceNotice?.includes("Article 196")),
+            b2cOssOk: b2cEu.regime === "EU_B2C_OSS_VAT" && b2cEu.taxAmountMinor === 2000,
+            usNexusOk: usCa.taxAmountMinor === 725 && usTx.taxAmountMinor === 0,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "EU VAT B2B Reverse Charge, B2C OSS & US Economic Nexus Calculation",
+        passed: Boolean(res?.reverseChargeOk && res?.b2cOssOk && res?.usNexusOk),
+        detail: "Verifies 0% EU B2B Reverse Charge, 20% FR OSS VAT, and CA vs TX economic nexus thresholds",
+      });
+    } else if (taskId === "task_ecom_checkout_state_machine_3ds_saga") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Coordinator = typeof CheckoutSagaCoordinator === "function"
+            ? CheckoutSagaCoordinator
+            : exports.CheckoutSagaCoordinator;
+
+          const saga = new Coordinator();
+
+          const threeDsRes = await saga.executeCheckout("chk_3ds", {
+            reserveInventory: async () => {},
+            releaseInventory: async () => {},
+            lockPromoCoupon: async () => {},
+            unlockPromoCoupon: async () => {},
+            createPaymentIntent: async () => ({ id: "pi_3ds_1", status: "requires_action" }),
+            cancelPaymentIntent: async () => {},
+          });
+
+          const failedRes = await saga.executeCheckout("chk_fail", {
+            reserveInventory: async () => {},
+            releaseInventory: async () => {},
+            lockPromoCoupon: async () => {},
+            unlockPromoCoupon: async () => {},
+            createPaymentIntent: async () => ({ id: "pi_fail_1", status: "failed" }),
+            cancelPaymentIntent: async () => {},
+          });
+
+          return {
+            threeDsPausedOk:
+              threeDsRes.state === "AWAITING_3DS_ACTION" &&
+              threeDsRes.compensatedSteps.length === 0,
+            lifoCompensatedOk:
+              failedRes.state === "FAILED_COMPENSATED" &&
+              failedRes.compensatedSteps.join(",") === "cancelPaymentIntent,unlockPromoCoupon,releaseInventory",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Checkout 3DS Pause & LIFO Compensation Rollback Verification",
+        passed: Boolean(res?.threeDsPausedOk && res?.lifoCompensatedOk),
+        detail: "Pauses on requires_action and executes LIFO rollback (cancelPaymentIntent -> unlockPromoCoupon -> releaseInventory) on failure",
+      });
+    } else if (taskId === "task_ecom_polar_mor_license_entitlement_provisioning") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Engine = typeof PolarEntitlementEngine === "function"
+            ? PolarEntitlementEngine
+            : exports.PolarEntitlementEngine;
+
+          const polar = new Engine();
+          const grant = polar.provisionBenefitGrant({
+            customerId: "cust_01",
+            subscriptionId: "sub_polar_99",
+            benefitId: "ben_pro",
+            keySuffix: "a1b2c3",
+            maxActivations: 2,
+          });
+
+          const seat1 = polar.activateMachineSeat({
+            licenseKey: grant.licenseKey,
+            machineFingerprint: "fp_macbook",
+            nowMs: 1000,
+          });
+          const seat1Idempotent = polar.activateMachineSeat({
+            licenseKey: grant.licenseKey,
+            machineFingerprint: "fp_macbook",
+            nowMs: 2000,
+          });
+          const seat2 = polar.activateMachineSeat({
+            licenseKey: grant.licenseKey,
+            machineFingerprint: "fp_linux_workstation",
+            nowMs: 3000,
+          });
+          const seat3Overflow = polar.activateMachineSeat({
+            licenseKey: grant.licenseKey,
+            machineFingerprint: "fp_third_device",
+            nowMs: 4000,
+          });
+
+          const revokedCount = polar.handleSubscriptionLifecycleWebhook({
+            type: "subscription.revoked",
+            subscriptionId: "sub_polar_99",
+          });
+          const afterRevoke = polar.activateMachineSeat({
+            licenseKey: grant.licenseKey,
+            machineFingerprint: "fp_macbook",
+            nowMs: 5000,
+          });
+
+          return {
+            seatLimitAndIdempotencyOk:
+              seat1.allowed === true &&
+              seat1Idempotent.usedSeats === 1 &&
+              seat2.allowed === true &&
+              seat2.usedSeats === 2 &&
+              seat3Overflow.allowed === false &&
+              seat3Overflow.reason === "MAX_SEAT_ACTIVATIONS_EXCEEDED",
+            revocationOk:
+              revokedCount === 1 &&
+              afterRevoke.allowed === false &&
+              afterRevoke.reason === "LICENSE_REVOKED",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Polar.sh License Provisioning, Seat Limit & Webhook Revocation",
+        passed: Boolean(res?.seatLimitAndIdempotencyOk && res?.revocationOk),
+        detail: "Enforces 2-seat machine fingerprint limit and revokes license on subscription.revoked",
       });
     } else {
       // General syntax evaluation
