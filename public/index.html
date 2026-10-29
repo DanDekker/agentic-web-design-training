@@ -3,9 +3,66 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Loom — Agentic Curriculum & Monochrome Task Suite</title>
-    <meta name="description" content="Monochrome task management & agent-agnostic curriculum training suite. Bun + vanilla JS, zero build step." />
+    <title>Loom — Agentic Curriculum &amp; Monochrome Task Suite</title>
+    <meta name="description" content="Monochrome task management &amp; agent-agnostic curriculum training suite. Bun + vanilla JS, zero build step." />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
     <meta name="color-scheme" content="light dark" />
+    <link rel="canonical" href="http://localhost:3000/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Loom — Agentic Curriculum &amp; Monochrome Task Suite" />
+    <meta property="og:description" content="60-task AI model training curriculum across 17 categories and 7 tracks." />
+    <meta property="og:url" content="http://localhost:3000/" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "http://localhost:3000/#organization",
+            "name": "Loom Agentic Systems",
+            "url": "http://localhost:3000"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "http://localhost:3000/#website",
+            "url": "http://localhost:3000",
+            "name": "Loom — Agentic 1M Curriculum & Monochrome Suite",
+            "publisher": { "@id": "http://localhost:3000/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "http://localhost:3000/#application",
+            "name": "Loom Agentic 1M Curriculum Suite",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Web, macOS, Linux, Windows",
+            "offers": {
+              "@type": "Offer",
+              "price": "0.00",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            },
+            "publisher": { "@id": "http://localhost:3000/#organization" }
+          }
+        ]
+      }
+    </script>
+    <script type="speculationrules">
+      {
+        "prerender": [
+          {
+            "source": "document",
+            "where": {
+              "and": [
+                { "href_matches": "/*" },
+                { "not": { "href_matches": ["/api/*", "/oauth/*"] } },
+                { "not": { "selector_matches": "[data-no-prerender], [rel~=nofollow]" } }
+              ]
+            },
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230e0e0e'/%3E%3Cpath d='M9 16.6l4.6 4.6L23.5 11' stroke='%23f4f4f2' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
@@ -116,10 +173,10 @@
           <button type="button" role="tab" data-filter="refactor" aria-selected="false">Refactoring</button>
         </div>
 
-        <div class="search-wrap">
+        <search class="search-wrap" aria-label="Filter tasks and tags">
           <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" id="search-input" placeholder="Search tasks & tags (/)" autocomplete="off" spellcheck="false" />
-        </div>
+        </search>
       </div>
 
       <!-- Task Composer -->
@@ -348,12 +405,12 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Executes automated sandboxed verification across all 52 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations &amp; Package Managers), computing telemetry, assertion scores, and execution durations.
+            Executes automated sandboxed verification across all 60 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations, Package Managers, HTML Living Standard &amp; Technical SEO / Schema.org JSON-LD), computing telemetry, assertion scores, and execution durations.
           </p>
 
           <div class="telemetry-grid" id="benchmark-stats-grid">
             <div class="stat-card">
-              <div class="stat-value" id="bench-total-tasks">52</div>
+              <div class="stat-value" id="bench-total-tasks">60</div>
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
@@ -372,7 +429,7 @@
 
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:1rem 0 1.2rem;">
             <select id="bench-category-filter" class="chat-sender-select" aria-label="Filter benchmark category">
-              <option value="">All 15 Categories (52 Tasks)</option>
+              <option value="">All 17 Categories (60 Tasks)</option>
               <option value="css">css (5)</option>
               <option value="database">database (4)</option>
               <option value="web-auth">web-auth (4)</option>
@@ -383,6 +440,8 @@
               <option value="ts-frameworks">ts-frameworks (4)</option>
               <option value="framework-migration">framework-migration (4)</option>
               <option value="package-managers">package-managers (4)</option>
+              <option value="html-architecture">html-architecture (4)</option>
+              <option value="seo-structured-data">seo-structured-data (4)</option>
               <option value="performance">performance (3)</option>
               <option value="architecture">architecture (3)</option>
               <option value="async">async (2)</option>
