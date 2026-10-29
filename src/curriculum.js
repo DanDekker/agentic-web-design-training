@@ -36,6 +36,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Fortune 500 TypeScript Frameworks, Migrations & Package Ecosystems",
     categories: ["ts-frameworks", "framework-migration", "package-managers"],
   },
+  "semantic-web-seo": {
+    id: "semantic-web-seo",
+    name: "Advanced HTML Living Standard, Technical SEO, JSON-LD & Schema.org",
+    categories: ["html-architecture", "seo-structured-data"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -54,6 +59,8 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "ts-frameworks": "enterprise-typescript",
   "framework-migration": "enterprise-typescript",
   "package-managers": "enterprise-typescript",
+  "html-architecture": "semantic-web-seo",
+  "seo-structured-data": "semantic-web-seo",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -4273,6 +4280,271 @@ export class MonorepoTaskOrchestrator {
       "Schedules workspace package builds in concurrent topological waves and rejects cyclic dependency graphs",
       "Propagates upstream dependency cache keys into downstream package cache keys so leaf changes invalidate dependents",
       "Replays artifacts from the content-addressable cache on CACHE_HIT without re-invoking runTask()",
+    ],
+  },
+
+  /* ── 11. Advanced WHATWG HTML Living Standard Architecture (Speculation Rules, Declarative Shadow DOM, Invoker Commands, Picture LCP) ── */
+  {
+    id: "task_html_speculation_rules_prerender",
+    title: "Implement WHATWG Speculation Rules API (<script type=\"speculationrules\">) with Document Rules, Route Exclusions & Save-Data Guard",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "speculation-rules", "prerender", "prefetch", "performance", "whatwg"],
+    instructions:
+      "A documentation portal injects dozens of <link rel=\"prerender\"> tags on mouseover, exhausting mobile data plans and accidentally triggering destructive GET /logout and /api/* endpoints during background prerendering. Build a TypeScript Speculation Rules compiler that generates a valid <script type=\"speculationrules\"> JSON payload using document-level where/and/not rules, excludes destructive routes and [data-no-prerender] selectors, sets moderate/conservative eagerness, and suppresses speculation when Save-Data or 2g/slow-2g network hints are active.",
+    starterCode: `// Dangerous Unbounded Link Prerendering on Every Anchor Hover
+export function buildSpeculationScript(config: any) {
+  return '<link rel="prerender" href="' + config.url + '">';
+}`,
+    solutionCode: `// WHATWG Speculation Rules API Compiler with Document Exclusion Rules & Save-Data Guard
+export interface SpeculationConfig {
+  readonly allowPaths: readonly string[];
+  readonly disallowPaths: readonly string[];
+  readonly excludeSelectors: readonly string[];
+  readonly eagerness: "immediate" | "eager" | "moderate" | "conservative";
+  readonly saveDataHeader?: string | null;
+  readonly effectiveConnectionType?: "slow-2g" | "2g" | "3g" | "4g";
+}
+
+export function compileSpeculationRulesTag(config: SpeculationConfig): {
+  readonly enabled: boolean;
+  readonly html: string;
+  readonly rules: Record<string, unknown> | null;
+} {
+  const saveDataEnabled = config.saveDataHeader?.toLowerCase() === "on";
+  const constrainedNet =
+    config.effectiveConnectionType === "slow-2g" || config.effectiveConnectionType === "2g";
+
+  if (saveDataEnabled || constrainedNet) {
+    return { enabled: false, html: "", rules: null };
+  }
+
+  const safetyExclusions = Array.from(
+    new Set(["/logout", "/signout", "/api/*", ...config.disallowPaths]),
+  );
+  const selectorExclusions = Array.from(
+    new Set(["[data-no-prerender]", "[rel~=nofollow]", "[download]", ...config.excludeSelectors]),
+  ).join(", ");
+
+  const documentRule = {
+    source: "document",
+    where: {
+      and: [
+        { href_matches: config.allowPaths.length > 0 ? [...config.allowPaths] : ["/*"] },
+        { not: { href_matches: safetyExclusions } },
+        { not: { selector_matches: selectorExclusions } },
+      ],
+    },
+    eagerness: config.eagerness,
+  };
+
+  const rules = {
+    prerender: [documentRule],
+    prefetch: [
+      {
+        ...documentRule,
+        eagerness: config.eagerness === "conservative" ? "Conservative" .toLowerCase() : "moderate",
+      },
+    ],
+  };
+
+  const serialized = JSON.stringify(rules).replace(/</g, "\\\\u003c");
+  return {
+    enabled: true,
+    rules,
+    html: \`<script type="speculationrules">\${serialized}</script>\`,
+  };
+}`,
+    criteria: [
+      "Emits a valid <script type=\"speculationrules\"> JSON block with document-scoped where.and / not clauses",
+      "Automatically excludes destructive routes (/logout, /api/*) and [data-no-prerender]/[rel~=nofollow] links",
+      "Disables speculative prerendering when Save-Data: on or 2g/slow-2g connection hints are present",
+    ],
+  },
+  {
+    id: "task_html_declarative_shadow_dom_streaming",
+    title: "Refactor Client-Only Custom Element to SSR Declarative Shadow DOM (<template shadowrootmode=\"open\">) with Focus Delegation & Slot Hydration",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "declarative-shadow-dom", "web-components", "ssr", "hydration", "a11y"],
+    instructions:
+      "A custom UI card component calls attachShadow({ mode: 'open' }) only after client JavaScript downloads, causing a severe Flash of Unstyled Content (FOUC) and failing to forward focus to its internal control. Refactor to a streaming-friendly SSR Declarative Shadow DOM generator (<template shadowrootmode=\"open\" shadowrootdelegatesfocus shadowrootclonable>) with named <slot> fallbacks and an idempotent client hydrator that reuses existing this.shadowRoot without throwing NotSupportedError.",
+    starterCode: `// Client-Only Shadow DOM with FOUC & Duplicate attachShadow Crash on SSR
+export function renderSSRComponent(title: string) {
+  return \`<loom-card>\${title}</loom-card>\`;
+}
+export function hydrateCard(hostEl: any) {
+  // Crashes if Declarative Shadow DOM already attached hostEl.shadowRoot!
+  const root = hostEl.attachShadow({ mode: "open" });
+  return root;
+}`,
+    solutionCode: `// SSR Declarative Shadow DOM Renderer & Idempotent Client Hydrator
+export interface DeclarativeCardProps {
+  readonly id: string;
+  readonly heading: string;
+  readonly badgeText: string;
+  readonly delegateFocus?: boolean;
+}
+
+function escapeAttr(val: string): string {
+  return val
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function renderDeclarativeShadowCardSSR(props: DeclarativeCardProps): string {
+  const focusAttr = props.delegateFocus !== false ? " shadowrootdelegatesfocus" : "";
+  return [
+    \`<loom-surface-card id="\${escapeAttr(props.id)}">\`,
+    \`  <template shadowrootmode="open"\${focusAttr} shadowrootclonable>\`,
+    \`    <style>:host{display:block;contain:content}::slotted([slot="badge"]){font-family:monospace}</style>\`,
+    \`    <article part="surface">\`,
+    \`      <header><slot name="badge"><span>Default Badge</span></slot><slot name="heading"><h2>Untitled</h2></slot></header>\`,
+    \`      <div class="body"><slot>Fallback content</slot></div>\`,
+    \`      <footer><button type="button" part="trigger">Inspect</button></footer>\`,
+    \`    </article>\`,
+    \`  </template>\`,
+    \`  <span slot="badge">\${escapeAttr(props.badgeText)}</span>\`,
+    \`  <h2 slot="heading">\${escapeAttr(props.heading)}</h2>\`,
+    \`</loom-surface-card>\`,
+  ].join("\\n");
+}
+
+export function hydrateDeclarativeShadowCard(host: {
+  shadowRoot: { hydrated?: boolean } | null;
+  attachShadow: (init: { mode: "open"; delegatesFocus: boolean }) => { hydrated?: boolean };
+}): { readonly mode: "REUSED_DSD" | "CLIENT_ATTACHED"; readonly root: { hydrated?: boolean } } {
+  if (host.shadowRoot) {
+    host.shadowRoot.hydrated = true;
+    return { mode: "REUSED_DSD", root: host.shadowRoot };
+  }
+  const root = host.attachShadow({ mode: "open", delegatesFocus: true });
+  root.hydrated = true;
+  return { mode: "CLIENT_ATTACHED", root };
+}`,
+    criteria: [
+      "Emits <template shadowrootmode=\"open\" shadowrootdelegatesfocus shadowrootclonable> for zero-FOUC SSR streaming",
+      "Projects light DOM children into named <slot name=\"badge\"> and <slot name=\"heading\"> outlets with fallback nodes",
+      "Hydrates idempotently by reusing existing host.shadowRoot before falling back to host.attachShadow()",
+    ],
+  },
+  {
+    id: "task_html_dialog_popover_invoker_inert",
+    title: "Refactor JS Modal & Dropdown Spaghetti to Native HTML <dialog closedby=\"any\">, Popover API, Invoker Commands & inert",
+    category: "html-architecture",
+    difficulty: "intermediate",
+    tags: ["html", "dialog", "popover", "invoker-commands", "commandfor", "inert", "semantic-html"],
+    instructions:
+      "A legacy UI shell uses 80 lines of onclick handlers, manual z-index backdrop divs, and custom Escape key listeners to toggle modals and filter popovers. Refactor to modern WHATWG HTML primitives: <dialog closedby=\"any\"> controlled declaratively via Invoker Commands (commandfor / command=\"show-modal\" / command=\"close\"), a top-layer Popover API menu (popover=\"auto\" / popovertarget), a semantic <search> landmark, and background inert synchronization.",
+    starterCode: `// Legacy Div Soup Modal & Manual Backdrop Toggle
+export function renderLegacyModalShell() {
+  return \`
+    <div class="header">
+      <div class="search-box"><input type="text" placeholder="Filter..." /></div>
+      <button onclick="document.getElementById('modal').style.display='block'">Open</button>
+    </div>
+    <div id="modal" class="modal-backdrop" style="display:none;z-index:9999">
+      <div class="modal-box">
+        <span onclick="document.getElementById('modal').style.display='none'">X</span>
+      </div>
+    </div>
+  \`;
+}`,
+    solutionCode: `// Modern HTML <dialog closedby="any">, Invoker Commands (commandfor/command), Popover & <search>
+export interface InteractiveShellSpec {
+  readonly dialogId: string;
+  readonly popoverId: string;
+  readonly title: string;
+  readonly isModalOpen?: boolean;
+}
+
+export function renderModernInteractiveShell(spec: InteractiveShellSpec): string {
+  const mainInertAttr = spec.isModalOpen ? " inert" : "";
+  return [
+    \`<header class="shell-bar">\`,
+    \`  <search aria-label="Workspace filter">\`,
+    \`    <form role="search"><input type="search" name="q" placeholder="Filter tasks..." autocomplete="off" /></form>\`,
+    \`  </search>\`,
+    \`  <button type="button" popovertarget="\${spec.popoverId}" popovertargetaction="toggle">Quick Filters</button>\`,
+    \`  <button type="button" commandfor="\${spec.dialogId}" command="show-modal">Open Inspector</button>\`,
+    \`</header>\`,
+    \`<main id="app-main"\${mainInertAttr}>\`,
+    \`  <div id="\${spec.popoverId}" popover="auto" role="menu">Filter options</div>\`,
+    \`</main>\`,
+    \`<dialog id="\${spec.dialogId}" closedby="any" aria-labelledby="\${spec.dialogId}-title">\`,
+    \`  <article>\`,
+    \`    <header><h2 id="\${spec.dialogId}-title">\${spec.title}</h2>\`,
+    \`      <button type="button" commandfor="\${spec.dialogId}" command="close" aria-label="Close dialog">Close</button>\`,
+    \`    </header>\`,
+    \`  </article>\`,
+    \`</dialog>\`,
+  ].join("\\n");
+}`,
+    criteria: [
+      "Uses native <dialog closedby=\"any\"> paired with declarative Invoker Commands (commandfor and command=\"show-modal\"/\"close\")",
+      "Wraps search controls in a semantic HTML <search> landmark with <input type=\"search\">",
+      "Uses native Popover API attributes (popover=\"auto\", popovertarget, popovertargetaction) and applies inert to background content when modal is open",
+    ],
+  },
+  {
+    id: "task_html_responsive_picture_fetchpriority_lcp",
+    title: "Optimize Hero LCP & CLS with <picture> AVIF/WebP Art Direction, fetchpriority=\"high\", sizes & Preload Hints",
+    category: "html-architecture",
+    difficulty: "intermediate",
+    tags: ["html", "lcp", "cls", "picture", "fetchpriority", "avif", "webp", "core-web-vitals"],
+    instructions:
+      "An unoptimized marketing page renders its hero image with <img src=\"hero.png\" loading=\"lazy\"> without width/height attributes, causing a 2.8s Largest Contentful Paint (LCP) penalty and a 0.34 Cumulative Layout Shift (CLS). Build an HTML media optimizer that forbids loading=\"lazy\" on above-the-fold LCP images, sets fetchpriority=\"high\" and decoding=\"async\", emits <picture> with AVIF/WebP <source> art direction and explicit width/height, and generates a matching <link rel=\"preload\" as=\"image\" imagesrcset>",
+    starterCode: `// Anti-Pattern: Lazy-Loaded Unsized Hero Image Causing Severe LCP & CLS
+export function renderHeroMedia(assetBaseUrl: string, alt: string) {
+  return \`<img src="\${assetBaseUrl}/hero.png" loading="lazy" />\`;
+}`,
+    solutionCode: `// Core Web Vitals Optimized <picture> Art Direction, Preload Hint & LCP Priority Builder
+export interface ResponsiveImageSpec {
+  readonly basePath: string;
+  readonly alt: string;
+  readonly width: number;
+  readonly height: number;
+  readonly isAboveTheFoldLcp: boolean;
+  readonly sizes?: string;
+}
+
+export function buildResponsiveMediaMarkup(spec: ResponsiveImageSpec): {
+  readonly preloadLinkHtml: string;
+  readonly pictureHtml: string;
+  readonly aspectRatio: string;
+} {
+  const sizes = spec.sizes ?? "(max-width: 768px) 100vw, 1200px";
+  const avifSrcset = \`\${spec.basePath}-640.avif 640w, \${spec.basePath}-1280.avif 1280w, \${spec.basePath}-1920.avif 1920w\`;
+  const webpSrcset = \`\${spec.basePath}-640.webp 640w, \${spec.basePath}-1280.webp 1280w, \${spec.basePath}-1920.webp 1920w\`;
+
+  // LCP images MUST NOT use loading="lazy" and MUST use fetchpriority="high"
+  const loadingAttr = spec.isAboveTheFoldLcp ? "eager" : "lazy";
+  const priorityAttr = spec.isAboveTheFoldLcp ? "high" : "auto";
+
+  const preloadLinkHtml = spec.isAboveTheFoldLcp
+    ? \`<link rel="preload" as="image" type="image/avif" imagesrcset="\${avifSrcset}" imagesizes="\${sizes}" fetchpriority="high" />\`
+    : "";
+
+  const pictureHtml = [
+    \`<picture>\`,
+    \`  <source type="image/avif" srcset="\${avifSrcset}" sizes="\${sizes}" width="\${spec.width}" height="\${spec.height}" />\`,
+    \`  <source type="image/webp" srcset="\${webpSrcset}" sizes="\${sizes}" width="\${spec.width}" height="\${spec.height}" />\`,
+    \`  <img src="\${spec.basePath}-1280.jpg" alt="\${spec.alt.replace(/"/g, "&quot;")}" width="\${spec.width}" height="\${spec.height}" loading="\${loadingAttr}" fetchpriority="\${priorityAttr}" decoding="async" />\`,
+    \`</picture>\`,
+  ].join("\\n");
+
+  return {
+    preloadLinkHtml,
+    pictureHtml,
+    aspectRatio: \`\${spec.width} / \${spec.height}\`,
+  };
+}`,
+    criteria: [
+      "Emits <picture> with progressive image/avif and image/webp <source> srcset/sizes candidates",
+      "Enforces loading=\"eager\" and fetchpriority=\"high\" with a matching <link rel=\"preload\" as=\"image\" imagesrcset> for LCP images",
+      "Prevents Cumulative Layout Shift (CLS) by setting explicit integer width and height attributes on <source> and <img>",
     ],
   },
 ];

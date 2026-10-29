@@ -742,6 +742,71 @@ export class Evaluator {
           code.includes("localSourceHash"),
         detail: "Propagates upstream dependency hashes into downstream cache keys and replays CACHE_HIT artifacts",
       });
+    } else if (id === "task_html_speculation_rules_prerender") {
+      results.push({
+        name: "WHATWG <script type=\"speculationrules\"> & Document Exclusions",
+        passed:
+          code.includes("speculationrules") &&
+          code.includes("href_matches") &&
+          code.includes("selector_matches") &&
+          code.includes("/logout"),
+        detail: "Generates speculationrules JSON with document where/not route and selector exclusions",
+      });
+      results.push({
+        name: "Save-Data & Slow-Network Speculation Guard",
+        passed: code.includes("saveDataHeader") && code.includes("slow-2g"),
+        detail: "Disables speculative prerendering when Save-Data or 2g/slow-2g network hints are active",
+      });
+    } else if (id === "task_html_declarative_shadow_dom_streaming") {
+      results.push({
+        name: "Declarative Shadow DOM (<template shadowrootmode=\"open\">) & Focus Delegation",
+        passed:
+          code.includes('shadowrootmode="open"') &&
+          code.includes("shadowrootdelegatesfocus") &&
+          code.includes('<slot name="'),
+        detail: "Renders SSR Declarative Shadow DOM template with focus delegation and named slots",
+      });
+      results.push({
+        name: "Idempotent Existing shadowRoot Hydration",
+        passed: code.includes("host.shadowRoot") && code.includes("REUSED_DSD"),
+        detail: "Reuses pre-parsed Declarative Shadow DOM root before calling attachShadow()",
+      });
+    } else if (id === "task_html_dialog_popover_invoker_inert") {
+      results.push({
+        name: "Native <dialog closedby=\"any\"> & Invoker Commands (commandfor/command)",
+        passed:
+          code.includes('closedby="any"') &&
+          code.includes("commandfor=") &&
+          code.includes('command="show-modal"'),
+        detail: "Uses declarative commandfor/command invoker attributes and <dialog closedby=\"any\">",
+      });
+      results.push({
+        name: "Semantic <search> Landmark, Popover API & Background inert",
+        passed:
+          code.includes("<search") &&
+          code.includes('popover="auto"') &&
+          code.includes("inert"),
+        detail: "Combines semantic <search>, native popover attributes, and background inert management",
+      });
+    } else if (id === "task_html_responsive_picture_fetchpriority_lcp") {
+      results.push({
+        name: "Progressive <picture> AVIF/WebP Art Direction & Intrinsic Dimensions",
+        passed:
+          code.includes("<picture>") &&
+          code.includes('type="image/avif"') &&
+          code.includes('type="image/webp"') &&
+          code.includes("width=") &&
+          code.includes("height="),
+        detail: "Emits <picture> with AVIF/WebP sources and explicit width/height attributes to prevent CLS",
+      });
+      results.push({
+        name: "LCP fetchpriority=\"high\" & <link rel=\"preload\" imagesrcset>",
+        passed:
+          code.includes('fetchpriority="high"') &&
+          code.includes("imagesrcset=") &&
+          code.includes('loading="eager"'),
+        detail: "Prioritizes above-the-fold LCP media with fetchpriority=high, eager loading, and preload hint",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -778,6 +843,7 @@ export class Evaluator {
     let executableCode = code;
     if (
       task?.track === "enterprise-typescript" ||
+      task?.track === "semantic-web-seo" ||
       /\b(interface|type\s+[A-Za-z0-9_]+\s*=|readonly\s+|:\s*(string|number|boolean|unknown|any|Record|Promise|Readonly))\b/.test(code)
     ) {
       const transpiler = new Bun.Transpiler({ loader: "tsx", target: "bun" });
@@ -2508,6 +2574,172 @@ export class Evaluator {
         name: "Topological Monorepo Wave Execution & Upstream Cache Invalidation",
         passed: Boolean(res?.wavesOk && res?.cacheHitOk && res?.upstreamInvalidationOk),
         detail: "Executes topological waves, replays CACHE_HITs, and invalidates downstream dependents when core hash changes",
+      });
+    } else if (taskId === "task_html_speculation_rules_prerender") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const compile = typeof compileSpeculationRulesTag === "function"
+            ? compileSpeculationRulesTag
+            : exports.compileSpeculationRulesTag;
+
+          const active = compile({
+            allowPaths: ["/docs/*", "/curriculum/*"],
+            disallowPaths: ["/admin/*"],
+            excludeSelectors: [".danger-link"],
+            eagerness: "moderate",
+            saveDataHeader: "off",
+            effectiveConnectionType: "4g",
+          });
+
+          const suppressed = compile({
+            allowPaths: ["/*"],
+            disallowPaths: [],
+            excludeSelectors: [],
+            eagerness: "moderate",
+            saveDataHeader: "on",
+          });
+
+          const ruleJson = active.rules?.prerender?.[0];
+          const notClauses = JSON.stringify(ruleJson?.where?.and || []);
+          return {
+            tagOk: active.enabled === true && active.html.startsWith('<script type="speculationrules">'),
+            exclusionsOk: notClauses.includes("/logout") && notClauses.includes("/admin/*") && notClauses.includes("[data-no-prerender]"),
+            saveDataSuppressed: suppressed.enabled === false && suppressed.html === "",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Speculation Rules Document AST & Save-Data Suppression",
+        passed: Boolean(res?.tagOk && res?.exclusionsOk && res?.saveDataSuppressed),
+        detail: "Emits valid speculationrules JSON with /logout exclusions and suppresses prerender under Save-Data: on",
+      });
+    } else if (taskId === "task_html_declarative_shadow_dom_streaming") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const renderSSR = typeof renderDeclarativeShadowCardSSR === "function"
+            ? renderDeclarativeShadowCardSSR
+            : exports.renderDeclarativeShadowCardSSR;
+          const hydrate = typeof hydrateDeclarativeShadowCard === "function"
+            ? hydrateDeclarativeShadowCard
+            : exports.hydrateDeclarativeShadowCard;
+
+          const html = renderSSR({
+            id: "card-1",
+            heading: "Zero-FOUC <Card>",
+            badgeText: "SSR",
+            delegateFocus: true,
+          });
+
+          const existingRoot = {};
+          const reused = hydrate({
+            shadowRoot: existingRoot,
+            attachShadow: () => { throw new Error("Should not call attachShadow when DSD shadowRoot exists!"); },
+          });
+
+          const attached = hydrate({
+            shadowRoot: null,
+            attachShadow: () => ({}),
+          });
+
+          return {
+            ssrOk: html.includes('<template shadowrootmode="open" shadowrootdelegatesfocus shadowrootclonable>') && html.includes('Zero-FOUC &lt;Card&gt;'),
+            reusedOk: reused.mode === "REUSED_DSD" && reused.root.hydrated === true,
+            attachedOk: attached.mode === "CLIENT_ATTACHED" && attached.root.hydrated === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Declarative Shadow DOM SSR Markup & Idempotent Hydration",
+        passed: Boolean(res?.ssrOk && res?.reusedOk && res?.attachedOk),
+        detail: "Renders escaped Declarative Shadow DOM template and reuses pre-attached shadowRoot during hydration",
+      });
+    } else if (taskId === "task_html_dialog_popover_invoker_inert") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const renderShell = typeof renderModernInteractiveShell === "function"
+            ? renderModernInteractiveShell
+            : exports.renderModernInteractiveShell;
+
+          const closedMarkup = renderShell({
+            dialogId: "inspect-dlg",
+            popoverId: "filter-pop",
+            title: "Task Inspector",
+            isModalOpen: false,
+          });
+          const openMarkup = renderShell({
+            dialogId: "inspect-dlg",
+            popoverId: "filter-pop",
+            title: "Task Inspector",
+            isModalOpen: true,
+          });
+
+          return {
+            invokerOk:
+              closedMarkup.includes('commandfor="inspect-dlg" command="show-modal"') &&
+              closedMarkup.includes('commandfor="inspect-dlg" command="close"'),
+            popoverSearchOk:
+              closedMarkup.includes("<search") &&
+              closedMarkup.includes('popovertarget="filter-pop"') &&
+              closedMarkup.includes('closedby="any"'),
+            inertToggledOk: !closedMarkup.includes('<main id="app-main" inert>') && openMarkup.includes('<main id="app-main" inert>'),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Declarative Invoker Commands, Popover, <search> & inert State",
+        passed: Boolean(res?.invokerOk && res?.popoverSearchOk && res?.inertToggledOk),
+        detail: "Verifies commandfor/command invokers, <dialog closedby=\"any\">, <search> landmark, and inert background",
+      });
+    } else if (taskId === "task_html_responsive_picture_fetchpriority_lcp") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const buildMedia = typeof buildResponsiveMediaMarkup === "function"
+            ? buildResponsiveMediaMarkup
+            : exports.buildResponsiveMediaMarkup;
+
+          const hero = buildMedia({
+            basePath: "/assets/hero",
+            alt: "Loom Dashboard",
+            width: 1600,
+            height: 900,
+            isAboveTheFoldLcp: true,
+          });
+
+          const belowFold = buildMedia({
+            basePath: "/assets/thumb",
+            alt: "Secondary Preview",
+            width: 640,
+            height: 360,
+            isAboveTheFoldLcp: false,
+          });
+
+          return {
+            heroPriorityOk:
+              hero.pictureHtml.includes('loading="eager"') &&
+              hero.pictureHtml.includes('fetchpriority="high"') &&
+              hero.preloadLinkHtml.includes('rel="preload" as="image" type="image/avif"'),
+            belowFoldLazyOk:
+              belowFold.pictureHtml.includes('loading="lazy"') &&
+              belowFold.pictureHtml.includes('fetchpriority="auto"') &&
+              belowFold.preloadLinkHtml === "",
+            clsGuardedOk:
+              hero.pictureHtml.includes('width="1600" height="900"') &&
+              hero.aspectRatio === "1600 / 900",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "LCP Priority, Preload Hint & Zero-CLS Responsive <picture>",
+        passed: Boolean(res?.heroPriorityOk && res?.belowFoldLazyOk && res?.clsGuardedOk),
+        detail: "Sets eager+fetchpriority=high+preload for LCP images, lazy for below-the-fold, and explicit dimensions",
       });
     } else {
       // General syntax evaluation
