@@ -9,6 +9,12 @@ import { Evaluator } from "./evaluator.js";
 import { BenchmarkSuite } from "./benchmark.js";
 import { getTypeScriptEcosystemOverview } from "./ts_ecosystem.js";
 import { buildApplicationJsonLdGraph, auditHtmlSeoAndStructuredData } from "./seo.js";
+import {
+  PAYMENT_PROVIDERS_CATALOG,
+  CURRENCY_EXPONENTS,
+  calculateCheckoutQuote,
+  verifyCommerceWebhook,
+} from "./commerce.js";
 import { ChatEngine } from "./chat.js";
 
 class HttpError extends Error {
@@ -417,6 +423,26 @@ const benchmarkSuite = new BenchmarkSuite();
           throw new ValidationError("html string is required for SEO audit.");
         }
         return json(auditHtmlSeoAndStructuredData(body.html));
+      }
+      if (pathname === "/api/commerce/catalog" && req.method === "GET") {
+        return json({
+          providers: PAYMENT_PROVIDERS_CATALOG,
+          currencies: CURRENCY_EXPONENTS,
+          categories: ["ecommerce-checkout", "payment-processing"],
+          track: "commerce-fintech",
+        });
+      }
+      if (pathname === "/api/commerce/checkout/quote" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(calculateCheckoutQuote(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/commerce/webhooks/verify" && req.method === "POST") {
+        const body = await readJson(req);
+        return json(verifyCommerceWebhook(body));
       }
       if (pathname === "/api/curriculum/tasks") {
         const category = searchParams.get("category");
