@@ -3,7 +3,7 @@
  * Computes aggregate evaluation metrics, agent test coverage, and benchmark reports across all curriculum tasks.
  */
 
-import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
+import { REFACTORING_CURRICULUM_TASKS, CURRICULUM_TRACKS } from "./curriculum.js";
 import { Evaluator } from "./evaluator.js";
 
 export class BenchmarkSuite {
@@ -16,18 +16,22 @@ export class BenchmarkSuite {
     const total = REFACTORING_CURRICULUM_TASKS.length;
     const byDifficulty = { beginner: 0, intermediate: 0, advanced: 0 };
     const byCategory = {};
+    const byTrack = {};
 
     for (const t of REFACTORING_CURRICULUM_TASKS) {
       if (byDifficulty[t.difficulty] !== undefined) byDifficulty[t.difficulty]++;
       byCategory[t.category] = (byCategory[t.category] || 0) + 1;
+      if (t.track) byTrack[t.track] = (byTrack[t.track] || 0) + 1;
     }
 
     return {
       totalTasks: total,
       byDifficulty,
       byCategory,
+      byTrack,
       categories: Object.keys(byCategory),
-      catalogVersion: "2.0.0",
+      tracks: Object.keys(CURRICULUM_TRACKS),
+      catalogVersion: "2.1.0",
       curriculumName: "Agentic Curriculum Benchmark",
     };
   }
@@ -106,6 +110,14 @@ export class BenchmarkSuite {
       `- **Average Score:** ${summary.averageScore}%`,
       `- **Avg Execution Time:** ${summary.averageDurationMs}ms`,
       `- **Total Benchmark Duration:** ${summary.totalDurationMs}ms`,
+      ``,
+      `## Category Breakdown`,
+      `| Category | Passed | Total | Pass Rate |`,
+      `| :--- | :--- | :--- | :--- |`,
+      ...Object.entries(summary.byCategory || {}).map(
+        ([cat, stat]) =>
+          `| \`${cat}\` | ${stat.passed} | ${stat.total} | ${Math.round((stat.passed / (stat.total || 1)) * 100)}% |`,
+      ),
       ``,
       `## Task Results`,
       `| Task Title | Category | Difficulty | Score | Time | Status |`,

@@ -89,6 +89,7 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(res.headers.get("content-type")).toContain("text/markdown");
     const markdown = await res.text();
     expect(markdown).toContain("# Agentic 1M Benchmark Report");
+    expect(markdown).toContain("## Category Breakdown");
     expect(markdown).toContain("| Task Title | Category | Difficulty |");
     expect(markdown).toContain("PASSED");
   });
