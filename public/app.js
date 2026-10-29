@@ -678,7 +678,7 @@ async function runRefactorVerification() {
 
     if (el.verifyResult) {
       el.verifyResult.hidden = false;
-      const passColor = result.passed ? "color: #10b981;" : "color: #ef4444;";
+      const passClass = result.passed ? "status-pass" : "status-fail";
       el.verifyResult.innerHTML = `
         <div class="telemetry-grid">
           <div class="stat-card">
@@ -699,7 +699,7 @@ async function runRefactorVerification() {
           </div>
         </div>
 
-        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.6rem; ${passColor}">
+        <div class="${passClass}" style="font-size: 0.95rem; margin-bottom: 0.6rem;">
           ${result.passed ? "✓ Sandbox Evaluation Passed!" : "✗ Sandbox Evaluation Incomplete"}
         </div>
         <div style="margin-bottom: 0.4rem; color: var(--ink);">Test Assertions & Criteria:</div>
@@ -707,9 +707,9 @@ async function runRefactorVerification() {
           ${result.assertionResults
             .map(
               (a) => `
-            <li style="color: ${a.passed ? "#10b981" : "#ef4444"}; margin-bottom: 0.25rem;">
+            <li class="${a.passed ? "status-pass" : "status-fail"}" style="margin-bottom: 0.25rem;">
               <strong>${a.passed ? "✓" : "✗"} ${escapeHtml(a.name)}:</strong>
-              <span style="color: var(--muted);">${escapeHtml(a.detail || "")}</span>
+              <span style="color: var(--muted); font-weight: 400;">${escapeHtml(a.detail || "")}</span>
             </li>
           `,
             )
@@ -949,7 +949,7 @@ async function runFullBenchmarkUI() {
           <td><span class="badge">${escapeHtml(r.difficulty)}</span></td>
           <td>${r.durationMs}ms</td>
           <td>${r.score}%</td>
-          <td style="color:${r.passed ? "#10b981" : "#ef4444"};font-weight:600;">
+          <td class="${r.passed ? "status-pass" : "status-fail"}">
             ${r.passed ? "PASSED" : "FAILED"}
           </td>
         </tr>
@@ -1018,7 +1018,7 @@ function renderChatMessages(data) {
     .map((m) => {
       const readCount = (m.readBy || []).length;
       const receipt = readCount >= 2 ? "✓✓ Read" : "✓ Sent";
-      return `<div style="padding:0.3rem 0;border-bottom:1px solid var(--line);"><strong>[#${m.seq}] ${escapeHtml(m.sender)} → ${escapeHtml(m.recipient)}:</strong> ${escapeHtml(m.text)} <span style="color:var(--muted);font-size:0.68rem;float:right;">${receipt}</span></div>`;
+      return `<div class="chat-msg-row"><strong>[#${m.seq}] ${escapeHtml(m.sender)} → ${escapeHtml(m.recipient)}:</strong> ${escapeHtml(m.text)} <span class="chat-receipt">${receipt}</span></div>`;
     })
     .join("");
 }

@@ -428,11 +428,11 @@
             </div>
           </div>
 
-          <div id="chat-messages-list" class="sim-output" style="margin-top:0;max-height:220px;" role="log" aria-live="polite"></div>
-          <div id="chat-typing-indicator" style="font-size:0.75rem;color:var(--muted);min-height:1.2rem;margin:0.35rem 0;font-family:var(--font-mono);"></div>
+          <div id="chat-messages-list" class="sim-output chat-log" role="log" aria-live="polite"></div>
+          <div id="chat-typing-indicator" class="chat-typing"></div>
 
           <form id="chat-form" class="composer" style="margin-top:0.4rem;" autocomplete="off">
-            <select id="chat-sender-select" aria-label="Send as user" title="Active sender identity" style="appearance:none;border:1px solid var(--line);border-radius:6px;background:none;color:var(--ink);font:inherit;font-size:0.75rem;padding:0.25rem 0.45rem;">
+            <select id="chat-sender-select" class="chat-sender-select" aria-label="Send as user" title="Active sender identity">
               <option value="agent">agent → pp</option>
               <option value="pp">pp → agent</option>
             </select>

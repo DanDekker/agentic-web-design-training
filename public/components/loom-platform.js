@@ -44,12 +44,12 @@ capsStyles.replaceSync(`
   }
 
   li[data-supported="true"] .dot {
-    background: var(--accent-pass, #10b981);
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent-pass, #10b981) 25%, transparent);
+    background: var(--accent-pass, oklch(0.72 0.16 150));
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent-pass, oklch(0.72 0.16 150)) 25%, transparent);
   }
 
   li[data-supported="false"] .dot {
-    background: var(--accent-fail, #ef4444);
+    background: var(--accent-fail, oklch(0.68 0.20 25));
   }
 
   .summary {

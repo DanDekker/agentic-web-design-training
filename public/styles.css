@@ -1165,16 +1165,62 @@
     word-break: break-all;
 
     &.removed {
-      background: color-mix(in oklch, #ef4444 12%, transparent);
-      color: #f87171;
+      background: color-mix(in oklch, var(--accent-fail) 12%, transparent);
+      color: var(--accent-fail);
     }
     &.added {
-      background: color-mix(in oklch, #10b981 12%, transparent);
-      color: #34d399;
+      background: color-mix(in oklch, var(--accent-pass) 12%, transparent);
+      color: var(--accent-pass);
     }
     &.unchanged {
       color: var(--muted);
     }
+  }
+
+  .status-pass {
+    color: var(--accent-pass);
+    font-weight: 600;
+  }
+
+  .status-fail {
+    color: var(--accent-fail);
+    font-weight: 600;
+  }
+
+  .chat-log {
+    margin-top: 0;
+    max-height: 220px;
+  }
+
+  .chat-typing {
+    font-size: 0.75rem;
+    color: var(--muted);
+    min-height: 1.2rem;
+    margin: 0.35rem 0;
+    font-family: var(--font-mono);
+  }
+
+  .chat-sender-select {
+    appearance: none;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.45rem;
+    cursor: pointer;
+  }
+
+  .chat-msg-row {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .chat-receipt {
+    color: var(--muted);
+    font-size: 0.68rem;
+    float: right;
   }
 
   /* ── Benchmark table ────────────────────────────────────── */

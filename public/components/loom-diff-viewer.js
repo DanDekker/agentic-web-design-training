@@ -50,13 +50,13 @@ diffStyles.replaceSync(`
   }
 
   .diff-row.removed {
-    background: color-mix(in oklch, #ef4444 14%, transparent);
-    color: #f87171;
+    background: color-mix(in oklch, var(--accent-fail, oklch(0.68 0.20 25)) 14%, transparent);
+    color: var(--accent-fail, oklch(0.68 0.20 25));
   }
 
   .diff-row.added {
-    background: color-mix(in oklch, #10b981 14%, transparent);
-    color: #34d399;
+    background: color-mix(in oklch, var(--accent-pass, oklch(0.72 0.16 150)) 14%, transparent);
+    color: var(--accent-pass, oklch(0.72 0.16 150));
   }
 
   .diff-row.unchanged {
