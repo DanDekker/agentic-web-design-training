@@ -499,6 +499,68 @@ export class Evaluator {
         passed: code.includes("JSON.stringify") && code.includes("p99Us"),
         detail: "Pre-serializes broadcast frame once and computes P50/P99 fanout latency metrics",
       });
+    } else if (id === "task_css_container_style_subgrid") {
+      results.push({
+        name: "Intrinsic Container Size & Style Queries",
+        passed:
+          code.includes("container-type: inline-size") &&
+          code.includes("@container") &&
+          code.includes("style(--featured"),
+        detail: "Uses container-type: inline-size with @container size and style(--featured) queries",
+      });
+      results.push({
+        name: "CSS Grid Subgrid Track Alignment",
+        passed: code.includes("subgrid") && !code.includes("height: 120px"),
+        detail: "Aligns nested card rows across columns via grid-template-rows: subgrid",
+      });
+    } else if (id === "task_css_cascade_layers_oklch_tokens") {
+      results.push({
+        name: "Deterministic @layer Cascade Hierarchy",
+        passed:
+          code.includes("@layer reset, tokens") &&
+          code.includes("@layer components") &&
+          !code.includes("!important"),
+        detail: "Isolates cascade specificity with @layer blocks and zero !important overrides",
+      });
+      results.push({
+        name: "Typed @property & Relative OKLCH Color Syntax",
+        passed:
+          code.includes("@property") &&
+          code.includes("light-dark(") &&
+          code.includes("oklch(from "),
+        detail: "Registers animatable custom properties via @property and derives tokens with oklch(from ...)",
+      });
+    } else if (id === "task_css_scroll_driven_view_transitions") {
+      results.push({
+        name: "Compositor Scroll & View Progress Timelines",
+        passed:
+          code.includes("animation-timeline: scroll(") &&
+          code.includes("animation-timeline: view(") &&
+          code.includes("animation-range:"),
+        detail: "Uses CSS scroll() and view() timelines with animation-range instead of JS scroll listeners",
+      });
+      results.push({
+        name: "View Transitions & Reduced-Motion Guard",
+        passed:
+          code.includes("::view-transition-") &&
+          code.includes("prefers-reduced-motion: reduce"),
+        detail: "Configures ::view-transition pseudo-elements and respects prefers-reduced-motion",
+      });
+    } else if (id === "task_css_anchor_positioning_has_popover") {
+      results.push({
+        name: "Declarative CSS Anchor Positioning & @position-try",
+        passed:
+          code.includes("anchor-name:") &&
+          code.includes("position-anchor:") &&
+          code.includes("anchor(") &&
+          code.includes("@position-try"),
+        detail: "Tethers popover via anchor-name/position-anchor and flips on overflow with @position-try",
+      });
+      results.push({
+        name: "Relational :has(:popover-open) Parent State",
+        passed: code.includes(":has(") && code.includes(":popover-open"),
+        detail: "Styles parent container state declaratively when child popover is open",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -515,10 +577,18 @@ export class Evaluator {
     const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
 
     if (task?.category === "css" || taskId === "task_refactor_semantic_a11y") {
+      const openBraces = (code.match(/\{/g) || []).length;
+      const closeBraces = (code.match(/\}/g) || []).length;
+      const balanced =
+        taskId === "task_refactor_semantic_a11y"
+          ? code.includes("<button") && code.includes("</button>")
+          : openBraces > 0 && openBraces === closeBraces;
       results.push({
-        name: "Markup / Stylesheet Valid",
-        passed: true,
-        detail: "Stylesheet or Markup structure verified",
+        name: "Markup / Stylesheet AST & Block Balance Valid",
+        passed: balanced,
+        detail: balanced
+          ? "Stylesheet rule blocks and markup tags are balanced and structurally valid"
+          : "Unbalanced CSS rule braces or malformed markup structure",
       });
       return results;
     }

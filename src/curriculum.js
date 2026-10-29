@@ -2577,6 +2577,263 @@ export function benchmarkTwoUserChatFanout(iterations = 200, capacity = 64) {
       "Includes a benchmark harness computing retained window bounds, subscriber frame counts, and P50/P99 latency",
     ],
   },
+
+  /* ── 7. Advanced Modern CSS Architecture (Container Queries, @layer OKLCH, Scroll Timelines, Anchor Positioning) ── */
+  {
+    id: "task_css_container_style_subgrid",
+    title: "Refactor Viewport Media Query Card Deck to CSS Container Size/Style Queries & Subgrid Alignment",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "container-queries", "subgrid", "style-queries", "responsive-design"],
+    instructions:
+      "A reusable dashboard card component relies on global @media (min-width: 768px) viewport breakpoints and fixed height: 120px header hacks, breaking whenever placed inside narrow sidebars or split panes. Refactor the parent wrapper to an inline-size containment context (container-type: inline-size), use @container size and style(--featured: true) queries, and align card header/body/footer tracks across siblings using CSS Grid subgrid.",
+    starterCode: `/* Legacy Viewport-Coupled Card Layout with Fixed Height Hacks */
+.card-deck {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #333;
+}
+.card-header {
+  height: 120px; /* Brittle fixed height hack to align titles */
+}
+@media (min-width: 768px) {
+  .card {
+    flex-direction: row;
+  }
+}`,
+    solutionCode: `/* Modern Intrinsic Container Size/Style Queries with Subgrid Track Alignment */
+.card-deck {
+  container-type: inline-size;
+  container-name: deck;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  grid-auto-rows: auto 1fr auto;
+  gap: clamp(1rem, 2cqi, 1.75rem);
+}
+
+.card-shell {
+  container-type: inline-size;
+  container-name: card;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+@container card (inline-size >= 28rem) {
+  .card-shell .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+@container style(--featured: true) {
+  .card-shell {
+    border-color: var(--ink);
+    background: color-mix(in oklch, var(--ink) 6%, var(--panel));
+  }
+}`,
+    criteria: [
+      "Establishes explicit containment contexts using container-type: inline-size and container-name",
+      "Aligns multi-row card internals across sibling columns using grid-template-rows: subgrid and grid-row: span 3",
+      "Uses @container size and @container style(--featured: true) queries instead of global @media viewport breakpoints",
+    ],
+  },
+  {
+    id: "task_css_cascade_layers_oklch_tokens",
+    title: "Architect Enterprise Design System with @layer Cascade Isolation, oklch() Relative Color Syntax & @property",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "cascade-layers", "oklch", "design-systems", "custom-properties", "light-dark"],
+    instructions:
+      "An enterprise stylesheet suffers from specificity wars (.theme-dark .panel .btn.btn-primary !important) and hardcoded sRGB hex colors that cannot be animated or perceptually lightened. Refactor into an explicit @layer hierarchy (reset, tokens, base, components, utilities), register animatable custom properties with @property, and compute adaptive theme & hover states using color-scheme: light dark, light-dark(), and OKLCH relative color syntax oklch(from var(--brand) ...).",
+    starterCode: `/* Specificity Wars & Hardcoded Hex Colors */
+.theme-dark .panel .btn.btn-primary {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+.theme-dark .panel .btn.btn-primary:hover {
+  background-color: #3b82f6 !important;
+}
+.utility-hidden {
+  display: none !important;
+}`,
+    solutionCode: `/* Deterministic @layer Cascade Architecture with Typed @property & Relative OKLCH Tokens */
+@layer reset, tokens, base, components, utilities;
+
+@property --elevate-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+    --surface: light-dark(oklch(0.98 0.004 90), oklch(0.14 0.005 90));
+    --ink: light-dark(oklch(0.14 0.005 90), oklch(0.96 0.004 90));
+    --brand: oklch(0.62 0.18 255);
+    --brand-hover: oklch(from var(--brand) calc(l + 0.10) c h);
+    --brand-border: color-mix(in oklch, var(--brand) 40%, var(--surface));
+  }
+}
+
+@layer components {
+  .btn-primary {
+    background: var(--brand);
+    color: var(--surface);
+    border: 1px solid var(--brand-border);
+    transition: --elevate-progress 180ms ease, background-color 180ms ease;
+
+    &:hover {
+      --elevate-progress: 1;
+      background: var(--brand-hover);
+    }
+  }
+}
+
+@layer utilities {
+  .u-hidden {
+    display: none;
+  }
+}`,
+    criteria: [
+      "Declares an explicit @layer order (reset, tokens, base, components, utilities) eliminating all !important overrides",
+      "Registers typed custom properties via @property with explicit syntax, inherits, and initial-value descriptors",
+      "Derives perceptual theme tokens using light-dark() and relative color syntax oklch(from var(--brand) ...)",
+    ],
+  },
+  {
+    id: "task_css_scroll_driven_view_transitions",
+    title: "Replace Main-Thread Scroll Listener with CSS Scroll-Driven Animations (scroll(), view()) & View Transitions",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "scroll-driven-animations", "view-transitions", "performance", "compositor"],
+    instructions:
+      "A reading progress bar and section reveal animations attach a synchronous window scroll listener that calls getBoundingClientRect() on every frame, causing main-thread layout thrashing and dropped frames on 120Hz displays. Refactor to compositor-driven CSS Scroll-Driven Animations (animation-timeline: scroll() and view(), animation-range) paired with named View Transitions (view-transition-name) and a @media (prefers-reduced-motion: reduce) accessibility guard.",
+    starterCode: `/* Main-Thread Layout Thrashing Scroll Handler */
+window.addEventListener("scroll", () => {
+  const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+  document.querySelector(".progress-bar").style.width = (pct * 100) + "%";
+  document.querySelectorAll(".reveal-card").forEach((el) => {
+    const rect = el.getBoundingClientRect();
+    el.style.opacity = rect.top < window.innerHeight * 0.8 ? "1" : "0";
+  });
+});`,
+    solutionCode: `/* Zero-JS Compositor Scroll-Driven Timelines & View Transition Morphing */
+@keyframes scale-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes reveal-on-enter {
+  entry 0% {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  entry 100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.progress-bar {
+  transform-origin: 0 50%;
+  animation: scale-progress linear both;
+  animation-timeline: scroll(root block);
+}
+
+.reveal-card {
+  view-transition-name: var(--card-transition-id, none);
+  animation: reveal-on-enter linear both;
+  animation-timeline: view(block);
+  animation-range: entry 10% cover 35%;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar,
+  .reveal-card,
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+    transition: none !important;
+  }
+}`,
+    criteria: [
+      "Drives progress and viewport entry animations off the main thread using animation-timeline: scroll() and view() with animation-range",
+      "Configures View Transition pseudo-elements (::view-transition-old / ::view-transition-new) and view-transition-name",
+      "Honors @media (prefers-reduced-motion: reduce) by disabling motion animations for vestibular accessibility",
+    ],
+  },
+  {
+    id: "task_css_anchor_positioning_has_popover",
+    title: "Refactor JS Tooltip Collision Math to Native CSS Anchor Positioning (anchor-name, position-anchor, @position-try) & :has()",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "anchor-positioning", "popover", "has-selector", "collision-flip"],
+    instructions:
+      "A floating contextual menu measures offsetTop/offsetLeft and window.innerHeight in JavaScript to tether a popover to its trigger button and flip it when clipping near the viewport edge. Refactor to pure CSS Anchor Positioning (anchor-name, position-anchor, anchor(), position-try-fallbacks, @position-try) and style the parent card state declaratively using relational :has(:popover-open).",
+    starterCode: `/* Imperative JS Bounding Box Collision Math */
+function positionTooltip(triggerEl, tooltipEl) {
+  const rect = triggerEl.getBoundingClientRect();
+  const tipRect = tooltipEl.getBoundingClientRect();
+  let top = rect.bottom + 8;
+  if (top + tipRect.height > window.innerHeight) {
+    top = rect.top - tipRect.height - 8;
+  }
+  tooltipEl.style.position = "fixed";
+  tooltipEl.style.top = top + "px";
+  tooltipEl.style.left = rect.left + "px";
+}`,
+    solutionCode: `/* Native CSS Anchor Positioning with @position-try Flip Fallbacks & Relational :has() */
+.action-card {
+  border: 1px solid var(--line);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+
+  &:has([popover]:popover-open) {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ink) 20%, transparent);
+  }
+}
+
+.anchor-trigger {
+  anchor-name: --action-trigger;
+}
+
+.contextual-popover[popover] {
+  position: fixed;
+  position-anchor: --action-trigger;
+   inset: auto;
+  top: calc(anchor(bottom) + 0.5rem);
+  left: anchor(left);
+  position-try-fallbacks: --flip-above, flip-block, flip-inline;
+  margin: 0;
+}
+
+@position-try --flip-above {
+  top: auto;
+  bottom: calc(anchor(top) + 0.5rem);
+  left: anchor(left);
+}`,
+    criteria: [
+      "Tethers popover to trigger element declaratively via anchor-name, position-anchor, and anchor() functions",
+      "Handles viewport edge overflow automatically using position-try-fallbacks and custom @position-try rules",
+      "Highlights the parent container when its child popover is open using relational :has([popover]:popover-open)",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

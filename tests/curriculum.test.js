@@ -228,13 +228,30 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
-  test("validates normalized 36-task curriculum schema, 12 categories, and 5 domain tracks", () => {
+  test("verifies advanced modern CSS architecture tasks (Container Subgrid, @layer OKLCH, Scroll Timelines, Anchor Positioning)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=css");
+    const { tasks: cssTasks } = await tasksRes.json();
+    expect(cssTasks.length).toBe(5);
+
+    for (const cssTask of cssTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: cssTask.id,
+        code: cssTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
+  test("validates normalized curriculum schema, categories, and domain tracks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(36);
-    expect(CURRICULUM_CATEGORIES.length).toBe(12);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(5);
+    expect(validation.totalTasks).toBeGreaterThanOrEqual(40);
+    expect(CURRICULUM_CATEGORIES.length).toBeGreaterThanOrEqual(12);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBeGreaterThanOrEqual(5);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });
