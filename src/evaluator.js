@@ -620,6 +620,65 @@ export class Evaluator {
         passed: code.includes("TRPCError") && code.includes("createCaller"),
         detail: "Throws typed TRPCError codes and exposes createCaller(ctx) for end-to-end RPC dispatch",
       });
+    } else if (id === "task_migrate_express_to_hono_edge_ts") {
+      results.push({
+        name: "Web-Standard Request/Response & Typed EdgeContext<TVariables>",
+        passed:
+          code.includes("EdgeContext<") &&
+          code.includes("new Response(") &&
+          !code.includes("res.status("),
+        detail: "Migrates Express req/res mutation to Web-Standard Fetch Request/Response and typed context",
+      });
+      results.push({
+        name: "Route Parameter Extraction & Async Onion Middleware",
+        passed: code.includes("params") && code.includes("dispatch(") && code.includes("fetch(req: Request)"),
+        detail: "Extracts :param segments and dispatches async middleware chains via fetch(req)",
+      });
+    } else if (id === "task_migrate_react_hooks_to_svelte5_vue3_signals") {
+      results.push({
+        name: "Fine-Grained $state<T>, $derived<T> & $effect Primitives",
+        passed:
+          code.includes("$state<") &&
+          code.includes("$derived") &&
+          code.includes("$effect"),
+        detail: "Replaces React manual hook dependency arrays with auto-tracking fine-grained primitives",
+      });
+      results.push({
+        name: "Automatic Dependency Tracking & Effect Cleanup",
+        passed: code.includes("onCleanup") && code.includes("Object.is"),
+        detail: "Tracks reactive reads automatically and runs registered cleanup callbacks before re-execution",
+      });
+    } else if (id === "task_migrate_redux_thunks_to_tanstack_query_ts") {
+      results.push({
+        name: "Deterministic QueryKey Hashing & In-Flight Deduplication",
+        passed:
+          code.includes("hashQueryKey") &&
+          code.includes("inFlight") &&
+          code.includes("staleTime"),
+        detail: "Canonicalizes QueryKey hashes, deduplicates concurrent fetches, and honors staleTime",
+      });
+      results.push({
+        name: "Prefix Invalidation & Optimistic Rollback",
+        passed:
+          code.includes("invalidateQueries") &&
+          code.includes("executeOptimisticMutation") &&
+          code.includes("snapshot"),
+        detail: "Invalidates matching query prefixes and rolls back optimistic cache state on mutation error",
+      });
+    } else if (id === "task_migrate_nextjs_pages_to_app_router_rsc") {
+      results.push({
+        name: "Parallel RSC Data Fetching & Tagged Cache",
+        passed:
+          code.includes("Promise.all") &&
+          code.includes("fetchWithTags") &&
+          code.includes("revalidateTag"),
+        detail: "Replaces sequential getServerSideProps waterfall with parallel tagged RSC fetches",
+      });
+      results.push({
+        name: "Web-Standard Route Handler Cache Revalidation",
+        passed: code.includes("Request") && code.includes("Response") && code.includes("evictedCount"),
+        detail: "Exposes Web-Standard POST Route Handler that invalidates tagged cache entries on demand",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -2011,6 +2070,184 @@ export class Evaluator {
         name: "tRPC Context Narrowing, Input Validation & Caller Dispatch",
         passed: Boolean(res?.unauthBlocked && res?.badInputBlocked && res?.createdOk),
         detail: "Enforces UNAUTHORIZED middleware, BAD_REQUEST input schema parsing, and typed caller execution",
+      });
+    } else if (taskId === "task_migrate_express_to_hono_edge_ts") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Router = typeof TypedEdgeRouter === "function" ? TypedEdgeRouter : exports.TypedEdgeRouter;
+          const app = new Router();
+
+          app.use(async (c, next) => {
+            const key = c.req.headers.get("x-api-key");
+            if (!key) return c.json({ error: "Unauthorized" }, 401);
+            c.set("tenantId", "tenant_" + key);
+            return await next();
+          });
+
+          app.get("/v1/orgs/:orgId/members", (c) =>
+            c.json({ tenantId: c.get("tenantId"), orgId: c.params.orgId }),
+          );
+
+          const unauthRes = await app.fetch(new Request("https://edge.local/v1/orgs/acme/members"));
+          const authedRes = await app.fetch(
+            new Request("https://edge.local/v1/orgs/acme-corp/members", {
+              headers: { "x-api-key": "live_99" },
+            }),
+          );
+          const body = await authedRes.json();
+
+          return {
+            unauth401: unauthRes.status === 401,
+            authedOk: authedRes.status === 200 && body.tenantId === "tenant_live_99" && body.orgId === "acme-corp",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Web-Standard Edge Router Middleware & Param Execution",
+        passed: Boolean(res?.unauth401 && res?.authedOk),
+        detail: "Executes Fetch Request/Response middleware, extracts :orgId params, and propagates typed context",
+      });
+    } else if (taskId === "task_migrate_react_hooks_to_svelte5_vue3_signals") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const makeStore = typeof createMigratedAnalyticsStore === "function" ? createMigratedAnalyticsStore : exports.createMigratedAnalyticsStore;
+          const store = makeStore([
+            { id: "1", title: "Alpha Node", score: 40 },
+            { id: "2", title: "Beta Signal", score: 85 },
+            { id: "3", title: "Gamma Rune", score: 95 },
+          ]);
+
+          const initialCount = store.summary.value.count;
+          store.minScore.value = 80;
+          const afterScoreCount = store.summary.value.count;
+          store.query.value = "gamma";
+          const afterQueryCount = store.summary.value.count;
+          store.dispose();
+
+          return {
+            countsOk: initialCount === 3 && afterScoreCount === 2 && afterQueryCount === 1,
+            topScoreOk: store.summary.value.topScore === 95,
+            cleanupsRan: store.auditTrail.includes("cleanup:3") && store.auditTrail.includes("cleanup:2"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Fine-Grained $state/$derived/$effect Graph & Cleanup",
+        passed: Boolean(res?.countsOk && res?.topScoreOk && res?.cleanupsRan),
+        detail: "Propagates fine-grained updates through derived selectors and executes effect cleanups",
+      });
+    } else if (taskId === "task_migrate_redux_thunks_to_tanstack_query_ts") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Client = typeof TypedQueryClient === "function" ? TypedQueryClient : exports.TypedQueryClient;
+          const qc = new Client();
+          let networkCalls = 0;
+
+          const fetcher = async () => {
+            networkCalls++;
+            await new Promise((r) => setTimeout(r, 15));
+            return [{ id: "u1", name: "Ada" }];
+          };
+
+          // Concurrent calls with differently-ordered filter keys should deduplicate!
+          const [r1, r2] = await Promise.all([
+            qc.fetchQuery({ queryKey: ["users", { role: "admin", active: true }], queryFn: fetcher, staleTimeMs: 5000 }),
+            qc.fetchQuery({ queryKey: ["users", { active: true, role: "admin" }], queryFn: fetcher, staleTimeMs: 5000 }),
+          ]);
+
+          // Failed optimistic mutation should roll back to ["Ada"]
+          let failedAsExpected = false;
+          try {
+            await qc.executeOptimisticMutation({
+              queryKey: ["users", { active: true, role: "admin" }],
+              variables: { id: "u2", name: "Ghost" },
+              optimisticUpdater: (old = [], v) => [...old, v],
+              mutationFn: async () => {
+                throw new Error("DB conflict");
+              },
+            });
+          } catch {
+            failedAsExpected = true;
+          }
+
+          const afterRollback = qc.getQueryData(["users", { role: "admin", active: true }]);
+
+          return {
+            dedupedOk: networkCalls === 1 && r1.length === 1 && r2.length === 1,
+            rollbackOk: failedAsExpected && Array.isArray(afterRollback) && afterRollback.length === 1 && afterRollback[0].name === "Ada",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "TanStack Query Deduplication, Canonical Key Hashing & Rollback",
+        passed: Boolean(res?.dedupedOk && res?.rollbackOk),
+        detail: "Deduplicates concurrent fetches with canonical key hashing and rolls back failed optimistic mutations",
+      });
+    } else if (taskId === "task_migrate_nextjs_pages_to_app_router_rsc") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Cache = typeof NextAppRouterCache === "function" ? NextAppRouterCache : exports.NextAppRouterCache;
+          const renderRSC = typeof renderDashboardRSC === "function" ? renderDashboardRSC : exports.renderDashboardRSC;
+          const postHandler = typeof POST_RevalidateRouteHandler === "function" ? POST_RevalidateRouteHandler : exports.POST_RevalidateRouteHandler;
+
+          const cache = new Cache();
+          let userLoads = 0;
+          let metricLoads = 0;
+
+          const firstRender = await renderRSC({
+            userId: "42",
+            cache,
+            loadUser: async (id) => { userLoads++; return { id, name: "Linus" }; },
+            loadMetrics: async () => { metricLoads++; return { cpu: 12 }; },
+          });
+
+          const cachedRender = await renderRSC({
+            userId: "42",
+            cache,
+            loadUser: async (id) => { userLoads++; return { id, name: "Linus" }; },
+            loadMetrics: async () => { metricLoads++; return { cpu: 99 }; },
+          });
+
+          // Revalidate only "metrics" tag via Route Handler
+          const revRes = await postHandler(
+            new Request("https://app.local/api/revalidate", {
+              method: "POST",
+              body: JSON.stringify({ tag: "metrics" }),
+            }),
+            cache,
+          );
+          const revBody = await revRes.json();
+
+          const afterRevalidate = await renderRSC({
+            userId: "42",
+            cache,
+            loadUser: async (id) => { userLoads++; return { id, name: "Linus" }; },
+            loadMetrics: async () => { metricLoads++; return { cpu: 55 }; },
+          });
+
+          return {
+            hitOk: firstRender.telemetry.userCache === "MISS" && cachedRender.telemetry.metricsCache === "HIT" && metricLoads === 1,
+            selectiveRevalidateOk:
+              revBody.revalidated === true &&
+              afterRevalidate.telemetry.userCache === "HIT" &&
+              afterRevalidate.telemetry.metricsCache === "MISS" &&
+              userLoads === 1 &&
+              metricLoads === 2,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Parallel RSC Tagged Caching & Selective revalidateTag() Execution",
+        passed: Boolean(res?.hitOk && res?.selectiveRevalidateOk),
+        detail: "Serves cached RSC payloads on HIT and selectively evicts tagged entries via POST Route Handler",
       });
     } else {
       // General syntax evaluation

@@ -262,6 +262,23 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies cross-framework TypeScript migration tasks (Express->Hono, React->Svelte5/Vue3, Redux->TanStack, Pages->App Router)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=framework-migration");
+    const { tasks: migTasks } = await tasksRes.json();
+    expect(migTasks.length).toBe(4);
+
+    for (const migTask of migTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: migTask.id,
+        code: migTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
   test("validates normalized curriculum schema, categories, and domain tracks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);

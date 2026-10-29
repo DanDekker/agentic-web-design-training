@@ -3303,6 +3303,517 @@ export function createTRPCRouter<TProcedures extends Record<string, { call: (ctx
       "Provides createTRPCRouter().createCaller(ctx) for end-to-end typed procedure invocation",
     ],
   },
+
+  /* ── 9. Cross-Framework TypeScript Migrations (Express->Hono/Fastify, React->Svelte 5/Vue 3, Redux->TanStack Query, Pages->App Router) ── */
+  {
+    id: "task_migrate_express_to_hono_edge_ts",
+    title: "Migrate Legacy Express.js Callback Middleware App to Web-Standard TypeScript Hono / Fastify Edge Router",
+    category: "framework-migration",
+    difficulty: "intermediate",
+    tags: ["typescript", "migration", "express", "hono", "fastify", "web-standards", "edge"],
+    instructions:
+      "A legacy Node.js Express router mutates (req as any).user, relies on callback-based next(err), and uses Node-only res.status(200).json() APIs that cannot run on Bun, Deno, or Cloudflare Workers edge runtimes. Migrate the router to a Web-Standard TypeScript Hono/Edge-style router using Fetch Request/Response primitives, typed Context<TVariables>, URLPattern-style :param extraction, and async onion middleware.",
+    starterCode: `// Legacy Express.js Mutating req/res Callback Router
+export function setupLegacyExpressRoutes(app: any) {
+  app.use((req: any, res: any, next: any) => {
+    const apiKey = req.headers["x-api-key"];
+    if (!apiKey) return res.status(401).json({ error: "Missing key" });
+    req.tenantId = "tenant_" + apiKey;
+    next();
+  });
+
+  app.get("/v1/orgs/:orgId/members", (req: any, res: any) => {
+    res.status(200).json({
+      tenantId: req.tenantId,
+      orgId: req.params.orgId,
+      runtime: "express-legacy"
+    });
+  });
+}`,
+    solutionCode: `// Migrated Web-Standard TypeScript Hono / Edge Router with Typed Context Variables
+export interface EdgeContext<TVariables extends Record<string, unknown> = Record<string, unknown>> {
+  readonly req: Request;
+  readonly params: Readonly<Record<string, string>>;
+  set<K extends keyof TVariables>(key: K, value: TVariables[K]): void;
+  get<K extends keyof TVariables>(key: K): TVariables[K];
+  json<T>(data: T, status?: number): Response;
+}
+
+type EdgeMiddleware<TVariables extends Record<string, unknown>> = (
+  c: EdgeContext<TVariables>,
+  next: () => Promise<Response>,
+) => Promise<Response>;
+
+type EdgeHandler<TVariables extends Record<string, unknown>> = (
+  c: EdgeContext<TVariables>,
+) => Promise<Response> | Response;
+
+export class TypedEdgeRouter<TVariables extends Record<string, unknown> = Record<string, unknown>> {
+  #middlewares: EdgeMiddleware<TVariables>[] = [];
+  #routes: { method: string; pattern: RegExp; keys: string[]; handler: EdgeHandler<TVariables> }[] = [];
+
+  use(mw: EdgeMiddleware<TVariables>): this {
+    this.#middlewares.push(mw);
+    return this;
+  }
+
+  get(pathPattern: string, handler: EdgeHandler<TVariables>): this {
+    return this.#addRoute("GET", pathPattern, handler);
+  }
+
+  post(pathPattern: string, handler: EdgeHandler<TVariables>): this {
+    return this.#addRoute("POST", pathPattern, handler);
+  }
+
+  #addRoute(method: string, pathPattern: string, handler: EdgeHandler<TVariables>): this {
+    const keys: string[] = [];
+    const regexSource =
+      "^" +
+      pathPattern.replace(/:([A-Za-z0-9_]+)/g, (_m, key) => {
+        keys.push(key);
+        return "([^/]+)";
+      }) +
+      "$";
+    this.#routes.push({ method, pattern: new RegExp(regexSource), keys, handler });
+    return this;
+  }
+
+  async fetch(req: Request): Promise<Response> {
+    const url = new URL(req.url);
+    const matched = this.#routes.find((r) => r.method === req.method && r.pattern.test(url.pathname));
+    if (!matched) {
+      return new Response(JSON.stringify({ error: "Not Found" }), {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    const matchExec = matched.pattern.exec(url.pathname);
+    const params: Record<string, string> = {};
+    matched.keys.forEach((k, idx) => {
+      params[k] = decodeURIComponent(matchExec?.[idx + 1] ?? "");
+    });
+
+    const store = new Map<keyof TVariables, unknown>();
+    const ctx: EdgeContext<TVariables> = {
+      req,
+      params,
+      set: (key, value) => {
+        store.set(key, value);
+      },
+      get: (key) => store.get(key) as TVariables[typeof key],
+      json: (data, status = 200) =>
+        new Response(JSON.stringify(data), {
+          status,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+    };
+
+    const dispatch = async (index: number): Promise<Response> => {
+      if (index < this.#middlewares.length) {
+        return await this.#middlewares[index](ctx, () => dispatch(index + 1));
+      }
+      return await matched.handler(ctx);
+    };
+
+    return await dispatch(0);
+  }
+}`,
+    criteria: [
+      "Replaces Node-coupled Express req/res mutation with Web-Standard Fetch Request/Response and typed EdgeContext<TVariables>",
+      "Extracts route parameters (:orgId) and propagates strongly-typed context variables via c.set() and c.get()",
+      "Executes async onion middlewares compatible with Bun, Deno, Node, and Cloudflare Workers",
+    ],
+  },
+  {
+    id: "task_migrate_react_hooks_to_svelte5_vue3_signals",
+    title: "Migrate React useState/useEffect/useMemo Stale Closures to Fine-Grained Svelte 5 Runes & Vue 3 Reactivity",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "migration", "react", "svelte-5-runes", "vue-3-composition", "solidjs", "fine-grained-reactivity"],
+    instructions:
+      "A complex React analytics hook uses three coupled useState calls, a manual dependency array useMemo, and a useEffect that suffers from stale closure bugs and cascading re-renders. Migrate the component state machine to a universal fine-grained reactive graph (modeling Svelte 5 $state/$derived/$effect Runes and Vue 3 ref/computed/watchEffect) with automatic dependency tracking and deterministic cleanup.",
+    starterCode: `// React Hook with Manual Dependency Arrays & Stale Closure Bugs
+export function useLegacyAnalyticsFilter(initialItems: any[]) {
+  // In React, forgetting [minScore, query] in dependency arrays causes stale reads
+  let items = initialItems;
+  let query = "";
+  let minScore = 0;
+  let effectLog: string[] = [];
+
+  function setQuery(q: string) {
+    query = q;
+    // Manual imperative sync required
+  }
+  return { items, query, minScore, setQuery, effectLog };
+}`,
+    solutionCode: `// Universal Fine-Grained Reactive Primitives (Svelte 5 $state/$derived/$effect & Vue 3 ref/computed)
+type Subscriber = () => void;
+
+let currentObserver: Subscriber | null = null;
+
+export interface ReactiveState<T> {
+  get value(): T;
+  set value(next: T);
+}
+
+export interface ReadonlyDerived<T> {
+  readonly value: T;
+}
+
+export function $state<T>(initial: T): ReactiveState<T> {
+  let current = initial;
+  const deps = new Set<Subscriber>();
+
+  return {
+    get value(): T {
+      if (currentObserver) deps.add(currentObserver);
+      return current;
+    },
+    set value(next: T) {
+      if (Object.is(current, next)) return;
+      current = next;
+      for (const effect of Array.from(deps)) {
+        effect();
+      }
+    },
+  };
+}
+
+export function $derived<T>(compute: () => T): ReadonlyDerived<T> {
+  let cached!: T;
+  let dirty = true;
+  const downstream = new Set<Subscriber>();
+
+  const onDependencyChanged = () => {
+    if (!dirty) {
+      dirty = true;
+      for (const sub of Array.from(downstream)) sub();
+    }
+  };
+
+  return {
+    get value(): T {
+      if (currentObserver) downstream.add(currentObserver);
+      if (dirty) {
+        const prev = currentObserver;
+        currentObserver = onDependencyChanged;
+        try {
+          cached = compute();
+          dirty = false;
+        } finally {
+          currentObserver = prev;
+        }
+      }
+      return cached;
+    },
+  };
+}
+
+export function $effect(fn: (onCleanup: (cleanupFn: () => void) => void) => void): () => void {
+  let cleanup: (() => void) | null = null;
+  let disposed = false;
+
+  const run = () => {
+    if (disposed) return;
+    if (cleanup) {
+      cleanup();
+      cleanup = null;
+    }
+    const prev = currentObserver;
+    currentObserver = run;
+    try {
+      fn((cb) => {
+        cleanup = cb;
+      });
+    } finally {
+      currentObserver = prev;
+    }
+  };
+
+  run();
+
+  return () => {
+    disposed = true;
+    if (cleanup) cleanup();
+  };
+}
+
+export interface AnalyticsItem {
+  readonly id: string;
+  readonly title: string;
+  readonly score: number;
+}
+
+export function createMigratedAnalyticsStore(initialItems: readonly AnalyticsItem[]) {
+  const items = $state<readonly AnalyticsItem[]>(initialItems);
+  const query = $state<string>("");
+  const minScore = $state<number>(0);
+  const auditTrail: string[] = [];
+
+  const filtered = $derived(() => {
+    const q = query.value.trim().toLowerCase();
+    return items.value.filter(
+      (item) => item.score >= minScore.value && (q === "" || item.title.toLowerCase().includes(q)),
+    );
+  });
+
+  const summary = $derived(() => ({
+    count: filtered.value.length,
+    topScore: filtered.value.reduce((max, i) => Math.max(max, i.score), 0),
+  }));
+
+  const stopEffect = $effect((onCleanup) => {
+    const currentCount = summary.value.count;
+    auditTrail.push(\`matched:\${currentCount}\`);
+    onCleanup(() => {
+      auditTrail.push(\`cleanup:\${currentCount}\`);
+    });
+  });
+
+  return { items, query, minScore, filtered, summary, auditTrail, dispose: stopEffect };
+}`,
+    criteria: [
+      "Replaces manual React hook dependency arrays with auto-tracking $state<T>, $derived<T>, and $effect primitives",
+      "Propagates fine-grained dirty invalidation through derived chains without redundant recomputation",
+      "Executes registered effect cleanup callbacks prior to re-running or disposing reactive effects",
+    ],
+  },
+  {
+    id: "task_migrate_redux_thunks_to_tanstack_query_ts",
+    title: "Migrate Boilerplate Redux Async Thunks & Action Reducers to Type-Safe TanStack Query SWR Cache Engine",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "migration", "redux", "tanstack-query", "swr-cache", "deduplication"],
+    instructions:
+      "A legacy Redux store uses 120 lines of FETCH_USERS_REQUEST / FETCH_USERS_SUCCESS / FETCH_USERS_FAILURE action creators and thunks without request deduplication, cache expiration, or optimistic rollback. Migrate to a TypeScript TanStack QueryClient engine featuring deterministic QueryKey serialization, concurrent in-flight Promise deduplication, staleTime SWR caching, prefix invalidation (invalidateQueries), and optimistic mutation rollback.",
+    starterCode: `// Legacy Redux Boilerplate with Duplicate Concurrent Fetches & No Stale Time
+export function legacyUsersReducer(state = { loading: false, data: null, error: null }, action: any) {
+  switch (action.type) {
+    case "FETCH_REQUEST": return { ...state, loading: true };
+    case "FETCH_SUCCESS": return { loading: false, data: action.payload, error: null };
+    case "FETCH_FAILURE": return { loading: false, data: null, error: action.error };
+    default: return state;
+  }
+}`,
+    solutionCode: `// TypeScript TanStack Query Client Engine with In-Flight Deduplication, StaleTime & Optimistic Rollback
+export type QueryKey = readonly unknown[];
+
+interface CacheEntry<TData = unknown> {
+  data: TData;
+  updatedAt: number;
+  invalidated: boolean;
+}
+
+export function hashQueryKey(queryKey: QueryKey): string {
+  return JSON.stringify(queryKey, (_key, val) =>
+    val && typeof val === "object" && !Array.isArray(val)
+      ? Object.keys(val)
+          .sort()
+          .reduce<Record<string, unknown>>((acc, k) => {
+            acc[k] = (val as Record<string, unknown>)[k];
+            return acc;
+          }, {})
+      : val,
+  );
+}
+
+export class TypedQueryClient {
+  #cache = new Map<string, CacheEntry<any>>();
+  #inFlight = new Map<string, Promise<any>>();
+
+  getQueryData<TData>(queryKey: QueryKey): TData | undefined {
+    return this.#cache.get(hashQueryKey(queryKey))?.data as TData | undefined;
+  }
+
+  setQueryData<TData>(queryKey: QueryKey, updater: TData | ((old: TData | undefined) => TData), nowMs = Date.now()): TData {
+    const keyHash = hashQueryKey(queryKey);
+    const prev = this.#cache.get(keyHash)?.data as TData | undefined;
+    const next = typeof updater === "function" ? (updater as (old: TData | undefined) => TData)(prev) : updater;
+    this.#cache.set(keyHash, { data: next, updatedAt: nowMs, invalidated: false });
+    return next;
+  }
+
+  async fetchQuery<TData>(opts: {
+    readonly queryKey: QueryKey;
+    readonly queryFn: () => Promise<TData>;
+    readonly staleTimeMs?: number;
+    readonly nowMs?: number;
+  }): Promise<TData> {
+    const keyHash = hashQueryKey(opts.queryKey);
+    const now = opts.nowMs ?? Date.now();
+    const staleTime = opts.staleTimeMs ?? 0;
+
+    const cached = this.#cache.get(keyHash);
+    if (cached && !cached.invalidated && now - cached.updatedAt <= staleTime) {
+      return cached.data as TData;
+    }
+
+    const existingPromise = this.#inFlight.get(keyHash);
+    if (existingPromise) {
+      return existingPromise as Promise<TData>;
+    }
+
+    const request = opts
+      .queryFn()
+      .then((data) => {
+        this.#cache.set(keyHash, { data, updatedAt: Date.now(), invalidated: false });
+        this.#inFlight.delete(keyHash);
+        return data;
+      })
+      .catch((err) => {
+        this.#inFlight.delete(keyHash);
+        throw err;
+      });
+
+    this.#inFlight.set(keyHash, request);
+    return request;
+  }
+
+  invalidateQueries(prefixKey: QueryKey): number {
+    let count = 0;
+    const prefixJson = JSON.stringify(prefixKey).slice(0, -1); // match array prefix
+    for (const [k, entry] of this.#cache.entries()) {
+      if (k.startsWith(prefixJson)) {
+        entry.invalidated = true;
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async executeOptimisticMutation<TData, TVariables, TResult>(opts: {
+    readonly queryKey: QueryKey;
+    readonly variables: TVariables;
+    readonly optimisticUpdater: (old: TData | undefined, vars: TVariables) => TData;
+    readonly mutationFn: (vars: TVariables) => Promise<TResult>;
+  }): Promise<TResult> {
+    const snapshot = this.getQueryData<TData>(opts.queryKey);
+    this.setQueryData<TData>(opts.queryKey, (old) => opts.optimisticUpdater(old, opts.variables));
+    try {
+      const result = await opts.mutationFn(opts.variables);
+      this.invalidateQueries(opts.queryKey);
+      return result;
+    } catch (err) {
+      if (snapshot !== undefined) {
+        this.setQueryData<TData>(opts.queryKey, snapshot);
+      }
+      throw err;
+    }
+  }
+}`,
+    criteria: [
+      "Canonicalizes QueryKey objects deterministically so key property order never fragments cache entries",
+      "Deduplicates concurrent in-flight fetchQuery calls for the same QueryKey and respects staleTimeMs",
+      "Supports prefix invalidateQueries and automatic snapshot rollback when executeOptimisticMutation fails",
+    ],
+  },
+  {
+    id: "task_migrate_nextjs_pages_to_app_router_rsc",
+    title: "Migrate Next.js Pages Router getServerSideProps Waterfall to App Router Parallel RSC Loader & Tag Cache",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "migration", "nextjs", "rsc", "app-router", "suspense", "revalidate-tag"],
+    instructions:
+      "A legacy Next.js Pages Router page runs three sequential awaits inside getServerSideProps(ctx), blocking TTFB on the slowest API call and lacking granular cache tag invalidation. Migrate to a TypeScript App Router Server Component architecture with parallel tagged fetch caching, Suspense stream chunk resolution, and a Web-Standard POST Route Handler that selectively purges cache entries via revalidateTag().",
+    starterCode: `// Legacy Pages Router Sequential Blocking getServerSideProps Waterfall
+export async function getServerSideProps(context: any) {
+  const user = await fetchUser(context.params.id);
+  const org = await fetchOrg(user.orgId); // Sequential waterfall!
+  const metrics = await fetchMetrics(context.params.id); // Waits for org first!
+  return { props: { user, org, metrics } };
+}`,
+    solutionCode: `// Migrated Next.js App Router Tagged Cache Store, Parallel RSC Loader & Route Handler Revalidation
+export interface TaggedCacheEntry<T = unknown> {
+  readonly value: T;
+  readonly tags: readonly string[];
+  readonly cachedAt: number;
+}
+
+export class NextAppRouterCache {
+  #store = new Map<string, TaggedCacheEntry<any>>();
+
+  async fetchWithTags<T>(
+    cacheKey: string,
+    tags: readonly string[],
+    loader: () => Promise<T>,
+  ): Promise<{ data: T; cacheStatus: "HIT" | "MISS" }> {
+    const existing = this.#store.get(cacheKey);
+    if (existing) {
+      return { data: existing.value as T, cacheStatus: "HIT" };
+    }
+    const value = await loader();
+    this.#store.set(cacheKey, { value, tags: [...tags], cachedAt: Date.now() });
+    return { data: value, cacheStatus: "MISS" };
+  }
+
+  revalidateTag(tag: string): number {
+    let evicted = 0;
+    for (const [key, entry] of this.#store.entries()) {
+      if (entry.tags.includes(tag)) {
+        this.#store.delete(key);
+        evicted++;
+      }
+    }
+    return evicted;
+  }
+}
+
+export async function renderDashboardRSC<TUser, TMetrics>(opts: {
+  readonly userId: string;
+  readonly cache: NextAppRouterCache;
+  readonly loadUser: (id: string) => Promise<TUser>;
+  readonly loadMetrics: (id: string) => Promise<TMetrics>;
+}) {
+  // Parallel initiation eliminates sequential getServerSideProps waterfall
+  const [userEnvelope, metricsEnvelope] = await Promise.all([
+    opts.cache.fetchWithTags(\`user:\${opts.userId}\`, ["users", \`user:\${opts.userId}\`], () =>
+      opts.loadUser(opts.userId),
+    ),
+    opts.cache.fetchWithTags(\`metrics:\${opts.userId}\`, ["metrics", \`user:\${opts.userId}\`], () =>
+      opts.loadMetrics(opts.userId),
+    ),
+  ]);
+
+  return {
+    rscPayload: {
+      user: userEnvelope.data,
+      suspenseBoundary: {
+        id: "metrics-stream",
+        status: "resolved" as const,
+        data: metricsEnvelope.data,
+      },
+    },
+    telemetry: {
+      userCache: userEnvelope.cacheStatus,
+      metricsCache: metricsEnvelope.cacheStatus,
+    },
+  };
+}
+
+export async function POST_RevalidateRouteHandler(
+  req: Request,
+  cache: NextAppRouterCache,
+): Promise<Response> {
+  const body = (await req.json()) as { tag?: string };
+  if (!body?.tag || typeof body.tag !== "string") {
+    return new Response(JSON.stringify({ revalidated: false, error: "Missing tag" }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  const evictedCount = cache.revalidateTag(body.tag);
+  return new Response(
+    JSON.stringify({ revalidated: true, tag: body.tag, evictedCount }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}`,
+    criteria: [
+      "Eliminates sequential getServerSideProps waterfall by initiating independent RSC data fetches in parallel with Promise.all",
+      "Caches Server Component fetches by tag and selectively purges stale entries via revalidateTag()",
+      "Implements a Web-Standard Request -> Response POST Route Handler for on-demand tag revalidation",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({
