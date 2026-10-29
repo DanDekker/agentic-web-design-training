@@ -337,9 +337,33 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
+  test("evaluates Proprietary Design Systems, UI/UX Interaction Craft & Advanced Web Components tasks in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_design_w3c_dtcg_token_compiler_multi_brand_alias",
+      "task_design_oklch_perceptual_palette_apca_contrast_guard",
+      "task_design_fluid_utopia_typography_bento_spatial_grid",
+      "task_design_proprietary_elevation_glassmorphism_spring_tokens",
+      "task_ui_roving_tabindex_command_chord_ergonomics",
+      "task_ui_css_anchor_positioning_collision_flip_solver",
+      "task_ui_view_transitions_shared_element_morph_orchestrator",
+      "task_ui_optimistic_skeleton_shimmer_cls_zero_hydrator",
+      "task_webcomp_form_associated_element_internals_custom_states",
+      "task_webcomp_constructable_stylesheets_reactive_attribute_bridge",
+      "task_webcomp_named_slot_projection_part_theming_guard",
+      "task_webcomp_virtualized_shadow_list_resize_observer",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(94);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(106);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);

@@ -38,9 +38,9 @@ afterEach(async () => {
 describe("Agentic 1M Curriculum Benchmark Suite", () => {
   test("generates catalog stats with difficulty and category distribution", async () => {
     const stats = suite.getCatalogStats();
-    expect(stats.totalTasks).toBe(94);
+    expect(stats.totalTasks).toBe(106);
     expect(stats.byDifficulty.intermediate).toBeGreaterThan(0);
-    expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(69);
+    expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(81);
     expect(stats.byCategory.async).toBeGreaterThan(0);
     expect(stats.byCategory.performance).toBeGreaterThan(0);
     expect(stats.byCategory.css).toBe(5);
@@ -62,11 +62,15 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(stats.byCategory["web-cookies"]).toBe(4);
     expect(stats.byCategory["web-storage-data"]).toBe(4);
     expect(stats.byCategory["web-traffic"]).toBe(4);
+    expect(stats.byCategory["proprietary-design-systems"]).toBe(4);
+    expect(stats.byCategory["ui-ux-interaction"]).toBe(4);
+    expect(stats.byCategory["web-components"]).toBe(4);
     expect(stats.byTrack["enterprise-typescript"]).toBe(12);
     expect(stats.byTrack["semantic-web-seo"]).toBe(10);
     expect(stats.byTrack["commerce-fintech"]).toBe(10);
     expect(stats.byTrack["storefront-order-lifecycle"]).toBe(10);
     expect(stats.byTrack["web-cookies-data-traffic"]).toBe(12);
+    expect(stats.byTrack["design-systems-web-components"]).toBe(12);
 
     const res = await call("GET", "/api/curriculum/benchmark");
     expect(res.status).toBe(200);

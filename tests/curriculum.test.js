@@ -417,6 +417,25 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies Proprietary Design Systems, UI/UX Interaction Craft & Advanced Web Components tasks (W3C DTCG 2025.10, OKLCH/APCA, Utopia Fluid Type, Roving tabindex, CSS Anchor Positioning, View Transitions, ElementInternals, adoptedStyleSheets, Virtualized Shadow List)", async () => {
+    for (const cat of ["proprietary-design-systems", "ui-ux-interaction", "web-components"]) {
+      const tasksRes = await call("GET", `/api/curriculum/tasks?category=${cat}`);
+      const { tasks: catTasks } = await tasksRes.json();
+      expect(catTasks.length).toBe(4);
+
+      for (const task of catTasks) {
+        const verifyRes = await call("POST", "/api/curriculum/verify", {
+          taskId: task.id,
+          code: task.solutionCode,
+        });
+        expect(verifyRes.status).toBe(200);
+        const body = await verifyRes.json();
+        expect(body.success).toBe(true);
+        expect(body.score).toBe(100);
+      }
+    }
+  });
+
   test("exposes TypeScript framework ecosystem catalog, migration matrix, and package manager specs via API", async () => {
     const res = await call("GET", "/api/curriculum/ecosystem");
     expect(res.status).toBe(200);
@@ -430,9 +449,9 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(94);
-    expect(CURRICULUM_CATEGORIES.length).toBe(24);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(10);
+    expect(validation.totalTasks).toBe(106);
+    expect(CURRICULUM_CATEGORIES.length).toBe(27);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(11);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });
