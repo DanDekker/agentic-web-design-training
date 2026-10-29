@@ -1078,6 +1078,91 @@ export class Evaluator {
           code.includes("netAmountDueMinor"),
         detail: "Applies prepaid credit balance against gross usage before billing overage",
       });
+    } else if (id === "task_shop_ui_faceted_catalog_variant_sku_selector") {
+      results.push({
+        name: "Cross-Axis Variant Stock Matrix & Dead-End Prevention",
+        passed:
+          code.includes("inStockWithCurrentSelection") &&
+          code.includes("computeAxisOptions") &&
+          code.includes("availableStock"),
+        detail: "Evaluates cross-axis variant stock availability so dead-end combinations are disabled",
+      });
+      results.push({
+        name: "Canonical URL SearchParams Deep-Link Sync",
+        passed:
+          code.includes("URLSearchParams") &&
+          code.includes("canonicalQueryString") &&
+          code.includes("canAddToCart"),
+        detail: "Serializes selected variant axes and resolved SKU into canonical URL query parameters",
+      });
+    } else if (id === "task_shop_ui_optimistic_cart_drawer_price_drift_guard") {
+      results.push({
+        name: "Optimistic Cart Quantity Update, Snapshot Rollback & Sequence Guard",
+        passed:
+          code.includes("beginOptimisticQtyChange") &&
+          code.includes("rollbackMutation") &&
+          code.includes("commitServerResponse"),
+        detail: "Supports optimistic quantity updates, snapshot rollback on failure, and stale response rejection",
+      });
+      results.push({
+        name: "Catalog Price-Drift Detection & ARIA Live Region Announcements",
+        passed:
+          code.includes("priceDriftNotices") &&
+          code.includes("unitPriceAtAddMinor") &&
+          code.includes("ariaLiveMessage"),
+        detail: "Flags catalog price changes since cart addition and emits polite screen-reader announcements",
+      });
+    } else if (id === "task_shop_ui_guest_to_account_cart_address_merge") {
+      results.push({
+        name: "Guest-to-Account Cart SKU Merger & Stock/Order Limit Clamping",
+        passed:
+          code.includes("quantityAdjustments") &&
+          code.includes("STOCK_LIMIT") &&
+          code.includes("MAX_PER_ORDER_LIMIT"),
+        detail: "Merges guest and account carts by SKU while clamping to availableStock and maxPerOrder",
+      });
+      results.push({
+        name: "Normalized Postal Address Book Deduplication",
+        passed:
+          code.includes("normalizeAddressFingerprint") &&
+          code.includes("savedAddresses") &&
+          code.includes("mergedCartItems"),
+        detail: "Deduplicates customer shipping addresses via canonical postal fingerprints",
+      });
+    } else if (id === "task_shop_ui_accessible_checkout_stepper_autocomplete") {
+      results.push({
+        name: "Multi-Step Checkout Prerequisite Gates & Downstream Quote Invalidation",
+        passed:
+          code.includes("canNavigateTo") &&
+          code.includes("submitShippingAddress") &&
+          code.includes("canPlaceOrder"),
+        detail: "Enforces ACCOUNT -> SHIPPING -> PAYMENT -> REVIEW gates and invalidates payment lock on address edit",
+      });
+      results.push({
+        name: "WHATWG Section-Scoped Autocomplete & ARIA Invalid Descriptors",
+        passed:
+          code.includes("shipping address-line1") &&
+          code.includes("shipping postal-code") &&
+          code.includes("ariaInvalid"),
+        detail: "Emits WHATWG autocomplete tokens and aria-invalid/errorId accessibility bindings",
+      });
+    } else if (id === "task_shop_ui_order_history_timeline_rma_portal") {
+      results.push({
+        name: "Split-Shipment Fulfillment Status & Per-Line RMA Return Eligibility",
+        passed:
+          code.includes("PARTIALLY_DELIVERED") &&
+          code.includes("DIGITAL_NON_RETURNABLE") &&
+          code.includes("RETURN_WINDOW_EXPIRED"),
+        detail: "Computes split-shipment status and blocks RMA returns on digital licenses or expired windows",
+      });
+      results.push({
+        name: "Prorated Historical Line-Item Refund Preview",
+        passed:
+          code.includes("maxRefundPreviewMinor") &&
+          code.includes("alreadyReturnedQty") &&
+          code.includes("totalRefundableMinor"),
+        detail: "Calculates remaining returnable quantities and exact minor-unit refund previews",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -1116,6 +1201,7 @@ export class Evaluator {
       task?.track === "enterprise-typescript" ||
       task?.track === "semantic-web-seo" ||
       task?.track === "commerce-fintech" ||
+      task?.track === "storefront-order-lifecycle" ||
       /\b(interface|type\s+[A-Za-z0-9_]+\s*=|readonly\s+|:\s*(string|number|boolean|unknown|any|Record|Promise|Readonly))\b/.test(code)
     ) {
       const transpiler = new Bun.Transpiler({ loader: "tsx", target: "bun" });
@@ -3828,6 +3914,260 @@ export class Evaluator {
         name: "AI Usage Meter Deduplication, Graduated Tiers & Credit Wallet Drawdown",
         passed: Boolean(res?.graduatedAndCreditDrawdownOk),
         detail: "Deduplicates retried token events, applies graduated bracket pricing, and draws down prepaid credits",
+      });
+    } else if (taskId === "task_shop_ui_faceted_catalog_variant_sku_selector") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Controller = typeof ProductVariantMatrixController === "function"
+            ? ProductVariantMatrixController
+            : exports.ProductVariantMatrixController;
+
+          const matrix = new Controller(
+            [
+              { sku: "KB-OBS-TKL", title: "Loom Key Obsidian TKL", attributes: { color: "obsidian", layout: "TKL" }, unitPriceMinor: 18900, availableStock: 5 },
+              { sku: "KB-OBS-FULL", title: "Loom Key Obsidian Full", attributes: { color: "obsidian", layout: "FULL" }, unitPriceMinor: 19900, availableStock: 0 },
+              { sku: "KB-SLV-FULL", title: "Loom Key Silver Full", attributes: { color: "silver", layout: "FULL" }, unitPriceMinor: 19900, availableStock: 2 },
+            ],
+            ["color", "layout"],
+          );
+
+          const vm1 = matrix.buildViewModel({ color: "obsidian", layout: "TKL" });
+          const fullOptionUnderObsidian = vm1.axisOptions.layout.find((o) => o.value === "FULL");
+          const vm2 = matrix.buildViewModel({ color: "silver", layout: "FULL" });
+
+          return {
+            matrixResolvedOk:
+              vm1.canAddToCart === true &&
+              vm1.badgeLabel === "IN_STOCK" &&
+              vm1.canonicalQueryString === "?color=obsidian&layout=TKL&sku=KB-OBS-TKL",
+            crossAxisDisabledAndLowStockOk:
+              fullOptionUnderObsidian?.inStockWithCurrentSelection === false &&
+              vm2.badgeLabel === "LOW_STOCK",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Multi-Axis Variant Stock Matrix, Low-Stock Badge & URL State Sync",
+        passed: Boolean(res?.matrixResolvedOk && res?.crossAxisDisabledAndLowStockOk),
+        detail: "Disables out-of-stock cross-axis combinations, flags LOW_STOCK, and syncs ?color=&layout=&sku=",
+      });
+    } else if (taskId === "task_shop_ui_optimistic_cart_drawer_price_drift_guard") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Controller = typeof OptimisticCartDrawerController === "function"
+            ? OptimisticCartDrawerController
+            : exports.OptimisticCartDrawerController;
+
+          const drawer = new Controller();
+          drawer.seedItems([
+            {
+              sku: "MON-4K",
+              title: "Loom 4K Studio Display",
+              quantity: 1,
+              unitPriceAtAddMinor: 79900,
+              liveCatalogPriceMinor: 79900,
+              maxAvailableStock: 5,
+            },
+          ]);
+
+          const m1 = drawer.beginOptimisticQtyChange("MON-4K", 3);
+          const optimisticSubtotal = m1.optimisticSubtotalMinor;
+          drawer.rollbackMutation(m1.mutationId, "Stock reservation conflict");
+          const afterRollbackQty = drawer.getViewModel().items[0].quantity;
+
+          // Commit newer server response with catalog price drift (79900 -> 84900)
+          const m2 = drawer.beginOptimisticQtyChange("MON-4K", 2);
+          drawer.commitServerResponse(m2.mutationId, [
+            {
+              sku: "MON-4K",
+              title: "Loom 4K Studio Display",
+              quantity: 2,
+              unitPriceAtAddMinor: 79900,
+              liveCatalogPriceMinor: 84900,
+              maxAvailableStock: 5,
+            },
+          ]);
+          const staleIgnored = drawer.commitServerResponse(m1.mutationId, []);
+          const finalVm = drawer.getViewModel();
+
+          return {
+            optimisticAndRollbackOk: optimisticSubtotal === 239700 && afterRollbackQty === 1,
+            priceDriftAndSequenceOk:
+              staleIgnored === false &&
+              finalVm.requiresPriceDriftAcknowledgement === true &&
+              finalVm.priceDriftNotices[0]?.deltaMinor === 5000,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Optimistic Cart Rollback, Stale Response Guard & Price-Drift Banner",
+        passed: Boolean(res?.optimisticAndRollbackOk && res?.priceDriftAndSequenceOk),
+        detail: "Rolls back rejected optimistic updates, ignores stale responses, and surfaces +$50.00 price drift",
+      });
+    } else if (taskId === "task_shop_ui_guest_to_account_cart_address_merge") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const promote = typeof promoteGuestToCustomerAccount === "function"
+            ? promoteGuestToCustomerAccount
+            : exports.promoteGuestToCustomerAccount;
+
+          const merged = promote({
+            accountId: "acc_01",
+            rawEmail: "  Shopper@Loom.Dev ",
+            existingAccountCart: [
+              { sku: "GPU-CARD", title: "Compute Card", quantity: 2, unitPriceMinor: 50000, maxPerOrder: 4, availableStock: 10, updatedAtMs: 1000 },
+            ],
+            guestCart: [
+              { sku: "GPU-CARD", title: "Compute Card", quantity: 3, unitPriceMinor: 50000, maxPerOrder: 4, availableStock: 10, updatedAtMs: 2000 },
+              { sku: "CABLE-USB4", title: "USB4 Pro Cable", quantity: 1, unitPriceMinor: 2900, maxPerOrder: 10, availableStock: 50, updatedAtMs: 2000 },
+            ],
+            existingAddresses: [
+              { recipientName: "Ada", line1: "100 Main St.", city: "Austin", stateOrProvince: "TX", postalCode: "78701", countryCode: "us" },
+            ],
+            newCheckoutAddress: {
+              recipientName: "Ada Lovelace",
+              line1: "100 Main St",
+              city: "AUSTIN",
+              stateOrProvince: "tx",
+              postalCode: "78701 ",
+              countryCode: "US",
+            },
+          });
+
+          const gpuLine = merged.mergedCartItems.find((i) => i.sku === "GPU-CARD");
+
+          return {
+            cartMergedAndClampedOk:
+              merged.email === "shopper@loom.dev" &&
+              merged.mergedCartItems.length === 2 &&
+              gpuLine?.quantity === 4 &&
+              merged.quantityAdjustments[0]?.reason === "MAX_PER_ORDER_LIMIT",
+            addressDeduplicatedOk: merged.savedAddresses.length === 1,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Guest-to-Account Cart Merger, Order Limit Clamping & Address Deduplication",
+        passed: Boolean(res?.cartMergedAndClampedOk && res?.addressDeduplicatedOk),
+        detail: "Merges guest + account SKUs, clamps 2+3=5 to maxPerOrder=4, and deduplicates postal addresses",
+      });
+    } else if (taskId === "task_shop_ui_accessible_checkout_stepper_autocomplete") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Stepper = typeof AccessibleCheckoutStepperController === "function"
+            ? AccessibleCheckoutStepperController
+            : exports.AccessibleCheckoutStepperController;
+
+          const stepper = new Stepper();
+          const blockedEarly = stepper.canNavigateTo("PAYMENT");
+          stepper.completeAccountStep("buyer@loom.dev");
+          stepper.submitShippingAddress({
+            line1: "742 Evergreen Terrace",
+            postalCode: "94107",
+            countryCode: "US",
+            calculatedShippingMinor: 900,
+            calculatedTaxMinor: 1450,
+          });
+          stepper.attachPaymentMethod("pm_card_visa");
+          const readyAtReview = stepper.getStepState().canPlaceOrder;
+
+          // Editing shipping address must invalidate payment lock and return to PAYMENT
+          stepper.submitShippingAddress({
+            line1: "10 Downing Street",
+            postalCode: "SW1A 2AA",
+            countryCode: "GB",
+            calculatedShippingMinor: 2500,
+            calculatedTaxMinor: 4000,
+          });
+          const afterShippingEdit = stepper.getStepState();
+
+          return {
+            gatesAndInvalidationOk:
+              blockedEarly === false &&
+              readyAtReview === true &&
+              afterShippingEdit.currentStep === "PAYMENT" &&
+              afterShippingEdit.canPlaceOrder === false,
+            autocompleteTokensOk:
+              afterShippingEdit.fieldSpecs.some((f) => f.autocomplete === "shipping address-line1"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Checkout Stepper Prerequisite Gates & Shipping-Edit Quote Invalidation",
+        passed: Boolean(res?.gatesAndInvalidationOk && res?.autocompleteTokensOk),
+        detail: "Blocks premature step jumps, invalidates payment lock when shipping is edited, and binds WHATWG autocomplete",
+      });
+    } else if (taskId === "task_shop_ui_order_history_timeline_rma_portal") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const buildVm = typeof buildOrderHistoryPortalViewModel === "function"
+            ? buildOrderHistoryPortalViewModel
+            : exports.buildOrderHistoryPortalViewModel;
+
+          const nowMs = 1_700_000_000_000;
+          const vm = buildVm({
+            orderId: "ord_901",
+            invoiceNumber: "INV-2026-00901",
+            currency: "USD",
+            nowMs,
+            returnWindowDays: 30,
+            lines: [
+              {
+                lineId: "L1",
+                sku: "HW-DOCK",
+                title: "Thunderbolt 5 Dock",
+                isDigitalLicense: false,
+                orderedQty: 2,
+                deliveredQty: 2,
+                alreadyReturnedQty: 1,
+                netUnitPaidMinor: 20000,
+                taxUnitPaidMinor: 1600,
+                deliveredAtMs: nowMs - 5 * 86_400_000, // 5 days ago
+              },
+              {
+                lineId: "L2",
+                sku: "POLAR-LIC-PRO",
+                title: "Polar Pro License Key",
+                isDigitalLicense: true,
+                orderedQty: 1,
+                deliveredQty: 1,
+                alreadyReturnedQty: 0,
+                netUnitPaidMinor: 9900,
+                taxUnitPaidMinor: 0,
+                deliveredAtMs: nowMs - 5 * 86_400_000,
+              },
+            ],
+            shipments: [],
+          });
+
+          const dockRma = vm.returnEligibilityByLine.find((l) => l.lineId === "L1");
+          const digitalRma = vm.returnEligibilityByLine.find((l) => l.lineId === "L2");
+
+          return {
+            rmaEligibilityOk:
+              dockRma?.eligible === true &&
+              dockRma?.eligibleQty === 1 &&
+              dockRma?.maxRefundPreviewMinor === 21600 &&
+              digitalRma?.eligible === false &&
+              digitalRma?.reason === "DIGITAL_NON_RETURNABLE" &&
+              vm.totalRefundableMinor === 21600,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Order History Split-Shipment & RMA Return Eligibility Verification",
+        passed: Boolean(res?.rmaEligibilityOk),
+        detail: "Allows 1 remaining hardware unit return ($216.00) while blocking non-returnable digital license keys",
       });
     } else {
       // General syntax evaluation

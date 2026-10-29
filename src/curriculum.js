@@ -46,6 +46,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "E-Commerce, Checkouts, Stripe & Polar.sh Payment Processing",
     categories: ["ecommerce-checkout", "payment-processing"],
   },
+  "storefront-order-lifecycle": {
+    id: "storefront-order-lifecycle",
+    name: "Web Shop Storefront UI, Account-to-Checkout Flow & Order History Data Architecture",
+    categories: ["storefront-ui", "order-lifecycle-data"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -68,6 +73,8 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "seo-structured-data": "semantic-web-seo",
   "ecommerce-checkout": "commerce-fintech",
   "payment-processing": "commerce-fintech",
+  "storefront-ui": "storefront-order-lifecycle",
+  "order-lifecycle-data": "storefront-order-lifecycle",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -6417,6 +6424,714 @@ export class UsageMeterBillingEngine {
       "Deduplicates retried usage meter events by eventId so network retries never double-bill AI tokens",
       "Computes graduated tier pricing across progressive brackets (upToUnits, blockSize, unitCostMinorPerBlock)",
       "Draws down prepaid credit wallet balances before generating net overage invoice charges",
+    ],
+  },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 12: WEB SHOP STOREFRONT UI & ACCOUNT-TO-CHECKOUT UX (storefront-ui)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_shop_ui_faceted_catalog_variant_sku_selector",
+    title: "Build Faceted Product Catalog Filter & Multi-Axis Variant Matrix (Color × Size × Storage) SKU Selector with Stock-Aware Disabled States",
+    category: "storefront-ui",
+    difficulty: "advanced",
+    tags: ["web-shop-ui", "product-variants", "sku-matrix", "faceted-search", "url-state", "typescript"],
+    instructions:
+      "A web shop Product Detail Page (PDP) renders Color, Size, and Storage option buttons independently without cross-axis stock awareness, allowing shoppers to click dead-end out-of-stock combinations and failing to synchronize the selected variant SKU with URL query parameters (?color=...&size=...&sku=...). Build a deterministic ProductVariantMatrixController that resolves valid SKU combinations, computes per-option availability across axes, and serializes canonical URL search state.",
+    starterCode: `// Naive Variant Picker Without Cross-Axis Stock Matrix or URL State Sync
+export function selectVariant(variants: any[], color: string, size: string) {
+  return variants.find((v) => v.color === color && v.size === size);
+}`,
+    solutionCode: `// Multi-Axis Product Variant Matrix & Faceted Catalog SKU Controller
+export interface ProductVariantSku {
+  readonly sku: string;
+  readonly title: string;
+  readonly attributes: Readonly<Record<string, string>>; // e.g., { color: "obsidian", size: "L", storage: "1TB" }
+  readonly unitPriceMinor: number;
+  readonly compareAtPriceMinor?: number | null;
+  readonly availableStock: number;
+}
+
+export interface AxisOptionState {
+  readonly axis: string;
+  readonly value: string;
+  readonly selected: boolean;
+  readonly inStockWithCurrentSelection: boolean;
+  readonly totalStockAcrossMatrix: number;
+}
+
+export class ProductVariantMatrixController {
+  readonly #variants: readonly ProductVariantSku[];
+  readonly #axes: readonly string[];
+
+  constructor(variants: readonly ProductVariantSku[], axes: readonly string[]) {
+    if (variants.length === 0) throw new Error("Product must have at least one variant SKU");
+    this.#variants = variants;
+    this.#axes = axes;
+  }
+
+  resolveVariant(selection: Readonly<Record<string, string>>): ProductVariantSku | null {
+    return (
+      this.#variants.find((v) =>
+        this.#axes.every((axis) => v.attributes[axis] === selection[axis]),
+      ) ?? null
+    );
+  }
+
+  computeAxisOptions(currentSelection: Readonly<Record<string, string>>): Readonly<Record<string, readonly AxisOptionState[]>> {
+    const result: Record<string, AxisOptionState[]> = {};
+
+    for (const axis of this.#axes) {
+      const uniqueValues = Array.from(new Set(this.#variants.map((v) => v.attributes[axis]).filter(Boolean)));
+      result[axis] = uniqueValues.map((value) => {
+        const hypothetical = { ...currentSelection, [axis]: value };
+        const matchingWithOtherAxes = this.#variants.filter((v) =>
+          this.#axes.every((a) => !hypothetical[a] || v.attributes[a] === hypothetical[a]),
+        );
+        const inStockWithCurrentSelection = matchingWithOtherAxes.some((v) => v.availableStock > 0);
+        const totalStockAcrossMatrix = this.#variants
+          .filter((v) => v.attributes[axis] === value)
+          .reduce((sum, v) => sum + v.availableStock, 0);
+
+        return {
+          axis,
+          value,
+          selected: currentSelection[axis] === value,
+          inStockWithCurrentSelection,
+          totalStockAcrossMatrix,
+        };
+      });
+    }
+
+    return result;
+  }
+
+  buildViewModel(selection: Readonly<Record<string, string>>): {
+    readonly resolvedVariant: ProductVariantSku | null;
+    readonly canAddToCart: boolean;
+    readonly badgeLabel: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "UNAVAILABLE_COMBINATION";
+    readonly axisOptions: Readonly<Record<string, readonly AxisOptionState[]>>;
+    readonly canonicalQueryString: string;
+  } {
+    const resolvedVariant = this.resolveVariant(selection);
+    const axisOptions = this.computeAxisOptions(selection);
+
+    let badgeLabel: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "UNAVAILABLE_COMBINATION" =
+      "UNAVAILABLE_COMBINATION";
+    if (resolvedVariant) {
+      if (resolvedVariant.availableStock <= 0) badgeLabel = "OUT_OF_STOCK";
+      else if (resolvedVariant.availableStock <= 3) badgeLabel = "LOW_STOCK";
+      else badgeLabel = "IN_STOCK";
+    }
+
+    const params = new URLSearchParams();
+    for (const axis of this.#axes) {
+      if (selection[axis]) params.set(axis, selection[axis]);
+    }
+    if (resolvedVariant) params.set("sku", resolvedVariant.sku);
+
+    return {
+      resolvedVariant,
+      canAddToCart: Boolean(resolvedVariant && resolvedVariant.availableStock > 0),
+      badgeLabel,
+      axisOptions,
+      canonicalQueryString: \`?\${params.toString()}\`,
+    };
+  }
+}`,
+    criteria: [
+      "Computes cross-axis stock availability (inStockWithCurrentSelection) so dead-end out-of-stock variant combinations are disabled before click",
+      "Resolves the exact ProductVariantSku and derives IN_STOCK, LOW_STOCK, OUT_OF_STOCK, or UNAVAILABLE_COMBINATION UI states",
+      "Serializes deterministic URL query parameters (?color=...&size=...&sku=...) for shareable deep-linking",
+    ],
+  },
+  {
+    id: "task_shop_ui_optimistic_cart_drawer_price_drift_guard",
+    title: "Implement Optimistic Slide-Over Cart Drawer UI Controller with Mutation Rollback, Versioned Sequence Guard & Catalog Price-Drift Banner",
+    category: "storefront-ui",
+    difficulty: "advanced",
+    tags: ["web-shop-ui", "cart-drawer", "optimistic-ui", "price-drift", "aria-live", "state-management"],
+    instructions:
+      "A slide-over shopping cart drawer suffers from UI jank and data corruption: rapid '+' clicks arrive out of order from the server, failed stock checks leave the UI showing an incorrect quantity, and catalog price changes silently alter the checkout total without notifying the shopper. Build an OptimisticCartDrawerController with snapshot rollback, monotonic mutationSeq ordering, catalog price-drift detection, and screen-reader ARIA live announcements.",
+    starterCode: `// Uncoordinated Cart Drawer Prone to Out-of-Order Responses & Silent Price Drift
+export class NaiveCartDrawer {
+  items: any[] = [];
+  updateQty(sku: string, qty: number) {
+    const item = this.items.find((i) => i.sku === sku);
+    if (item) item.qty = qty;
+  }
+}`,
+    solutionCode: `// Optimistic Slide-Over Cart Drawer Controller with Rollback & Price-Drift Reconciliation
+export interface CartDrawerLineItem {
+  readonly sku: string;
+  readonly title: string;
+  readonly quantity: number;
+  readonly unitPriceAtAddMinor: number;
+  readonly liveCatalogPriceMinor: number;
+  readonly maxAvailableStock: number;
+}
+
+export interface PriceDriftNotice {
+  readonly sku: string;
+  readonly title: string;
+  readonly previousUnitMinor: number;
+  readonly currentUnitMinor: number;
+  readonly deltaMinor: number;
+}
+
+export class OptimisticCartDrawerController {
+  #items = new Map<string, CartDrawerLineItem>();
+  #snapshots = new Map<number, Map<string, CartDrawerLineItem>>();
+  #mutationSeq = 0;
+  #appliedServerSeq = 0;
+  #ariaLiveMessage = "";
+
+  seedItems(items: readonly CartDrawerLineItem[]): void {
+    this.#items.clear();
+    for (const item of items) {
+      this.#items.set(item.sku, { ...item });
+    }
+  }
+
+  beginOptimisticQtyChange(sku: string, nextQty: number): {
+    readonly mutationId: number;
+    readonly optimisticSubtotalMinor: number;
+    readonly ariaAnnouncement: string;
+  } {
+    const existing = this.#items.get(sku);
+    if (!existing) throw new Error(\`SKU '\${sku}' not in cart drawer\`);
+
+    const mutationId = ++this.#mutationSeq;
+    // Save deep snapshot for rollback if server rejects
+    const backup = new Map<string, CartDrawerLineItem>();
+    for (const [k, v] of this.#items.entries()) backup.set(k, { ...v });
+    this.#snapshots.set(mutationId, backup);
+
+    if (nextQty <= 0) {
+      this.#items.delete(sku);
+      this.#ariaLiveMessage = \`Removed \${existing.title} from cart.\`;
+    } else {
+      const clampedQty = Math.min(nextQty, existing.maxAvailableStock);
+      this.#items.set(sku, { ...existing, quantity: clampedQty });
+      this.#ariaLiveMessage = \`Updated \${existing.title} quantity to \${clampedQty}.\`;
+    }
+
+    return {
+      mutationId,
+      optimisticSubtotalMinor: this.getViewModel().subtotalMinor,
+      ariaAnnouncement: this.#ariaLiveMessage,
+    };
+  }
+
+  commitServerResponse(mutationId: number, serverItems: readonly CartDrawerLineItem[]): boolean {
+    this.#snapshots.delete(mutationId);
+    // Ignore stale out-of-order server responses
+    if (mutationId < this.#appliedServerSeq) {
+      return false;
+    }
+    this.#appliedServerSeq = mutationId;
+    this.seedItems(serverItems);
+    return true;
+  }
+
+  rollbackMutation(mutationId: number, reason: string): void {
+    const backup = this.#snapshots.get(mutationId);
+    if (backup) {
+      this.#items = backup;
+      this.#snapshots.delete(mutationId);
+    }
+    this.#ariaLiveMessage = \`Could not update cart: \${reason}\`;
+  }
+
+  getViewModel(): {
+    readonly items: readonly CartDrawerLineItem[];
+    readonly itemCount: number;
+    readonly subtotalMinor: number;
+    readonly priceDriftNotices: readonly PriceDriftNotice[];
+    readonly requiresPriceDriftAcknowledgement: boolean;
+    readonly ariaLiveMessage: string;
+  } {
+    const items = Array.from(this.#items.values());
+    const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
+    const subtotalMinor = items.reduce((sum, i) => sum + i.liveCatalogPriceMinor * i.quantity, 0);
+
+    const priceDriftNotices: PriceDriftNotice[] = [];
+    for (const item of items) {
+      if (item.liveCatalogPriceMinor !== item.unitPriceAtAddMinor) {
+        priceDriftNotices.push({
+          sku: item.sku,
+          title: item.title,
+          previousUnitMinor: item.unitPriceAtAddMinor,
+          currentUnitMinor: item.liveCatalogPriceMinor,
+          deltaMinor: item.liveCatalogPriceMinor - item.unitPriceAtAddMinor,
+        });
+      }
+    }
+
+    return {
+      items,
+      itemCount,
+      subtotalMinor,
+      priceDriftNotices,
+      requiresPriceDriftAcknowledgement: priceDriftNotices.length > 0,
+      ariaLiveMessage: this.#ariaLiveMessage,
+    };
+  }
+}`,
+    criteria: [
+      "Applies optimistic quantity updates with full state snapshot rollback on server rejection",
+      "Drops stale out-of-order server responses using monotonic mutationId watermarks",
+      "Detects catalog price drift (unitPriceAtAddMinor !== liveCatalogPriceMinor) and emits ARIA live announcements",
+    ],
+  },
+  {
+    id: "task_shop_ui_guest_to_account_cart_address_merge",
+    title: "Architect Seamless Guest-to-Account Creation, Cart Line-Item Conflict Merger & Saved Address Book Deduplicator",
+    category: "storefront-ui",
+    difficulty: "advanced",
+    tags: ["web-shop-ui", "account-creation", "guest-cart-merge", "address-book", "onboarding", "typescript"],
+    instructions:
+      "Shoppers frequently add items to a guest cart before creating an account or signing in at checkout. Naive authentication overwrites the user's saved account cart or duplicates SKU lines beyond per-order limits and available stock, and creates duplicate shipping addresses on every order. Build an AccountOnboardingCartMerger that deterministically merges guest and account carts, caps quantities by stock and order limits, and deduplicates customer shipping addresses.",
+    starterCode: `// Destructive Login Handler Overwriting Saved Account Cart with Guest Cart
+export function onUserLogin(accountCart: any[], guestCart: any[]) {
+  return guestCart;
+}`,
+    solutionCode: `// Guest-to-Account Creation, Cart Conflict Merger & Address Book Deduplicator
+export interface MergeableCartItem {
+  readonly sku: string;
+  readonly title: string;
+  readonly quantity: number;
+  readonly unitPriceMinor: number;
+  readonly maxPerOrder: number;
+  readonly availableStock: number;
+  readonly updatedAtMs: number;
+}
+
+export interface PostalAddressInput {
+  readonly recipientName: string;
+  readonly line1: string;
+  readonly line2?: string;
+  readonly city: string;
+  readonly stateOrProvince: string;
+  readonly postalCode: string;
+  readonly countryCode: string;
+}
+
+export interface NormalizedCustomerAccount {
+  readonly accountId: string;
+  readonly email: string;
+  readonly mergedCartItems: readonly MergeableCartItem[];
+  readonly quantityAdjustments: readonly {
+    readonly sku: string;
+    readonly requestedTotal: number;
+    readonly clampedTo: number;
+    readonly reason: "STOCK_LIMIT" | "MAX_PER_ORDER_LIMIT";
+  }[];
+  readonly savedAddresses: readonly (PostalAddressInput & { readonly fingerprint: string })[];
+}
+
+export function normalizeAddressFingerprint(addr: PostalAddressInput): string {
+  const clean = (s: string | undefined) =>
+    (s ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  return [
+    clean(addr.countryCode),
+    clean(addr.postalCode),
+    clean(addr.stateOrProvince),
+    clean(addr.city),
+    clean(addr.line1),
+    clean(addr.line2),
+  ].join("|");
+}
+
+export function promoteGuestToCustomerAccount(params: {
+  readonly accountId: string;
+  readonly rawEmail: string;
+  readonly guestCart: readonly MergeableCartItem[];
+  readonly existingAccountCart: readonly MergeableCartItem[];
+  readonly existingAddresses: readonly PostalAddressInput[];
+  readonly newCheckoutAddress?: PostalAddressInput;
+}): NormalizedCustomerAccount {
+  const email = params.rawEmail.trim().toLowerCase();
+  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    throw new Error("Invalid customer account email address");
+  }
+
+  const bySku = new Map<string, MergeableCartItem>();
+  const quantityAdjustments: {
+    sku: string;
+    requestedTotal: number;
+    clampedTo: number;
+    reason: "STOCK_LIMIT" | "MAX_PER_ORDER_LIMIT";
+  }[] = [];
+
+  for (const item of params.existingAccountCart) {
+    bySku.set(item.sku, { ...item });
+  }
+
+  for (const guestItem of params.guestCart) {
+    const existing = bySku.get(guestItem.sku);
+    const requestedTotal = (existing?.quantity ?? 0) + guestItem.quantity;
+    const availableStock = Math.min(
+      existing ? existing.availableStock : guestItem.availableStock,
+      guestItem.availableStock,
+    );
+    const maxPerOrder = Math.min(
+      existing ? existing.maxPerOrder : guestItem.maxPerOrder,
+      guestItem.maxPerOrder,
+    );
+
+    const effectiveCap = Math.min(availableStock, maxPerOrder);
+    const clampedTo = Math.min(requestedTotal, effectiveCap);
+
+    if (clampedTo < requestedTotal) {
+      quantityAdjustments.push({
+        sku: guestItem.sku,
+        requestedTotal,
+        clampedTo,
+        reason: availableStock <= maxPerOrder ? "STOCK_LIMIT" : "MAX_PER_ORDER_LIMIT",
+      });
+    }
+
+    if (clampedTo > 0) {
+      bySku.set(guestItem.sku, {
+        ...guestItem,
+        quantity: clampedTo,
+        availableStock,
+        maxPerOrder,
+        updatedAtMs: Math.max(existing?.updatedAtMs ?? 0, guestItem.updatedAtMs),
+      });
+    }
+  }
+
+  // Deduplicate addresses by canonical postal fingerprint
+  const addressMap = new Map<string, PostalAddressInput & { readonly fingerprint: string }>();
+  const allAddresses = params.newCheckoutAddress
+    ? [...params.existingAddresses, params.newCheckoutAddress]
+    : [...params.existingAddresses];
+
+  for (const addr of allAddresses) {
+    const fingerprint = normalizeAddressFingerprint(addr);
+    if (!addressMap.has(fingerprint)) {
+      addressMap.set(fingerprint, {
+        ...addr,
+        countryCode: addr.countryCode.trim().toUpperCase(),
+        postalCode: addr.postalCode.trim().toUpperCase(),
+        fingerprint,
+      });
+    }
+  }
+
+  return {
+    accountId: params.accountId,
+    email,
+    mergedCartItems: Array.from(bySku.values()),
+    quantityAdjustments,
+    savedAddresses: Array.from(addressMap.values()),
+  };
+}`,
+    criteria: [
+      "Normalizes customer account email and merges guest cart items into existing account cart items by SKU",
+      "Clamps combined SKU quantities to Math.min(availableStock, maxPerOrder) and records transparent quantityAdjustments notices",
+      "Deduplicates saved shipping/billing addresses using a normalized postal fingerprint",
+    ],
+  },
+  {
+    id: "task_shop_ui_accessible_checkout_stepper_autocomplete",
+    title: "Build Accessible Multi-Step Checkout Stepper (Account → Shipping → Payment → Review) with WHATWG Autocomplete & Downstream Lock Invalidation",
+    category: "storefront-ui",
+    difficulty: "advanced",
+    tags: ["web-shop-ui", "checkout-stepper", "accessibility", "whatwg-autocomplete", "state-machine", "wcag"],
+    instructions:
+      "Multi-step checkouts frequently allow users to jump to Payment or Review with invalid shipping fields, forget to invalidate calculated shipping/tax quotes when the user goes back and edits their shipping country/postal code, and omit WHATWG autocomplete tokens (shipping address-line1, shipping postal-code, cc-number). Build an AccessibleCheckoutStepperController that enforces step gates, invalidates downstream quotes on upstream edits, and emits accessible field metadata.",
+    starterCode: `// Unvalidated Stepper Allowing Direct Jump to Review After Editing Shipping Country
+export class SimpleStepper {
+  step = "ACCOUNT";
+  goTo(next: string) {
+    this.step = next;
+  }
+}`,
+    solutionCode: `// Accessible Multi-Step Checkout Stepper with Downstream Quote Invalidation & WHATWG Autocomplete
+export type CheckoutStepId = "ACCOUNT" | "SHIPPING" | "PAYMENT" | "REVIEW";
+
+export interface CheckoutFieldA11ySpec {
+  readonly id: string;
+  readonly name: string;
+  readonly autocomplete: string;
+  readonly required: boolean;
+  readonly ariaInvalid: boolean;
+  readonly errorId: string | null;
+}
+
+export class AccessibleCheckoutStepperController {
+  #currentStep: CheckoutStepId = "ACCOUNT";
+  #accountValid = false;
+  #shippingValid = false;
+  #shippingQuoteMinor: number | null = null;
+  #taxQuoteMinor: number | null = null;
+  #paymentMethodToken: string | null = null;
+
+  completeAccountStep(email: string): boolean {
+    this.#accountValid = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim());
+    if (this.#accountValid && this.#currentStep === "ACCOUNT") {
+      this.#currentStep = "SHIPPING";
+    }
+    return this.#accountValid;
+  }
+
+  submitShippingAddress(params: {
+    readonly line1: string;
+    readonly postalCode: string;
+    readonly countryCode: string;
+    readonly calculatedShippingMinor: number;
+    readonly calculatedTaxMinor: number;
+  }): boolean {
+    const valid =
+      params.line1.trim().length >= 3 &&
+      params.postalCode.trim().length >= 3 &&
+      /^[A-Z]{2}$/i.test(params.countryCode.trim());
+
+    // Editing shipping invalidates any prior payment confirmation lock
+    this.#paymentMethodToken = null;
+
+    if (!valid) {
+      this.#shippingValid = false;
+      this.#shippingQuoteMinor = null;
+      this.#taxQuoteMinor = null;
+      this.#currentStep = "SHIPPING";
+      return false;
+    }
+
+    this.#shippingValid = true;
+    this.#shippingQuoteMinor = params.calculatedShippingMinor;
+    this.#taxQuoteMinor = params.calculatedTaxMinor;
+    this.#currentStep = "PAYMENT";
+    return true;
+  }
+
+  attachPaymentMethod(paymentMethodToken: string): boolean {
+    if (!this.#accountValid || !this.#shippingValid || this.#taxQuoteMinor === null) {
+      throw new Error("Cannot attach payment before Account and Shipping quotes are locked");
+    }
+    if (!paymentMethodToken.startsWith("pm_") && !paymentMethodToken.startsWith("polar_")) {
+      return false;
+    }
+    this.#paymentMethodToken = paymentMethodToken;
+    this.#currentStep = "REVIEW";
+    return true;
+  }
+
+  canNavigateTo(targetStep: CheckoutStepId): boolean {
+    if (targetStep === "ACCOUNT") return true;
+    if (targetStep === "SHIPPING") return this.#accountValid;
+    if (targetStep === "PAYMENT") return this.#accountValid && this.#shippingValid && this.#taxQuoteMinor !== null;
+    if (targetStep === "REVIEW") {
+      return (
+        this.#accountValid &&
+        this.#shippingValid &&
+        this.#taxQuoteMinor !== null &&
+        this.#paymentMethodToken !== null
+      );
+    }
+    return false;
+  }
+
+  getStepState(): {
+    readonly currentStep: CheckoutStepId;
+    readonly canPlaceOrder: boolean;
+    readonly shippingQuoteMinor: number | null;
+    readonly taxQuoteMinor: number | null;
+    readonly fieldSpecs: readonly CheckoutFieldA11ySpec[];
+  } {
+    const fieldSpecs: CheckoutFieldA11ySpec[] = [
+      {
+        id: "checkout-email",
+        name: "email",
+        autocomplete: "shipping email",
+        required: true,
+        ariaInvalid: !this.#accountValid,
+        errorId: this.#accountValid ? null : "err-checkout-email",
+      },
+      {
+        id: "checkout-address-line1",
+        name: "addressLine1",
+        autocomplete: "shipping address-line1",
+        required: true,
+        ariaInvalid: !this.#shippingValid,
+        errorId: this.#shippingValid ? null : "err-checkout-address-line1",
+      },
+      {
+        id: "checkout-postal",
+        name: "postalCode",
+        autocomplete: "shipping postal-code",
+        required: true,
+        ariaInvalid: !this.#shippingValid,
+        errorId: this.#shippingValid ? null : "err-checkout-postal",
+      },
+    ];
+
+    return {
+      currentStep: this.#currentStep,
+      canPlaceOrder: this.canNavigateTo("REVIEW") && this.#currentStep === "REVIEW",
+      shippingQuoteMinor: this.#shippingQuoteMinor,
+      taxQuoteMinor: this.#taxQuoteMinor,
+      fieldSpecs,
+    };
+  }
+}`,
+    criteria: [
+      "Gates step navigation (ACCOUNT -> SHIPPING -> PAYMENT -> REVIEW) so Payment and Review cannot be entered with unvalidated upstream steps",
+      "Invalidates downstream payment locks and recalculates tax/shipping quotes whenever the shipping address is modified",
+      "Generates WCAG-compliant field metadata with WHATWG section-scoped autocomplete tokens (shipping email, shipping address-line1, shipping postal-code)",
+    ],
+  },
+  {
+    id: "task_shop_ui_order_history_timeline_rma_portal",
+    title: "Build Interactive Order History, Split-Shipment Tracking Timeline & Self-Service Return (RMA) Eligibility Portal UI",
+    category: "storefront-ui",
+    difficulty: "advanced",
+    tags: ["web-shop-ui", "order-history", "shipment-tracking", "rma-returns", "customer-portal", "typescript"],
+    instructions:
+      "After checkout, customers need an organized Order History & Returns Portal that accurately displays multi-package split shipments, tracks per-line-item delivered vs already-returned quantities, enforces return windows (e.g., 30 days from delivery for physical goods, non-returnable for activated license keys), and calculates exact prorated refund previews.",
+    starterCode: `// Flat Order History View Ignoring Partial Returns, Return Windows & Split Packages
+export function canReturnOrder(order: any) {
+  return order.status === "DELIVERED";
+}`,
+    solutionCode: `// Order History, Split-Shipment Timeline & Self-Service RMA Return Portal ViewModel
+export interface HistoricalOrderLine {
+  readonly lineId: string;
+  readonly sku: string;
+  readonly title: string;
+  readonly isDigitalLicense: boolean;
+  readonly orderedQty: number;
+  readonly deliveredQty: number;
+  readonly alreadyReturnedQty: number;
+  readonly netUnitPaidMinor: number; // after prorated discount
+  readonly taxUnitPaidMinor: number;
+  readonly deliveredAtMs: number | null;
+}
+
+export interface ShipmentPackageView {
+  readonly shipmentId: string;
+  readonly carrier: string;
+  readonly trackingNumber: string;
+  readonly status: "LABEL_CREATED" | "IN_TRANSIT" | "DELIVERED";
+  readonly lineIds: readonly string[];
+}
+
+export interface LineReturnEligibility {
+  readonly lineId: string;
+  readonly sku: string;
+  readonly eligibleQty: number;
+  readonly eligible: boolean;
+  readonly reason: "ELIGIBLE" | "DIGITAL_NON_RETURNABLE" | "NOT_YET_DELIVERED" | "RETURN_WINDOW_EXPIRED" | "FULLY_RETURNED";
+  readonly maxRefundPreviewMinor: number;
+}
+
+export function buildOrderHistoryPortalViewModel(params: {
+  readonly orderId: string;
+  readonly invoiceNumber: string;
+  readonly currency: string;
+  readonly lines: readonly HistoricalOrderLine[];
+  readonly shipments: readonly ShipmentPackageView[];
+  readonly nowMs: number;
+  readonly returnWindowDays?: number;
+}): {
+  readonly orderId: string;
+  readonly invoiceNumber: string;
+  readonly fulfillmentSummary: "ALL_DELIVERED" | "PARTIALLY_DELIVERED" | "IN_PROGRESS";
+  readonly returnEligibilityByLine: readonly LineReturnEligibility[];
+  readonly totalRefundableMinor: number;
+} {
+  const windowMs = (params.returnWindowDays ?? 30) * 86_400_000;
+
+  const returnEligibilityByLine: LineReturnEligibility[] = params.lines.map((line) => {
+    const remainingQty = Math.max(0, line.deliveredQty - line.alreadyReturnedQty);
+
+    if (line.isDigitalLicense) {
+      return {
+        lineId: line.lineId,
+        sku: line.sku,
+        eligibleQty: 0,
+        eligible: false,
+        reason: "DIGITAL_NON_RETURNABLE",
+        maxRefundPreviewMinor: 0,
+      };
+    }
+
+    if (line.deliveredQty <= 0 || line.deliveredAtMs === null) {
+      return {
+        lineId: line.lineId,
+        sku: line.sku,
+        eligibleQty: 0,
+        eligible: false,
+        reason: "NOT_YET_DELIVERED",
+        maxRefundPreviewMinor: 0,
+      };
+    }
+
+    if (remainingQty === 0) {
+      return {
+        lineId: line.lineId,
+        sku: line.sku,
+        eligibleQty: 0,
+        eligible: false,
+        reason: "FULLY_RETURNED",
+        maxRefundPreviewMinor: 0,
+      };
+    }
+
+    if (params.nowMs - line.deliveredAtMs > windowMs) {
+      return {
+        lineId: line.lineId,
+        sku: line.sku,
+        eligibleQty: 0,
+        eligible: false,
+        reason: "RETURN_WINDOW_EXPIRED",
+        maxRefundPreviewMinor: 0,
+      };
+    }
+
+    const maxRefundPreviewMinor =
+      remainingQty * (line.netUnitPaidMinor + line.taxUnitPaidMinor);
+
+    return {
+      lineId: line.lineId,
+      sku: line.sku,
+      eligibleQty: remainingQty,
+      eligible: true,
+      reason: "ELIGIBLE",
+      maxRefundPreviewMinor,
+    };
+  });
+
+  const allDelivered = params.lines.every((l) => l.deliveredQty === l.orderedQty);
+  const anyDelivered = params.lines.some((l) => l.deliveredQty > 0);
+  const fulfillmentSummary = allDelivered
+    ? "ALL_DELIVERED"
+    : anyDelivered
+      ? "PARTIALLY_DELIVERED"
+      : "IN_PROGRESS";
+
+  const totalRefundableMinor = returnEligibilityByLine.reduce(
+    (sum, item) => sum + item.maxRefundPreviewMinor,
+    0,
+  );
+
+  return {
+    orderId: params.orderId,
+    invoiceNumber: params.invoiceNumber,
+    fulfillmentSummary,
+    returnEligibilityByLine,
+    totalRefundableMinor,
+  };
+}`,
+    criteria: [
+      "Computes per-line returnable quantities (deliveredQty - alreadyReturnedQty) and blocks returns on digital licenses or expired windows",
+      "Derives aggregate fulfillment state (ALL_DELIVERED, PARTIALLY_DELIVERED, IN_PROGRESS) across split shipments",
+      "Calculates exact minor-unit refund previews (netUnitPaidMinor + taxUnitPaidMinor) from historical order snapshots",
     ],
   },
 ];
