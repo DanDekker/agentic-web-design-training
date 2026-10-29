@@ -15,6 +15,7 @@ import {
   calculateCheckoutQuote,
   verifyCommerceWebhook,
   computeMarketplaceLedgerSplit,
+  WebShopStore,
 } from "./commerce.js";
 import { ChatEngine } from "./chat.js";
 
@@ -55,7 +56,7 @@ async function readJson(req) {
 
 const notFound = (what) => json({ error: `No such ${what}.` }, 404);
 
-export function createHandler(store, hub, authStore, oauthServer, chatEngine = new ChatEngine()) {
+export function createHandler(store, hub, authStore, oauthServer, chatEngine = new ChatEngine(), webShopStore = new WebShopStore()) {
 const evaluator = new Evaluator();
 const benchmarkSuite = new BenchmarkSuite();
   return async function handle(req) {
@@ -449,6 +450,49 @@ const benchmarkSuite = new BenchmarkSuite();
         const body = await readJson(req);
         try {
           return json(computeMarketplaceLedgerSplit(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/commerce/shop/state" && req.method === "GET") {
+        return json(webShopStore.getState());
+      }
+      if (pathname === "/api/commerce/shop/cart/items" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(webShopStore.upsertCartItem(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/commerce/shop/account" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(webShopStore.createOrMergeCustomerAccount(body), 201);
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/commerce/shop/checkout" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(webShopStore.promoteCheckoutToOrder(body), 201);
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/commerce/shop/orders/lifecycle" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(webShopStore.transitionOrderLifecycle(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/commerce/shop/catalog-mutate" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(webShopStore.mutateCatalogProduct(body));
         } catch (err) {
           throw new ValidationError(err.message);
         }
