@@ -114,4 +114,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     expect(result.success).toBe(true);
     expect(result.passedCriteria).toContain("Uses typed Uint8Arrays instead of raw string concatenation");
   });
+
+  test("verifies database connectivity curriculum tasks (pool, outbox, dataloader)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks");
+    const { tasks } = await tasksRes.json();
+    const dbTasks = tasks.filter((t) => t.category === "database");
+    expect(dbTasks.length).toBeGreaterThanOrEqual(3);
+
+    for (const dbTask of dbTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: dbTask.id,
+        code: dbTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
 });

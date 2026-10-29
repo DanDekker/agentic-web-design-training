@@ -196,6 +196,44 @@ export class Evaluator {
         passed: code.includes("Promise.all"),
         detail: "Dispatches tasks concurrently using Promise.all",
       });
+    } else if (id === "task_db_connection_pool") {
+      results.push({
+        name: "Bounded Pool & Idle Reuse",
+        passed: code.includes("acquire") && code.includes("release") && (code.includes("maxSize") || code.includes("#idle") || code.includes("idle")),
+        detail: "Manages active and idle connections with bounded pool capacity",
+      });
+      results.push({
+        name: "Automatic Lifecycle Cleanup (finally)",
+        passed: code.includes("finally") && code.includes("release"),
+        detail: "Guarantees connection return to pool even when queries throw",
+      });
+    } else if (id === "task_db_transactional_outbox") {
+      results.push({
+        name: "Parameterized SQL Queries",
+        passed: (code.includes("$1") || code.includes("?")) && !code.includes("${fromAccount}"),
+        detail: "Uses parameterized placeholders instead of unsafe string interpolation",
+      });
+      results.push({
+        name: "Atomic Transaction & Outbox",
+        passed: code.includes("BEGIN") && code.includes("COMMIT") && code.includes("ROLLBACK") && code.includes("outbox_events"),
+        detail: "Wraps state mutation and outbox event insert in BEGIN/COMMIT/ROLLBACK",
+      });
+      results.push({
+        name: "Transient Deadlock Retry",
+        passed: code.includes("40001") || code.includes("40P01") || code.includes("SQLITE_BUSY"),
+        detail: "Retries transient serialization and deadlock database error codes",
+      });
+    } else if (id === "task_db_keyset_pagination_dataloader") {
+      results.push({
+        name: "Microtask Batch Coalescing",
+        passed: code.includes("queueMicrotask") || code.includes("Promise.all"),
+        detail: "Batches individual lookups within the same event loop tick",
+      });
+      results.push({
+        name: "Keyset Cursor Pagination",
+        passed: !code.includes("OFFSET") && (code.includes("created_at") || code.includes("cursor")),
+        detail: "Eliminates linear OFFSET scans in favor of keyset cursor pagination",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -228,15 +266,36 @@ export class Evaluator {
       setTimeout,
       clearTimeout,
       setImmediate,
+      queueMicrotask,
       AbortController,
       Promise,
       Uint8Array,
+      Int32Array,
+      Float32Array,
+      ArrayBuffer,
+      DataView,
       Map,
       Set,
       Date,
       Math,
       Array,
       Object,
+      String,
+      Number,
+      Boolean,
+      RegExp,
+      Error,
+      TypeError,
+      RangeError,
+      JSON,
+      Symbol,
+      URL,
+      URLSearchParams,
+      TextEncoder,
+      TextDecoder,
+      btoa,
+      atob,
+      crypto,
       exports: {},
     };
 
@@ -271,6 +330,105 @@ export class Evaluator {
         name: "Reducer State Transitions",
         passed: res?.s1?.tasks[0]?.done === true && res?.s2?.filter === "active",
         detail: "Correctly performs deterministic immutable state updates",
+      });
+    } else if (taskId === "task_db_connection_pool") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Pool = typeof ConnectionPool === "function" ? ConnectionPool : exports.ConnectionPool;
+          let created = 0;
+          const pool = new Pool(async () => {
+            const id = ++created;
+            return { id, ping: async () => true, close: async () => {} };
+          }, { maxSize: 2, acquireTimeoutMs: 50 });
+
+          const c1 = await pool.acquire();
+          const c2 = await pool.acquire();
+          pool.release(c1);
+          const c3 = await pool.acquire();
+          const reused = c3.id === c1.id && created === 2;
+          pool.release(c2);
+          pool.release(c3);
+
+          let releasedAfterError = false;
+          try {
+            await pool.withConnection(async () => { throw new Error("boom"); });
+          } catch {}
+          const st = pool.stats ? pool.stats() : { active: 0, idle: 2 };
+          releasedAfterError = st.active === 0 && st.idle >= 1;
+          await pool.drain?.();
+          return { reused, releasedAfterError };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Pool Reuse & Fault-Safe Release",
+        passed: Boolean(res?.reused && res?.releasedAfterError),
+        detail: "Reuses idle connections within maxSize and releases on query exceptions",
+      });
+    } else if (taskId === "task_db_transactional_outbox") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const fn = typeof transferFunds === "function" ? transferFunds : exports.transferFunds;
+          const log = [];
+          let calls = 0;
+          const mockDb = {
+            async query(sql, params) {
+              log.push({ sql, params });
+              if (sql === "BEGIN" && ++calls === 1) {
+                const err = new Error("deadlock detected");
+                err.code = "40P01";
+                throw err;
+              }
+              if (sql.startsWith("UPDATE accounts SET balance = balance -")) {
+                return { rows: [{ balance: 75 }] };
+              }
+              return { rows: [] };
+            }
+          };
+          const out = await fn(mockDb, { fromAccount: "acc_1", toAccount: "acc_2", amount: 25, idempotencyKey: "ik_1" });
+          const hasRollback = log.some(e => e.sql === "ROLLBACK");
+          const hasCommit = log.some(e => e.sql === "COMMIT");
+          const hasOutbox = log.some(e => e.sql.includes("outbox_events") && Array.isArray(e.params));
+          return { ok: out?.ok, attempt: out?.attempt, hasRollback, hasCommit, hasOutbox };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Transactional Outbox & Deadlock Retry",
+        passed: Boolean(res?.ok && res?.attempt === 2 && res?.hasRollback && res?.hasCommit && res?.hasOutbox),
+        detail: "Rolls back on 40P01 deadlock, retries transaction, and writes parameterized outbox event",
+      });
+    } else if (taskId === "task_db_keyset_pagination_dataloader") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Loader = typeof BatchDataLoader === "function" ? BatchDataLoader : exports.BatchDataLoader;
+          let batchCalls = 0;
+          let batchedKeys = [];
+          const loader = new Loader(async (keys) => {
+            batchCalls++;
+            batchedKeys = keys;
+            return new Map(keys.map(k => [k, { id: k, name: "User_" + k }]));
+          });
+          const [u1, u2, u1Dup] = await Promise.all([
+            loader.load("u1"),
+            loader.load("u2"),
+            loader.load("u1"),
+          ]);
+          return {
+            batchCalls,
+            uniqueCount: batchedKeys.length,
+            matched: u1?.name === "User_u1" && u2?.name === "User_u2" && u1Dup?.name === "User_u1"
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "DataLoader Single-Tick Batch Coalescing",
+        passed: Boolean(res?.batchCalls === 1 && res?.uniqueCount === 2 && res?.matched),
+        detail: "Coalesces 3 concurrent lookups (with duplicate key) into 1 batch query of 2 unique keys",
       });
     } else {
       // General syntax evaluation

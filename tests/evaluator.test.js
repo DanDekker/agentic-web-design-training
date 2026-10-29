@@ -106,4 +106,19 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     expect(result.passed).toBe(false);
     expect(result.assertionResults.some((assertion) => assertion.name === "Sandbox Execution" && !assertion.passed)).toBe(true);
   });
+
+  test("evaluates database connection pool, transactional outbox, and dataloader tasks in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_db_connection_pool",
+      "task_db_transactional_outbox",
+      "task_db_keyset_pagination_dataloader",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
 });

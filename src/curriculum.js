@@ -368,4 +368,281 @@ export async function computeHeavyHashes(records, concurrency = 4) {
       "Preserves original order of indexed results",
     ],
   },
+  {
+    id: "task_db_connection_pool",
+    title: "Resilient Database Connection Pool with Health Checks & Waiter Queue Timeout",
+    category: "database",
+    difficulty: "advanced",
+    tags: ["database", "connection-pool", "resilience", "concurrency", "resource-lifecycle"],
+    instructions:
+      "Every incoming query opens a brand-new TCP database connection and forgets to close it when queries throw, quickly exhausting max_connections under burst traffic. Refactor into a bounded ConnectionPool with idle connection reuse, ping health checks, FIFO waiter queue with acquire timeout, and automatic release via withConnection().",
+    starterCode: `// Leaky Per-Query Connection Allocation
+async function executeQuery(createConnection, sql, params) {
+  const conn = await createConnection();
+  // If conn.query throws, the socket is leaked forever
+  const rows = await conn.query(sql, params);
+  await conn.close();
+  return rows;
+}`,
+    solutionCode: `// Bounded Connection Pool with Health Check, Waiter Timeout & Auto-Release
+export class ConnectionPool {
+  #factory;
+  #maxSize;
+  #acquireTimeoutMs;
+  #idle = [];
+  #activeCount = 0;
+  #waiters = [];
+  #closed = false;
+
+  constructor(factory, { maxSize = 10, acquireTimeoutMs = 2000 } = {}) {
+    this.#factory = factory;
+    this.#maxSize = maxSize;
+    this.#acquireTimeoutMs = acquireTimeoutMs;
+  }
+
+  async acquire() {
+    if (this.#closed) throw new Error("Pool is closed");
+
+    while (this.#idle.length > 0) {
+      const conn = this.#idle.pop();
+      try {
+        if (typeof conn.ping === "function") await conn.ping();
+        this.#activeCount++;
+        return conn;
+      } catch {
+        try { await conn.close?.(); } catch {}
+      }
+    }
+
+    if (this.#activeCount < this.#maxSize) {
+      this.#activeCount++;
+      try {
+        return await this.#factory();
+      } catch (err) {
+        this.#activeCount--;
+        throw err;
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const idx = this.#waiters.indexOf(waiter);
+        if (idx !== -1) this.#waiters.splice(idx, 1);
+        reject(new Error("AcquireTimeoutError: connection pool exhausted"));
+      }, this.#acquireTimeoutMs);
+
+      const waiter = {
+        resolve: (conn) => {
+          clearTimeout(timer);
+          resolve(conn);
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      };
+      this.#waiters.push(waiter);
+    });
+  }
+
+  release(conn) {
+    if (!conn) return;
+    if (this.#closed) {
+      this.#activeCount = Math.max(0, this.#activeCount - 1);
+      conn.close?.();
+      return;
+    }
+    if (this.#waiters.length > 0) {
+      const next = this.#waiters.shift();
+      next.resolve(conn);
+      return;
+    }
+    this.#activeCount = Math.max(0, this.#activeCount - 1);
+    this.#idle.push(conn);
+  }
+
+  async withConnection(fn) {
+    const conn = await this.acquire();
+    try {
+      return await fn(conn);
+    } finally {
+      this.release(conn);
+    }
+  }
+
+  async drain() {
+    this.#closed = true;
+    while (this.#waiters.length > 0) {
+      this.#waiters.shift().reject(new Error("Pool draining"));
+    }
+    const closing = this.#idle.splice(0).map((c) => c.close?.());
+    await Promise.all(closing);
+  }
+
+  stats() {
+    return { active: this.#activeCount, idle: this.#idle.length, waiting: this.#waiters.length };
+  }
+}`,
+    criteria: [
+      "Enforces a strict maximum connection limit (maxSize) with idle reuse",
+      "Validates idle connections via health check before handoff and evicts broken sockets",
+      "Queues concurrent callers with a bounded acquire timeout and guarantees release in finally",
+    ],
+  },
+  {
+    id: "task_db_transactional_outbox",
+    title: "Atomic SQL Parameterization & Transactional Outbox with Deadlock Retry",
+    category: "database",
+    difficulty: "advanced",
+    tags: ["database", "sql-injection", "transactions", "outbox-pattern", "deadlock-retry"],
+    instructions:
+      "A payment transfer routine interpolates raw user strings into SQL queries, performs an unsafe dual-write to a message broker outside a database transaction, and crashes on transient PostgreSQL/SQLite serialization deadlocks (40001 / 40P01 / SQLITE_BUSY). Refactor to use parameterized queries, an atomic BEGIN/COMMIT/ROLLBACK transactional outbox insert, and bounded retry on transient lock errors.",
+    starterCode: `// Vulnerable SQL Interpolation & Non-Atomic Dual Write
+async function transferFunds(db, broker, { fromAccount, toAccount, amount, idempotencyKey }) {
+  await db.query(\`UPDATE accounts SET balance = balance - \${amount} WHERE id = '\${fromAccount}'\`);
+  await db.query(\`UPDATE accounts SET balance = balance + \${amount} WHERE id = '\${toAccount}'\`);
+  // If process crashes before broker.publish, downstream ledger never hears about the transfer
+  await broker.publish("funds.transferred", { fromAccount, toAccount, amount, idempotencyKey });
+  return { ok: true };
+}`,
+    solutionCode: `// Parameterized Atomic Transaction + Transactional Outbox + Serialization Retry
+const TRANSIENT_DB_CODES = new Set(["40001", "40P01", "SQLITE_BUSY"]);
+
+export async function transferFunds(db, { fromAccount, toAccount, amount, idempotencyKey }, maxRetries = 3) {
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Invalid transfer amount");
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await db.query("BEGIN");
+      const debit = await db.query(
+        "UPDATE accounts SET balance = balance - $1 WHERE id = $2 AND balance >= $1 RETURNING balance",
+        [amount, fromAccount]
+      );
+      if (!debit?.rows?.length) {
+        throw new Error("Insufficient funds or missing source account");
+      }
+
+      await db.query(
+        "UPDATE accounts SET balance = balance + $1 WHERE id = $2",
+        [amount, toAccount]
+      );
+
+      const payload = JSON.stringify({ fromAccount, toAccount, amount, idempotencyKey });
+      await db.query(
+        "INSERT INTO outbox_events (idempotency_key, topic, payload, status) VALUES ($1, $2, $3, 'pending')",
+        [idempotencyKey, "funds.transferred", payload]
+      );
+
+      await db.query("COMMIT");
+      return { ok: true, attempt, newBalance: debit.rows[0].balance };
+    } catch (err) {
+      try { await db.query("ROLLBACK"); } catch {}
+      const isTransient = TRANSIENT_DB_CODES.has(err?.code);
+      if (!isTransient || attempt === maxRetries) {
+        throw err;
+      }
+    }
+  }
+}`,
+    criteria: [
+      "Eliminates SQL string interpolation in favor of parameterized query placeholders ($1, $2)",
+      "Wraps account mutations and outbox_events insertion in an atomic BEGIN / COMMIT / ROLLBACK transaction",
+      "Retries transient serialization and deadlock errors (40001, 40P01, SQLITE_BUSY) up to maxRetries",
+    ],
+  },
+  {
+    id: "task_db_keyset_pagination_dataloader",
+    title: "N+1 Query Elimination with Batch DataLoader & Keyset Cursor Pagination",
+    category: "database",
+    difficulty: "intermediate",
+    tags: ["database", "dataloader", "n-plus-one", "pagination", "keyset-cursor"],
+    instructions:
+      "An activity feed endpoint uses slow OFFSET pagination and executes a separate SELECT query per row to load author profiles (1 + N queries). Refactor to keyset cursor pagination ((created_at, id) < ($1, $2)) and a microtask-batched DataLoader that coalesces concurrent .load(id) lookups into a single WHERE id IN (...) batch query.",
+    starterCode: `// Slow OFFSET Pagination + N+1 Author Queries
+async function fetchFeedPage(db, page = 0, pageSize = 20) {
+  const offset = page * pageSize;
+  const posts = await db.query(\`SELECT * FROM posts ORDER BY created_at DESC LIMIT \${pageSize} OFFSET \${offset}\`);
+  for (const post of posts) {
+    // Executes N additional database round-trips!
+    post.author = await db.query(\`SELECT id, username FROM users WHERE id = '\${post.authorId}'\`);
+  }
+  return { posts };
+}`,
+    solutionCode: `// Microtask-Batched DataLoader + Keyset Cursor Pagination
+export class BatchDataLoader {
+  #batchFn;
+  #cache = new Map();
+  #queue = [];
+  #scheduled = false;
+
+  constructor(batchFn) {
+    this.#batchFn = batchFn;
+  }
+
+  load(key) {
+    if (this.#cache.has(key)) return this.#cache.get(key);
+
+    const promise = new Promise((resolve, reject) => {
+      this.#queue.push({ key, resolve, reject });
+      if (!this.#scheduled) {
+        this.#scheduled = true;
+        queueMicrotask(() => this.#dispatch());
+      }
+    });
+
+    this.#cache.set(key, promise);
+    return promise;
+  }
+
+  async #dispatch() {
+    const batch = this.#queue.splice(0);
+    this.#scheduled = false;
+    const uniqueKeys = [...new Set(batch.map((item) => item.key))];
+
+    try {
+      const resultsMap = await this.#batchFn(uniqueKeys);
+      for (const { key, resolve } of batch) {
+        resolve(resultsMap instanceof Map ? resultsMap.get(key) ?? null : resultsMap[key] ?? null);
+      }
+    } catch (err) {
+      for (const { key, reject } of batch) {
+        this.#cache.delete(key);
+        reject(err);
+      }
+    }
+  }
+}
+
+export async function fetchFeedKeyset(db, userLoader, { cursorCreatedAt = null, cursorId = null, limit = 20 } = {}) {
+  const posts = cursorCreatedAt
+    ? await db.query(
+        "SELECT id, author_id, body, created_at FROM posts WHERE (created_at, id) < ($1, $2) ORDER BY created_at DESC, id DESC LIMIT $3",
+        [cursorCreatedAt, cursorId, limit]
+      )
+    : await db.query(
+        "SELECT id, author_id, body, created_at FROM posts ORDER BY created_at DESC, id DESC LIMIT $1",
+        [limit]
+      );
+
+  const enriched = await Promise.all(
+    posts.map(async (post) => ({
+      ...post,
+      author: await userLoader.load(post.author_id),
+    }))
+  );
+
+  const last = enriched.at(-1) || null;
+  return {
+    items: enriched,
+    nextCursor: last ? { createdAt: last.created_at, id: last.id } : null,
+  };
+}`,
+    criteria: [
+      "Coalesces concurrent single-key lookups in the same tick using queueMicrotask batching",
+      "Deduplicates requested keys per batch and caches in-flight promises",
+      "Replaces linear OFFSET scan with indexed keyset cursor pagination",
+    ],
+  },
 ];

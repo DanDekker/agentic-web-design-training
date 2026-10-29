@@ -489,6 +489,19 @@ const benchmarkSuite = new BenchmarkSuite();
            const hasPromiseAll = cleanSubmitted.includes("Promise.all");
            if (hasConcurrency && hasPromiseAll) passedCriteria.push("Controls concurrency with bounded worker pool");
            else failedCriteria.push("Should implement bounded concurrency pool with Promise.all");
+        } else if (taskId === "task_db_connection_pool") {
+          const hasPoolBounds = cleanSubmitted.includes("acquire") && cleanSubmitted.includes("release") && cleanSubmitted.includes("finally");
+          if (hasPoolBounds) passedCriteria.push("Enforces bounded connection pooling with finally release");
+          else failedCriteria.push("Missing acquire/release lifecycle or finally block");
+        } else if (taskId === "task_db_transactional_outbox") {
+          const hasTx = cleanSubmitted.includes("BEGIN") && cleanSubmitted.includes("COMMIT") && cleanSubmitted.includes("ROLLBACK");
+          const hasParams = (cleanSubmitted.includes("$1") || cleanSubmitted.includes("?")) && !cleanSubmitted.includes("${fromAccount}");
+          if (hasTx && hasParams) passedCriteria.push("Uses parameterized SQL and atomic BEGIN/COMMIT/ROLLBACK outbox");
+          else failedCriteria.push("Missing transaction boundaries or parameterized SQL placeholders");
+        } else if (taskId === "task_db_keyset_pagination_dataloader") {
+          const hasBatch = cleanSubmitted.includes("queueMicrotask") && !cleanSubmitted.includes("OFFSET");
+          if (hasBatch) passedCriteria.push("Uses microtask batching and keyset pagination");
+          else failedCriteria.push("Missing queueMicrotask batching or still uses OFFSET pagination");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");
