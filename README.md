@@ -16,7 +16,7 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (60 tasks across 17 categories & 7 tracks)
+  curriculum.js   Agentic Curriculum refactoring challenges (62 tasks across 17 categories & 7 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
   seo.js          1st-party Schema.org JSON-LD @graph builder & HTML5 / Technical SEO auditor
   ts_ecosystem.js TypeScript framework catalog, cross-framework migration matrix & package manager registry
@@ -156,17 +156,19 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 51. **Cross-Package-Manager Lockfile Supply-Chain Auditor (`npm`, `pnpm`, `yarn`, `bun`, `deno`)**: Detect `@corp/*` dependency confusion scope leaks, untrusted tarball hosts, weak/missing `sha512-` SRI digests, and unapproved install scripts.
 52. **Content-Addressable Monorepo Task Orchestrator (`Turborepo` / `Nx` / `bun --filter` / `pnpm -r`)**: Concurrent topological wave scheduler with cycle detection, upstream dependency hash propagation, and `CACHE_HIT` artifact replay.
 
-### WHATWG HTML Living Standard Architecture (`html-architecture` — 4 Tasks)
+### WHATWG HTML Living Standard Architecture (`html-architecture` — 5 Tasks)
 53. **WHATWG Speculation Rules API (`<script type="speculationrules">`)**: Document-scoped `prerender`/`prefetch` rules with `where.and`/`not` route & selector exclusions (`/logout`, `/api/*`, `[data-no-prerender]`) and `Save-Data` / `slow-2g` suppression.
 54. **SSR Declarative Shadow DOM (`<template shadowrootmode="open">`)**: Streaming SSR Declarative Shadow DOM with `shadowrootdelegatesfocus`, `shadowrootclonable`, named `<slot>` fallbacks, and idempotent `host.shadowRoot` client hydration.
 55. **Native `<dialog closedby="any">`, Popover API, Invoker Commands & `inert`**: Declarative `commandfor` / `command="show-modal"` / `command="close"`, `popover="auto"`, `<search>` landmark, and background `inert` state.
 56. **Hero LCP & CLS `<picture>` Art Direction & `fetchpriority="high"`**: Progressive `image/avif` and `image/webp` `<source>` sets, explicit `width`/`height` dimensions, `loading="eager"`, `fetchpriority="high"`, and `<link rel="preload" as="image" imagesrcset>`.
+57. **HTML `<script type="importmap">` with Scoped Resolution, SRI Map & `<link rel="modulepreload">`**: Enforces WHATWG importmap parser ordering, maps module URLs to `sha384-` Subresource Integrity digests, and flattens ESM waterfalls with `modulepreload`.
 
-### Technical SEO, JSON-LD `@graph`, Structured Data & Schema.org (`seo-structured-data` — 4 Tasks)
-57. **Connected Schema.org JSON-LD `@graph` Builder**: Cross-linked `Organization`, `WebSite`, `BreadcrumbList`, `WebPage`, and `TechArticle` entities using stable `@id` URIs (`#organization`, `#website`, `#webpage`, `#article`, `#breadcrumb`) and XSS-safe unicode escaping (`\u003c/script\u003e`).
-58. **Rich-Result Schema.org `Product`, `Offer`, `MerchantReturnPolicy` & `AggregateRating`**: Validates GTIN-13, ISO-4217 currency, `https://schema.org/InStock` full enum URIs, `MerchantReturnPolicy`, `OfferShippingDetails`, and rating bounds.
-59. **Technical SEO `<head>` Compiler (Canonical, `hreflang`, Robots & OpenGraph)**: Strips `utm_*`/`fbclid`/`gclid` tracking params, normalizes HTTPS canonical URLs, emits localized `hreflang` clusters with `x-default`, `max-image-preview:large`, and escaped OpenGraph tags.
-60. **Automated HTML5 Landmark, Heading Outline & Schema.org Microdata Linter**: Audits single `<h1>`, sequential heading hierarchy, `<main>` landmark, `<time datetime>` ISO-8601 format, and `itemscope`/`itemtype="https://schema.org/..."`/`itemprop` integrity.
+### Technical SEO, JSON-LD `@graph`, Structured Data & Schema.org (`seo-structured-data` — 5 Tasks)
+58. **Connected Schema.org JSON-LD `@graph` Builder**: Cross-linked `Organization`, `WebSite`, `BreadcrumbList`, `WebPage`, and `TechArticle` entities using stable `@id` URIs (`#organization`, `#website`, `#webpage`, `#article`, `#breadcrumb`) and XSS-safe unicode escaping (`\u003c/script\u003e`).
+59. **Rich-Result Schema.org `Product`, `Offer`, `MerchantReturnPolicy` & `AggregateRating`**: Validates GTIN-13, ISO-4217 currency, `https://schema.org/InStock` full enum URIs, `MerchantReturnPolicy`, `OfferShippingDetails`, and rating bounds.
+60. **Technical SEO `<head>` Compiler (Canonical, `hreflang`, Robots & OpenGraph)**: Strips `utm_*`/`fbclid`/`gclid` tracking params, normalizes HTTPS canonical URLs, emits localized `hreflang` clusters with `x-default`, `max-image-preview:large`, and escaped OpenGraph tags.
+61. **Automated HTML5 Landmark, Heading Outline & Schema.org Microdata Linter**: Audits single `<h1>`, sequential heading hierarchy, `<main>` landmark, `<time datetime>` ISO-8601 format, and `itemscope`/`itemtype="https://schema.org/..."`/`itemprop` integrity.
+62. **Schema.org `Dataset`, WebSite `SearchAction` & `FAQPage` Multi-Entity Graph**: Connects `Dataset` (`DataDownload`, `encodingFormat`, `license`), `WebSite` `potentialAction` (`SearchAction` with `{search_term_string}`), `Organization` `sameAs`, and `FAQPage` `Question`/`Answer` nodes.
 
 ---
 
@@ -189,7 +191,7 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - `GET /api/curriculum/ecosystem` — Returns the TypeScript Framework Ecosystem catalog, cross-framework migration pathways, and multi-runtime package manager specs (`npm`, `pnpm`, `yarn-berry`, `bun`, `deno`, `jsr`).
 - `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 60 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 62 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 

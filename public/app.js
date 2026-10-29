@@ -917,7 +917,7 @@ async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 60;
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 62;
   } catch (err) {
     toast(err.message);
   }
