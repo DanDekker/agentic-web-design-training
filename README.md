@@ -16,7 +16,8 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (32 tasks across 11 categories)
+  curriculum.js   Agentic Curriculum refactoring challenges (36 tasks across 12 categories)
+  chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
   evaluator.js    Isolated execution sandbox with AST checks, assertion runners, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
   store.js        Multi-board task store, atomic JSON writes, corrupt-file quarantine
@@ -38,6 +39,7 @@ tests/
   benchmark.test.js   Catalog statistics, automated reference solution benchmarking, & markdown report
   components.test.js  Custom element registration, Shadow DOM, attributes, & feature detection
   client.test.js      Dialogs, shortcuts, diff updates, live synchronization, & safe rendering
+  chat.test.js        Two-user real-time chat engine, out-of-order resequencing, debugger & benchmark
 ```
 
 ---
@@ -76,7 +78,7 @@ Full RFC 6749, RFC 7636, and RFC 7662 Authorization Server:
 
 ## 1M Refactoring Curriculum Tasks
 
-Designed for training and evaluating autonomous agents (32 curated challenges across 11 categories):
+Designed for training and evaluating autonomous agents (36 curated challenges across 12 categories):
 
 ### Core Systems, Async, Performance & UI (12 Tasks)
 1. **Async Pipeline**: Refactor nested callback hell into an idiomatic `async/await` pipeline with `Promise.all`.
@@ -122,6 +124,22 @@ Designed for training and evaluating autonomous agents (32 curated challenges ac
 31. **Episodic Memory Compactor & Goal-Drift Guard**: Pins immutable root goal contracts across context compactions, indexes evicted turns for lexical+importance recall, and blocks out-of-scope drift.
 32. **Multi-Agent Lease Coordinator & Fencing Arbiter**: Hierarchical parent/child path conflict detection with monotonically increasing fencing epochs to block zombie agent overwrites.
 
+### Real-Time Two-User Chat & Protocol Engineering (`realtime-chat` — 4 Tasks)
+33. **Two-User Real-Time Chat Instrumentation**: Canonical `dm:<userA>:<userB>` rooms, monotonic sequence IDs (`seq`), per-user read watermarks, typing TTL pruning, and telemetry counters.
+34. **Debug Out-of-Order & Reconnect Duplication**: Client message ID (`clientMsgId`) idempotency table, contiguous sequence holdback resequencing buffer, and ghost typing eviction.
+35. **Pure Chat Protocol State Machine**: Refactor tangled imperative socket/DOM callbacks into a deterministic reducer (`chatProtocolReducer`) emitting `{ state, effects }`.
+36. **O(1) Circular Ring Buffer & P99 Fanout Benchmark**: Replace $O(N^2)$ array spread copies with modular ring-buffer slot indexing, single-encode SSE wire frames, and P50/P99 latency benchmarking.
+
+---
+
+## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
+
+- `GET /api/chat/rooms` & `POST /api/chat/rooms` — Lists or provisions canonical two-user direct chat rooms (`dm:agent:pp`).
+- `GET /api/chat/messages?roomId=...&afterSeq=...` & `POST /api/chat/messages` — Real-time message delivery with monotonic `seq`, `clientMsgId` idempotency deduplication, out-of-order holdback resequencing, and SSE broadcast (`type: "chat"`).
+- `POST /api/chat/typing` & `POST /api/chat/read` — Ephemeral TTL typing indicators and monotonic read-receipt watermarks.
+- `GET /api/chat/debug?roomId=...` — Runs 5 automated protocol invariant checks (sequence contiguity, ring-buffer bounds, ghost typing TTL hygiene, read watermark bounds, and reorder holdback queue).
+- `POST /api/chat/benchmark` — Executes a high-throughput two-user chat benchmark measuring `throughputMsgsPerSec`, `p50Ms`/`p95Ms`/`p99Ms` fanout latency, duplicate suppression, and out-of-order resequencing.
+
 ---
 
 ## Automated Sandbox Evaluation & Benchmark Suite
@@ -131,7 +149,7 @@ Designed for training and evaluating autonomous agents (32 curated challenges ac
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
 - `GET /api/curriculum/tasks?category=...&difficulty=...` — Filters curriculum challenges by domain category or difficulty.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 32 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 36 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
@@ -147,6 +165,7 @@ Designed for training and evaluating autonomous agents (32 curated challenges ac
 | `R` | Open Refactor Inspector or Seed Curriculum |
 | `O` | Open OAuth 2.0 Applications & Simulator |
 | `B` | Open Benchmark Suite Modal & Runner |
+| `C` | Open Two-User Real-Time Chat, Debugger & P99 Benchmark |
 | `T` | Toggle Light / Dark Monochrome Theme |
 | `1` / `2` / `3` / `4` | Filter: All / Active / Done / Refactoring |
 | `Delete` | Remove task |
