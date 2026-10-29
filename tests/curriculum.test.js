@@ -186,4 +186,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
       expect(body.score).toBe(100);
     }
   });
+
+  test("verifies long-horizon agentic-workflow curriculum tasks (DAG Saga, Circuit Breaker, Episodic Memory)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks");
+    const { tasks } = await tasksRes.json();
+    const agenticTasks = tasks.filter((t) => t.category === "agentic-workflow");
+    expect(agenticTasks.length).toBeGreaterThanOrEqual(3);
+
+    for (const wfTask of agenticTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: wfTask.id,
+        code: wfTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
 });

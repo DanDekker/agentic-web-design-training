@@ -333,6 +333,39 @@ export class Evaluator {
         passed: code.includes("same-origin") && code.includes("toleranceSec") && code.includes("seenNonces"),
         detail: "Enforces timestamp tolerance, nonce deduplication, and Sec-Fetch-Site CSRF checks",
       });
+    } else if (id === "task_agentic_dag_planner_saga") {
+      results.push({
+        name: "DAG Cycle Detection & Wave Concurrency",
+        passed: code.includes("CyclicDependencyError") && code.includes("Promise.all") && code.includes("deps"),
+        detail: "Detects cyclic dependencies and dispatches ready DAG waves in parallel",
+      });
+      results.push({
+        name: "Checkpointing & Reverse Saga Compensation",
+        passed: code.includes("compensate") && code.includes("reverse") && code.includes("checkpoint"),
+        detail: "Supports checkpoint resumption and reverse-order Saga rollback on step failure",
+      });
+    } else if (id === "task_agentic_tool_circuit_breaker_budget") {
+      results.push({
+        name: "Per-Tool Circuit Breaker & Fallback Routing",
+        passed: code.includes("open") && code.includes("closed") && code.includes("fallback"),
+        detail: "Opens tool circuit after threshold failures and routes to fallback handler",
+      });
+      results.push({
+        name: "Action Loop Detection & Token Budget Guard",
+        passed: code.includes("loopDetected") && code.includes("maxTokens") && code.includes("maxSteps"),
+        detail: "Halts repeated identical tool invocations and enforces token/step budgets",
+      });
+    } else if (id === "task_agentic_episodic_memory_compactor") {
+      results.push({
+        name: "Root Goal Pinning & Context Compaction",
+        passed: code.includes("pinnedGoal") && code.includes("maxContextTokens") && code.includes("artifacts"),
+        detail: "Preserves pinned root goal while compacting older turns into episodic memory",
+      });
+      results.push({
+        name: "Episodic Retrieval & Goal-Drift Alignment Check",
+        passed: code.includes("retrieveEpisodic") && code.includes("checkGoalAlignment"),
+        detail: "Retrieves relevant episodic memories by term overlap and blocks out-of-scope drift",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -877,6 +910,152 @@ export class Evaluator {
         name: "Timing-Safe HMAC, Replay & Cross-Site CSRF Defense",
         passed: Boolean(res?.firstOk && res?.replayBlocked && res?.crossSiteBlocked && res?.expiredBlocked),
         detail: "Verifies constant-time secrets and blocks nonce replays, expired timestamps, and cross-site fetches",
+      });
+    } else if (taskId === "task_agentic_dag_planner_saga") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Engine = typeof AgenticWorkflowEngine === "function" ? AgenticWorkflowEngine : exports.AgenticWorkflowEngine;
+
+          // 1. Test checkpoint resume + wave execution
+          const eng1 = new Engine();
+          let step1Runs = 0;
+          eng1.registerStep({ id: "s1", deps: [], execute: async () => { step1Runs++; return "v1"; } });
+          eng1.registerStep({ id: "s2", deps: ["s1"], execute: async (_, out) => out.s1 + "_v2" });
+          const res1 = await eng1.run({}, {
+            checkpoint: { completedIds: ["s1"], executionOrder: ["s1"], outputs: { s1: "cached_v1" } }
+          });
+
+          // 2. Test Saga reverse compensation on failure
+          const eng2 = new Engine();
+          const compOrder = [];
+          eng2.registerStep({
+            id: "db_migrate",
+            deps: [],
+            execute: async () => "migrated",
+            compensate: async () => compOrder.push("undo_db_migrate"),
+          });
+          eng2.registerStep({
+            id: "deploy_canary",
+            deps: ["db_migrate"],
+            execute: async () => "deployed",
+            compensate: async () => compOrder.push("undo_deploy_canary"),
+          });
+          eng2.registerStep({
+            id: "smoke_test",
+            deps: ["deploy_canary"],
+            execute: async () => { throw new Error("500 healthcheck failure"); },
+          });
+          const res2 = await eng2.run({});
+
+          return {
+            resumedWithoutRerun: step1Runs === 0 && res1.outputs.s2 === "cached_v1_v2",
+            rolledBack: res2.status === "rolled_back" && compOrder.join(",") === "undo_deploy_canary,undo_db_migrate",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "DAG Checkpoint Resume & Reverse Saga Compensation",
+        passed: Boolean(res?.resumedWithoutRerun && res?.rolledBack),
+        detail: "Skips checkpointed DAG nodes on resume and runs Saga compensation in reverse order on failure",
+      });
+    } else if (taskId === "task_agentic_tool_circuit_breaker_budget") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Runner = typeof ResilientAgentRunner === "function" ? ResilientAgentRunner : exports.ResilientAgentRunner;
+          const runner = new Runner({ failureThreshold: 2 });
+          let primaryCalls = 0;
+          let fallbackCalls = 0;
+
+          runner.registerTool("search_code", {
+            execute: async () => {
+              primaryCalls++;
+              throw new Error("Search index timeout");
+            },
+            fallback: async (args) => {
+              fallbackCalls++;
+              return "fallback_grep:" + args.q;
+            },
+          });
+
+          const actions = [
+            { tool: "search_code", args: { q: "auth" }, tokens: 100 },
+            { tool: "search_code", args: { q: "oauth" }, tokens: 100 },
+            // Breaker is now open; 3rd call with distinct args should go straight to fallback without calling primary!
+            { tool: "search_code", args: { q: "session" }, tokens: 100 },
+            // Repeat q:"auth" twice more to trigger loop detector
+            { tool: "search_code", args: { q: "auth" }, tokens: 100 },
+            { tool: "search_code", args: { q: "auth" }, tokens: 100 },
+            { type: "finish", output: "done", tokens: 50 },
+          ];
+          let idx = 0;
+          const out = await runner.run(async () => actions[idx++], { maxSteps: 10, maxTokens: 2000, maxRepeatCalls: 2 });
+          const loopCaught = out.trajectory.some((t) => t.loopDetected === true);
+          return {
+            statusOk: out.status === "completed",
+            breakerPreventedPrimary: primaryCalls === 2 && fallbackCalls === 4,
+            loopCaught,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Circuit Breaker Fallback & Loop Guard Verification",
+        passed: Boolean(res?.statusOk && res?.breakerPreventedPrimary && res?.loopCaught),
+        detail: "Trips circuit breaker to fallback after 2 failures and blocks repeated identical tool loops",
+      });
+    } else if (taskId === "task_agentic_episodic_memory_compactor") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Manager = typeof LongHorizonMemoryManager === "function" ? LongHorizonMemoryManager : exports.LongHorizonMemoryManager;
+          const mgr = new Manager({
+            rootGoal: "Harden OAuth PKCE token endpoint in src/oauth.js",
+            forbiddenScopes: ["production_database_drop", "billing_wipe"],
+            maxContextTokens: 250,
+          });
+
+          mgr.appendTurn({
+            role: "assistant",
+            content: "Discovered PKCE S256 verifier in src/oauth.js line 164",
+            tokens: 120,
+            artifacts: ["src/oauth.js:164"],
+            importance: 3,
+          });
+          mgr.appendTurn({
+            role: "assistant",
+            content: "Checked unit tests in tests/auth_oauth.test.js",
+            tokens: 120,
+            artifacts: ["tests/auth_oauth.test.js"],
+            importance: 2,
+          });
+          mgr.appendTurn({
+            role: "assistant",
+            content: "Preparing patch for token introspection",
+            tokens: 120,
+            artifacts: ["src/api.js"],
+            importance: 2,
+          });
+
+          const prompt = mgr.buildActivePrompt("PKCE verifier src/oauth.js");
+          const driftCheck = mgr.checkGoalAlignment({ target: "run production_database_drop script" });
+          const alignedCheck = mgr.checkGoalAlignment({ target: "edit src/oauth.js" });
+
+          return {
+            withinBudget: prompt.activeTokenCount <= 250,
+            pinnedPreserved: prompt.pinnedGoal.includes("src/oauth.js"),
+            recalledArtifact: prompt.recalledMemories.some((m) => m.artifacts.includes("src/oauth.js:164")),
+            driftBlocked: driftCheck.aligned === false && alignedCheck.aligned === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Episodic Compaction, Recall & Goal-Drift Guard",
+        passed: Boolean(res?.withinBudget && res?.pinnedPreserved && res?.recalledArtifact && res?.driftBlocked),
+        detail: "Compacts old turns within token budget, recalls relevant artifacts, and blocks goal drift",
       });
     } else {
       // General syntax evaluation

@@ -538,6 +538,18 @@ const benchmarkSuite = new BenchmarkSuite();
           const hasTiming = cleanSubmitted.includes("charCodeAt") && cleanSubmitted.includes("^") && cleanSubmitted.includes("same-origin");
           if (hasTiming) passedCriteria.push("Uses constant-time XOR comparison, replay window, and Sec-Fetch-Site CSRF defense");
           else failedCriteria.push("Missing constant-time comparison or Fetch-Metadata CSRF check");
+        } else if (taskId === "task_agentic_dag_planner_saga") {
+          const hasDagSaga = cleanSubmitted.includes("CyclicDependencyError") && cleanSubmitted.includes("compensate") && cleanSubmitted.includes("reverse");
+          if (hasDagSaga) passedCriteria.push("Executes DAG topological waves with checkpoint resume and reverse Saga compensation");
+          else failedCriteria.push("Missing DAG cycle check, checkpointing, or reverse Saga compensation");
+        } else if (taskId === "task_agentic_tool_circuit_breaker_budget") {
+          const hasBreaker = cleanSubmitted.includes("fallback") && cleanSubmitted.includes("loopDetected") && cleanSubmitted.includes("maxTokens");
+          if (hasBreaker) passedCriteria.push("Enforces per-tool circuit breaker fallback, loop detection, and token budgets");
+          else failedCriteria.push("Missing tool circuit breaker fallback, loop detection, or token budget check");
+        } else if (taskId === "task_agentic_episodic_memory_compactor") {
+          const hasMemory = cleanSubmitted.includes("retrieveEpisodic") && cleanSubmitted.includes("checkGoalAlignment") && cleanSubmitted.includes("maxContextTokens");
+          if (hasMemory) passedCriteria.push("Compacts long-horizon context into episodic memory with goal-drift guard");
+          else failedCriteria.push("Missing episodic memory compaction/retrieval or goal-alignment check");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");

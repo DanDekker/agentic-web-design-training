@@ -1368,4 +1368,322 @@ export function verifyWebhookAndCsrf({
       "Validates Sec-Fetch-Site, Origin header, and double-submit CSRF tokens",
     ],
   },
+  {
+    id: "task_agentic_dag_planner_saga",
+    title: "Long-Horizon Hierarchical DAG Task Planner with Saga Compensation & Checkpointing",
+    category: "agentic-workflow",
+    difficulty: "advanced",
+    tags: ["agentic-workflow", "long-horizon", "dag", "saga-pattern", "checkpointing", "planning"],
+    instructions:
+      "An autonomous coding agent executes multi-stage deployment and migration plans in a naive sequential loop: it cannot detect cyclic dependencies, cannot parallelize independent sub-tasks, cannot resume from a checkpoint after a preemption, and leaves half-applied infrastructure mutations behind when step 8 of 10 fails. Refactor into a DAG workflow engine with cycle detection, topological wave concurrency, checkpoint resumption, and reverse-order Saga compensation.",
+    starterCode: `// Fragile Sequential Agent Loop (No DAG, Checkpointing, or Rollback)
+async function runAgentPlan(steps, context) {
+  for (const step of steps) {
+    await step.execute(context);
+  }
+  return context;
+}`,
+    solutionCode: `// Hierarchical DAG Workflow Engine with Topological Waves, Checkpoints & Saga Rollback
+export class AgenticWorkflowEngine {
+  #steps = new Map();
+
+  registerStep({ id, deps = [], execute, compensate = null }) {
+    this.#steps.set(id, { id, deps, execute, compensate });
+    return this;
+  }
+
+  async run(context = {}, { checkpoint = null, onCheckpoint = null } = {}) {
+    const completed = new Set(checkpoint?.completedIds || []);
+    const executionOrder = [...(checkpoint?.executionOrder || [])];
+    const outputs = { ...(checkpoint?.outputs || {}) };
+
+    // Validate dependencies exist
+    for (const [id, step] of this.#steps.entries()) {
+      for (const dep of step.deps) {
+        if (!this.#steps.has(dep)) {
+          throw new Error(\`Unknown dependency '\${dep}' for step '\${id}'\`);
+        }
+      }
+    }
+
+    while (completed.size < this.#steps.size) {
+      const readyWave = [];
+      for (const [id, step] of this.#steps.entries()) {
+        if (completed.has(id)) continue;
+        if (step.deps.every((d) => completed.has(d))) {
+          readyWave.push(step);
+        }
+      }
+
+      if (readyWave.length === 0) {
+        throw new Error("CyclicDependencyError: deadlock in agent workflow DAG");
+      }
+
+      const waveSucceeded = [];
+      try {
+        await Promise.all(
+          readyWave.map(async (step) => {
+            const res = await step.execute(context, outputs);
+            outputs[step.id] = res;
+            waveSucceeded.push(step.id);
+          })
+        );
+      } catch (err) {
+        // Include any steps that finished in the failing wave before rolling back
+        const toCompensate = [...executionOrder, ...waveSucceeded].reverse();
+        const compensated = [];
+        for (const stepId of toCompensate) {
+          const step = this.#steps.get(stepId);
+          if (typeof step?.compensate === "function") {
+            await step.compensate(context, outputs);
+            compensated.push(stepId);
+          }
+        }
+        return {
+          status: "rolled_back",
+          error: err.message,
+          compensatedSteps: compensated,
+          outputs,
+        };
+      }
+
+      for (const id of waveSucceeded) {
+        completed.add(id);
+        executionOrder.push(id);
+      }
+
+      if (typeof onCheckpoint === "function") {
+        await onCheckpoint({
+          completedIds: [...completed],
+          executionOrder: [...executionOrder],
+          outputs: { ...outputs },
+        });
+      }
+    }
+
+    return {
+      status: "completed",
+      completedSteps: [...executionOrder],
+      outputs,
+    };
+  }
+}`,
+    criteria: [
+      "Detects cyclic dependencies in the task graph and fails fast with CyclicDependencyError",
+      "Executes independent dependency-satisfied steps concurrently in topological waves and saves checkpoints",
+      "Resumes from prior checkpoints without re-executing completed steps and runs reverse-order Saga compensate() on failure",
+    ],
+  },
+  {
+    id: "task_agentic_tool_circuit_breaker_budget",
+    title: "Self-Healing Multi-Tool Agent Loop with Circuit Breakers, Token Budget & Loop Detection",
+    category: "agentic-workflow",
+    difficulty: "advanced",
+    tags: ["agentic-workflow", "long-horizon", "circuit-breaker", "loop-detection", "token-budget", "self-healing"],
+    instructions:
+      "During long-horizon autonomous runs, an agent gets trapped calling the exact same failing tool with identical arguments in an infinite loop, exhausting token budgets and hammering degraded external APIs. Implement a ResilientAgentRunner with per-tool circuit breakers (routing to fallback tools when open), action-fingerprint loop detection, and strict token/step budget governance.",
+    starterCode: `// Unbounded Agent Loop (Susceptible to Infinite Tool Loops & Cascading Timeouts)
+async function runAgentLoop(policy, tools) {
+  const history = [];
+  while (true) {
+    const action = await policy.nextAction(history);
+    if (action.type === "finish") return action.output;
+    const obs = await tools[action.tool].execute(action.args);
+    history.push({ action, obs });
+  }
+}`,
+    solutionCode: `// Self-Healing Agent Loop with Per-Tool Circuit Breakers, Loop Guard & Budget Enforcement
+export class ResilientAgentRunner {
+  #tools = new Map();
+  #breakers = new Map();
+  #failureThreshold;
+
+  constructor({ failureThreshold = 2 } = {}) {
+    this.#failureThreshold = failureThreshold;
+  }
+
+  registerTool(name, { execute, fallback = null }) {
+    this.#tools.set(name, { name, execute, fallback });
+    this.#breakers.set(name, { failures: 0, state: "closed" });
+    return this;
+  }
+
+  async run(policy, { maxSteps = 20, maxTokens = 8000, maxRepeatCalls = 2 } = {}) {
+    const trajectory = [];
+    const callCounts = new Map();
+    let tokensUsed = 0;
+
+    for (let step = 1; step <= maxSteps; step++) {
+      const decision = await policy(trajectory, { step, tokensUsed, maxTokens });
+      tokensUsed += Number(decision?.tokens || 0);
+
+      if (tokensUsed > maxTokens) {
+        return { status: "budget_exceeded", reason: "token_limit", tokensUsed, trajectory };
+      }
+
+      if (!decision || decision.type === "finish") {
+        return { status: "completed", output: decision?.output ?? null, tokensUsed, trajectory };
+      }
+
+      const signature = \`\${decision.tool}::\${JSON.stringify(decision.args ?? {})}\`;
+      const seenCount = (callCounts.get(signature) || 0) + 1;
+      callCounts.set(signature, seenCount);
+
+      if (seenCount > maxRepeatCalls) {
+        trajectory.push({
+          step,
+          tool: decision.tool,
+          loopDetected: true,
+          observation: "SYSTEM_GUARD: Repeated identical tool call blocked. Synthesize progress or choose an alternative approach.",
+        });
+        continue;
+      }
+
+      const toolDef = this.#tools.get(decision.tool);
+      if (!toolDef) {
+        throw new Error(\`Unknown tool '\${decision.tool}'\`);
+      }
+
+      const breaker = this.#breakers.get(decision.tool);
+      let observation;
+      let usedFallback = false;
+
+      if (breaker.state === "open" && typeof toolDef.fallback === "function") {
+        observation = await toolDef.fallback(decision.args);
+        usedFallback = true;
+      } else {
+        try {
+          observation = await toolDef.execute(decision.args);
+          breaker.failures = 0;
+          breaker.state = "closed";
+        } catch (err) {
+          breaker.failures++;
+          if (breaker.failures >= this.#failureThreshold) {
+            breaker.state = "open";
+          }
+          if (typeof toolDef.fallback === "function") {
+            observation = await toolDef.fallback(decision.args);
+            usedFallback = true;
+          } else {
+            observation = \`TOOL_ERROR: \${err.message}\`;
+          }
+        }
+      }
+
+      trajectory.push({
+        step,
+        tool: decision.tool,
+        usedFallback,
+        breakerState: breaker.state,
+        observation,
+      });
+    }
+
+    return { status: "budget_exceeded", reason: "step_limit", tokensUsed, trajectory };
+  }
+}`,
+    criteria: [
+      "Trips per-tool circuit breaker to 'open' after consecutive failures and routes calls to fallback handler",
+      "Detects repeated identical (tool, canonicalArgs) invocations and injects a loop-breaking guard observation",
+      "Enforces strict maxTokens and maxSteps budgets with full trajectory telemetry",
+    ],
+  },
+  {
+    id: "task_agentic_episodic_memory_compactor",
+    title: "Long-Horizon Context Compactor with Episodic Memory Retrieval & Goal-Drift Guard",
+    category: "agentic-workflow",
+    difficulty: "advanced",
+    tags: ["agentic-workflow", "long-horizon", "context-compaction", "episodic-memory", "goal-drift"],
+    instructions:
+      "Over 100+ tool turns, naive sliding-window truncation (messages.slice(-10)) discards the original operator contract, forgets key file paths and invariants discovered earlier, and allows the model to drift into unrelated refactors. Build a LongHorizonMemoryManager that pins the root goal contract, compacts evicted turns into searchable episodic memory cards, retrieves top-K relevant memories by lexical BM25/overlap + importance, and checks proposed actions against goal drift.",
+    starterCode: `// Naive Sliding Window Truncation (Loses Root Goal & Early Discoveries)
+function pruneContext(messages) {
+  return messages.slice(-10);
+}`,
+    solutionCode: `// Long-Horizon Context Compactor with Episodic Memory Store & Goal-Drift Guard
+function tokenizeTerms(text) {
+  return String(text || "")
+    .toLowerCase()
+    .split(/[^a-z0-9_.-]+/)
+    .filter((t) => t.length > 2);
+}
+
+export class LongHorizonMemoryManager {
+  #rootGoal;
+  #forbiddenScopes;
+  #maxContextTokens;
+  #turns = [];
+  #episodicStore = [];
+
+  constructor({ rootGoal, forbiddenScopes = [], maxContextTokens = 1000 }) {
+    this.#rootGoal = rootGoal;
+    this.#forbiddenScopes = forbiddenScopes.map((s) => s.toLowerCase());
+    this.#maxContextTokens = maxContextTokens;
+  }
+
+  appendTurn({ role, content, tokens = 100, artifacts = [], importance = 1 }) {
+    this.#turns.push({ role, content, tokens, artifacts, importance, id: this.#turns.length + 1 });
+    this.#compactIfNeeded();
+  }
+
+  #compactIfNeeded() {
+    const totalTokens = () => this.#turns.reduce((sum, t) => sum + t.tokens, 0);
+    while (totalTokens() > this.#maxContextTokens && this.#turns.length > 2) {
+      const evicted = this.#turns.shift();
+      this.#episodicStore.push({
+        turnId: evicted.id,
+        summary: evicted.content.slice(0, 160),
+        artifacts: evicted.artifacts || [],
+        importance: evicted.importance || 1,
+        terms: new Set(tokenizeTerms(evicted.content + " " + (evicted.artifacts || []).join(" "))),
+      });
+    }
+  }
+
+  retrieveEpisodic(query, topK = 3) {
+    const qTerms = tokenizeTerms(query);
+    return this.#episodicStore
+      .map((mem) => {
+        let overlap = 0;
+        for (const t of qTerms) {
+          if (mem.terms.has(t)) overlap++;
+        }
+        const score = overlap * 2 + mem.importance;
+        return { ...mem, score };
+      })
+      .filter((m) => m.score > 0 && qTerms.some((t) => m.terms.has(t)))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+  }
+
+  buildActivePrompt(currentQuery = "") {
+    const relevantMemories = this.retrieveEpisodic(currentQuery, 3);
+    return {
+      pinnedGoal: this.#rootGoal,
+      recalledMemories: relevantMemories.map((m) => ({
+        turnId: m.turnId,
+        summary: m.summary,
+        artifacts: m.artifacts,
+      })),
+      recentTurns: [...this.#turns],
+      activeTokenCount: this.#turns.reduce((sum, t) => sum + t.tokens, 0),
+    };
+  }
+
+  checkGoalAlignment(proposedAction) {
+    const target = String(proposedAction?.target || proposedAction?.description || "").toLowerCase();
+    for (const forbidden of this.#forbiddenScopes) {
+      if (target.includes(forbidden)) {
+        return { aligned: false, reason: \`Action touches forbidden out-of-contract scope '\${forbidden}'\` };
+      }
+    }
+    return { aligned: true, rootGoal: this.#rootGoal };
+  }
+}`,
+    criteria: [
+      "Pins the authoritative rootGoal across compactions so long trajectories never lose the operator contract",
+      "Compacts oldest turns into indexed episodic memory records with preserved artifacts when maxContextTokens is exceeded",
+      "Retrieves top-K relevant episodic memories by term overlap + importance and guards against out-of-scope goal drift",
+    ],
+  },
 ];

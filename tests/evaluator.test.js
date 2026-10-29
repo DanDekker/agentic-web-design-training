@@ -166,4 +166,19 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       expect(result.score).toBe(100);
     }
   });
+
+  test("evaluates long-horizon agentic-workflow tasks (DAG Saga, Circuit Breaker, Episodic Memory) in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_agentic_dag_planner_saga",
+      "task_agentic_tool_circuit_breaker_budget",
+      "task_agentic_episodic_memory_compactor",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
 });
