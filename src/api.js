@@ -17,6 +17,11 @@ import {
   computeMarketplaceLedgerSplit,
   WebShopStore,
 } from "./commerce.js";
+import {
+  WEB_COOKIES_DATA_TRAFFIC_CATALOG,
+  auditAndSerializeWebCookie,
+  simulateHttpTrafficPipeline,
+} from "./web_traffic.js";
 import { ChatEngine } from "./chat.js";
 
 class HttpError extends Error {
@@ -493,6 +498,29 @@ const benchmarkSuite = new BenchmarkSuite();
         const body = await readJson(req);
         try {
           return json(webShopStore.mutateCatalogProduct(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/traffic/overview" && req.method === "GET") {
+        return json({
+          ...WEB_COOKIES_DATA_TRAFFIC_CATALOG,
+          track: "web-cookies-data-traffic",
+          categories: ["web-cookies", "web-storage-data", "web-traffic"],
+        });
+      }
+      if (pathname === "/api/traffic/cookies/audit" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(auditAndSerializeWebCookie(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/traffic/cache-trace/simulate" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(simulateHttpTrafficPipeline(body));
         } catch (err) {
           throw new ValidationError(err.message);
         }
