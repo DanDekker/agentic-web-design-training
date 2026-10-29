@@ -16,7 +16,7 @@
     <circle cx="917" cy="89" r="3"/>
     <text x="62" y="79" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="5">LLM / WEB DEVELOPMENT</text>
     <text x="58" y="173" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800" letter-spacing="-3">GAUNTLET</text>
-    <text x="62" y="285" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="3">106 CHALLENGES  /  11 TRACKS</text>
+    <text x="62" y="285" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="3">CURRICULUM  /  EVALUATION  /  BENCHMARKS</text>
     <text x="868" y="285" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="3">CODE. TEST. ITERATE.</text>
   </g>
 </svg>

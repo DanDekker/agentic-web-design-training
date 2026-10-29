@@ -2,7 +2,7 @@
 
 <img src="assets/gauntlet-banner.svg" alt="LLM Webdev Gauntlet" width="100%">
 
-<p><strong>106 web development challenges. One local workspace for testing solutions.</strong></p>
+<p><strong>Web development challenges. One local workspace for testing solutions.</strong></p>
 
 <p><a href="#get-started">Get started</a> · <a href="#the-curriculum">Curriculum</a> · <a href="#how-evaluation-works">Evaluation</a> · <a href="#project-layout">Project layout</a></p>
 
