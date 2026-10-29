@@ -16,10 +16,11 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (82 tasks across 21 categories & 9 tracks)
+  curriculum.js   Agentic Curriculum refactoring challenges (94 tasks across 24 categories & 10 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
   seo.js          1st-party Schema.org JSON-LD @graph builder & HTML5 / Technical SEO auditor
   commerce.js     1st-party WebShopStore (Guest-to-Account Cart Merge, Checkout Promotion, Immutable Order Snapshots, Stripe/Polar.sh Webhooks & Ledger)
+  web_traffic.js  1st-party Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Storage & HTTP Traffic (RFC 9111/IETF RateLimit/W3C traceparent/RFC 9218) engine
   ts_ecosystem.js TypeScript framework catalog, cross-framework migration matrix & package manager registry
   evaluator.js    Isolated execution sandbox with Bun.Transpiler TypeScript support, AST checks, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
@@ -199,6 +200,24 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 81. **Split-Shipment Fulfillment, Backorder Cancellations & Partial Capture Reconciler**: Enforces line-item quantity conservation (`shippedQty + canceledQty <= orderedQty`) and reconciles `authorizedTotalMinor === capturedMinor + releasedAuthorizationMinor + remainingCapturableMinor`.
 82. **Hash-Chained Event-Sourced Customer & Order Lifecycle Audit Log**: Enforces causal transitions (`ACCOUNT_CREATED` -> `GUEST_CART_MERGED` -> `CHECKOUT_AUTHORIZED` -> `ORDER_CAPTURED` -> `SHIPMENT_DELIVERED` -> `RMA_RETURN_APPROVED` -> `ORDER_REFUNDED`) over a tamper-evident hash chain and guards against over-refunding.
 
+### Deep Web Cookies — RFC 6265bis, CHIPS & W3C DBSC (`web-cookies` — 4 Tasks)
+83. **RFC 6265bis `Set-Cookie` Serializer & Auditor (`__Host-`, `__Secure-`, CHIPS `Partitioned`, 400-Day Cap)**: Enforces `__Host-` invariants (`Secure=true`, no `Domain`, `Path=/`), `SameSite=None` `Secure` requirement, CHIPS `Partitioned` top-level site isolation, 4096-byte size limit, and the 400-day (`34,560,000s`) `Max-Age` cap.
+84. **Key-Ring Signed Cookie Jar (`kid` Rotation) & Subdomain Cookie-Tossing Defense**: Binds `cookieName`, `kid`, and payload into an HMAC signature, iterates across all duplicate same-name cookies in the `Cookie` request header to defeat subdomain cookie-tossing, and signals `needsKeyRotationReSign` when verified by a retiring key.
+85. **W3C Device Bound Session Credentials (`DBSC`) Short-Lived Cookie Refresh & `Clear-Site-Data` Eviction**: Pairs short-lived `__Host-dbsc_sid` cookies with TPM/Secure-Enclave public keys, challenges refresh requests with `Sec-Session-Challenge`, verifies `Sec-Session-Response` hardware proof-of-possession, and emits `Clear-Site-Data: "cookies", "storage"` on compromise.
+86. **Granular Cookie Consent & Retention Gatekeeper**: Classifies cookies by purpose (`strictly_necessary`, `functional`, `analytics`, `marketing`), fails closed on unclassified cookies, and generates immediate `Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT` eviction headers when consent is withdrawn.
+
+### Client Web Data & Storage Engineering (`web-storage-data` — 4 Tasks)
+87. **Transactional IndexedDB Schema Migration Runner (`v1` → `v3`) & Compound Index Range Cursors**: Executes sequential step-by-step schema upgrades with full snapshot rollback on failure and supports bounded cursor queries over `[tenantId, updatedAtMs]`.
+88. **Multi-Tab State Synchronization & Single-Leader Election (`BroadcastChannel`, `Web Locks` Lease & Lamport Clocks)**: Elects a single active leader tab with lease expiry failover, orders cross-tab writes via Lamport logical clocks `(lamportCounter, originTabId)`, and deduplicates broadcast packets.
+89. **Quota-Aware Client Storage Manager (`navigator.storage.estimate`) & Weighted Cost-LRU Eviction**: Tracks byte usage against origin quota, protects `pinned: true` user drafts from eviction, and evicts lowest-score unpinned cache entries (`lastAccessedMs * regenerationCostWeight`) before throwing `QuotaExceededError`.
+90. **Offline-First Mutation Outbox Queue with Causal Log Compaction & 3-Way `ETag` Conflict Merge**: Compacts `CREATE + UPDATE` into `CREATE`, elides `CREATE + DELETE` pairs, and resolves HTTP `412 Precondition Failed` conflicts via field-level 3-way merge (`baseSnapshot`, `localModified`, `serverCurrent`).
+
+### Web Traffic, HTTP Caching & Telemetry (`web-traffic` — 4 Tasks)
+91. **RFC 9111 HTTP Cache Coordinator (`stale-while-revalidate`, `Vary` Keys & `ETag` `304 Not Modified`)**: Computes composite cache keys across normalized `Vary` request headers, serves `stale-while-revalidate` responses with background refresh, and short-circuits `304 Not Modified` on `If-None-Match`.
+92. **CDN Edge Request Coalescing (`Singleflight`) & Negative Cache Stampede Shield**: Collapses $N$ concurrent cache misses for the same key into 1 origin fetch Promise (`COALESCED_IN_FLIGHT`) and applies short-TTL negative caching for `404 Not Found` responses.
+93. **Multi-Tier Token-Bucket Rate Limiter Emitting IETF `RateLimit-*` & `Retry-After` Headers**: Continuous time-based token refill, route-specific cost weights, and standard `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `RateLimit-Policy`, and `Retry-After` headers.
+94. **W3C Trace Context (`traceparent`) Propagator, `Server-Timing` Compiler & RFC 9218 HTTP `Priority` (`u=0..7, i`) Scheduler**: Validates incoming W3C `traceparent` headers, mints child span IDs, orders requests by RFC 9218 urgency/incremental directives, and formats `Server-Timing` headers.
+
 ---
 
 ## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
@@ -216,13 +235,14 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
+- `GET /api/traffic/overview`, `POST /api/traffic/cookies/audit` & `POST /api/traffic/cache-trace/simulate` — Audits RFC 6265bis `__Host-` / CHIPS `Partitioned` / key-rotated signed cookies and simulates RFC 9111 HTTP caching (`stale-while-revalidate`, `Vary`, `ETag` 304), IETF `RateLimit` headers, RFC 9218 `Priority`, W3C `traceparent`, and `Server-Timing`.
 - `GET /api/commerce/shop/state`, `POST /api/commerce/shop/cart/items`, `POST /api/commerce/shop/account`, `POST /api/commerce/shop/checkout`, `POST /api/commerce/shop/orders/lifecycle` & `POST /api/commerce/shop/catalog-mutate` — Full normalized Web Shop engine handling guest carts, account creation + cart merge, atomic checkout-to-order promotion (`INV-2026-XXXXX`), immutable order snapshot isolation, split-shipment delivery, RMA returns, and store-wide data integrity verification.
 - `GET /api/commerce/catalog`, `POST /api/commerce/checkout/quote`, `POST /api/commerce/webhooks/verify` & `POST /api/commerce/ledger/split` — Exposes Stripe & Polar.sh payment architecture specs, computes integer minor-unit cart quotes with Largest-Remainder discount proration and EU VAT / US Nexus taxes, verifies Stripe (`Stripe-Signature`) and Polar.sh Standard Webhooks (`webhook-signature`), and computes double-entry Connect ledger splits.
 - `GET /api/seo/json-ld` & `POST /api/seo/audit` — Generates connected Schema.org JSON-LD `@graph` structured data and audits raw HTML for HTML5 landmarks, heading outline, OpenGraph, Canonical, and JSON-LD `@graph` validity.
 - `GET /api/curriculum/ecosystem` — Returns the TypeScript Framework Ecosystem catalog, cross-framework migration pathways, and multi-runtime package manager specs (`npm`, `pnpm`, `yarn-berry`, `bun`, `deno`, `jsr`).
 - `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 82 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 94 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
@@ -240,6 +260,7 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 | `B` | Open Benchmark Suite Modal & Runner |
 | `C` | Open Two-User Real-Time Chat, Debugger & P99 Benchmark |
 | `S` | Open Web Shop Storefront, Checkout & Order History Inspector |
+| `W` | Open Web Cookies, Client Data & HTTP Traffic Inspector |
 | `T` | Toggle Light / Dark Monochrome Theme |
 | `1` / `2` / `3` / `4` | Filter: All / Active / Done / Refactoring |
 | `Delete` | Remove task |
