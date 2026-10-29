@@ -173,6 +173,23 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       "task_agentic_dag_planner_saga",
       "task_agentic_tool_circuit_breaker_budget",
       "task_agentic_episodic_memory_compactor",
+      "task_agentic_multi_agent_consensus_arbiter",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
+  test("evaluates real-time two-user chat tasks (Instrumentation, Debugging, Protocol Refactor, RingBuffer Benchmark) in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_chat_realtime_instrumentation",
+      "task_chat_debug_race_duplication",
+      "task_chat_refactor_state_protocol",
+      "task_chat_perf_ringbuffer_fanout_bench",
     ]) {
       const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
       expect(task).toBeTruthy();

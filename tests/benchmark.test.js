@@ -38,9 +38,9 @@ afterEach(async () => {
 describe("Agentic 1M Curriculum Benchmark Suite", () => {
   test("generates catalog stats with difficulty and category distribution", async () => {
     const stats = suite.getCatalogStats();
-    expect(stats.totalTasks).toBeGreaterThanOrEqual(32);
+    expect(stats.totalTasks).toBeGreaterThanOrEqual(36);
     expect(stats.byDifficulty.intermediate).toBeGreaterThan(0);
-    expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(19);
+    expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(21);
     expect(stats.byCategory.async).toBeGreaterThan(0);
     expect(stats.byCategory.performance).toBeGreaterThan(0);
     expect(stats.byCategory.database).toBeGreaterThanOrEqual(4);
@@ -48,6 +48,7 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(stats.byCategory["web-fingerprinting"]).toBeGreaterThanOrEqual(4);
     expect(stats.byCategory["web-cybersec"]).toBeGreaterThanOrEqual(4);
     expect(stats.byCategory["agentic-workflow"]).toBeGreaterThanOrEqual(4);
+    expect(stats.byCategory["realtime-chat"]).toBeGreaterThanOrEqual(4);
 
     const res = await call("GET", "/api/curriculum/benchmark");
     expect(res.status).toBe(200);

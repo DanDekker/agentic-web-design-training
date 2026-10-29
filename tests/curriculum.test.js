@@ -204,4 +204,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
       expect(body.score).toBe(100);
     }
   });
+
+  test("verifies real-time two-user chat curriculum tasks (Instrumentation, Debugging, Protocol Refactor, RingBuffer Benchmark)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks");
+    const { tasks } = await tasksRes.json();
+    const chatTasks = tasks.filter((t) => t.category === "realtime-chat");
+    expect(chatTasks.length).toBeGreaterThanOrEqual(4);
+
+    for (const chatTask of chatTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: chatTask.id,
+        code: chatTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
 });

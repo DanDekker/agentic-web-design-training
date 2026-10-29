@@ -2078,4 +2078,456 @@ export class MultiAgentLeaseArbiter {
       "Rejects late commits from expired or lower-epoch fencing tokens to prevent zombie agent overwrites",
     ],
   },
+  {
+    id: "task_chat_realtime_instrumentation",
+    title: "Instrument Two-User Real-Time Chat Engine with Causal Sequence IDs, Typing Ephemerals & Read Watermarks",
+    category: "realtime-chat",
+    difficulty: "intermediate",
+    tags: ["realtime-chat", "instrumentation", "two-user-chat", "read-receipts", "typing-indicators", "telemetry"],
+    instructions:
+      "A barebones two-user chat array pushes raw strings without sequence numbers, canonical room IDs, typing indicator TTLs, read-receipt watermarks, or fanout latency telemetry. Instrument a deterministic two-user real-time chat engine that normalizes dm:<userA>:<userB> rooms, assigns monotonic seq IDs, tracks per-user read watermarks, prunes expired typing ephemerals, and records fanout telemetry.",
+    starterCode: `// Uninstrumented Two-User Chat Array (No Sequence IDs, Read Watermarks, or Telemetry)
+class BasicChat {
+  constructor() { this.messages = []; }
+  send(from, to, text) {
+    this.messages.push({ from, to, text });
+  }
+}`,
+    solutionCode: `// Instrumented Two-User Real-Time Chat Engine with Sequence IDs, Typing TTL & Read Watermarks
+export class InstrumentedTwoUserChat {
+  #rooms = new Map();
+  #typingTtlMs;
+  #telemetry = { totalSent: 0, typingEvents: 0, readUpdates: 0 };
+
+  constructor({ typingTtlMs = 4000 } = {}) {
+    this.#typingTtlMs = typingTtlMs;
+  }
+
+  static canonicalRoomId(userA, userB) {
+    const [first, second] = [String(userA).toLowerCase().trim(), String(userB).toLowerCase().trim()].sort();
+    return \`dm:\${first}:\${second}\`;
+  }
+
+  #getOrCreateRoom(userA, userB) {
+    const roomId = InstrumentedTwoUserChat.canonicalRoomId(userA, userB);
+    if (!this.#rooms.has(roomId)) {
+      const participants = [String(userA).toLowerCase().trim(), String(userB).toLowerCase().trim()].sort();
+      this.#rooms.set(roomId, {
+        id: roomId,
+        participants,
+        seq: 0,
+        messages: [],
+        typing: new Map(),
+        readWatermarks: new Map(participants.map((u) => [u, 0])),
+      });
+    }
+    return this.#rooms.get(roomId);
+  }
+
+  sendMessage({ sender, recipient, text, nowMs = Date.now() }) {
+    const room = this.#getOrCreateRoom(sender, recipient);
+    const cleanSender = String(sender).toLowerCase().trim();
+    const cleanRecipient = String(recipient).toLowerCase().trim();
+    const seq = ++room.seq;
+
+    const message = {
+      id: \`msg_\${seq}\`,
+      roomId: room.id,
+      seq,
+      sender: cleanSender,
+      recipient: cleanRecipient,
+      text: String(text).trim(),
+      timestampMs: nowMs,
+    };
+
+    room.messages.push(message);
+    room.typing.delete(cleanSender);
+    room.readWatermarks.set(cleanSender, Math.max(room.readWatermarks.get(cleanSender) || 0, seq));
+    this.#telemetry.totalSent++;
+
+    return { ...message };
+  }
+
+  setTyping({ sender, recipient, isTyping = true, nowMs = Date.now() }) {
+    const room = this.#getOrCreateRoom(sender, recipient);
+    const cleanSender = String(sender).toLowerCase().trim();
+    this.#pruneTyping(room, nowMs);
+    if (isTyping) room.typing.set(cleanSender, nowMs + this.#typingTtlMs);
+    else room.typing.delete(cleanSender);
+    this.#telemetry.typingEvents++;
+    return [...room.typing.keys()];
+  }
+
+  markRead({ reader, peer, upToSeq, nowMs = Date.now() }) {
+    const room = this.#getOrCreateRoom(reader, peer);
+    this.#pruneTyping(room, nowMs);
+    const cleanReader = String(reader).toLowerCase().trim();
+    const target = Math.min(Number(upToSeq ?? room.seq), room.seq);
+    const updated = Math.max(room.readWatermarks.get(cleanReader) || 0, target);
+    room.readWatermarks.set(cleanReader, updated);
+    this.#telemetry.readUpdates++;
+    return { roomId: room.id, reader: cleanReader, watermark: updated };
+  }
+
+  getSnapshot(userA, userB, nowMs = Date.now()) {
+    const room = this.#getOrCreateRoom(userA, userB);
+    this.#pruneTyping(room, nowMs);
+    return {
+      roomId: room.id,
+      latestSeq: room.seq,
+      messages: [...room.messages],
+      typingUsers: [...room.typing.keys()],
+      readWatermarks: Object.fromEntries(room.readWatermarks),
+      telemetry: { ...this.#telemetry },
+    };
+  }
+
+  #pruneTyping(room, nowMs) {
+    for (const [u, exp] of room.typing.entries()) {
+      if (nowMs >= exp) room.typing.delete(u);
+    }
+  }
+}`,
+    criteria: [
+      "Derives deterministic canonical room IDs (dm:userA:userB) invariant to participant order",
+      "Assigns strictly monotonic per-room sequence numbers (seq) and tracks read watermarks per user",
+      "Prunes expired typing indicators by TTL and exposes live instrumentation telemetry",
+    ],
+  },
+  {
+    id: "task_chat_debug_race_duplication",
+    title: "Debug Out-of-Order Delivery, Reconnect Replay Duplicates & Ghost Typing Leaks in Two-User Chat",
+    category: "realtime-chat",
+    difficulty: "advanced",
+    tags: ["realtime-chat", "debugging", "idempotency", "out-of-order", "resequencing", "race-conditions"],
+    instructions:
+      "Under lossy mobile network handoffs between two chatting users, retried POSTs create duplicate messages in the transcript, packet #4 arriving before packet #3 renders conversations out of causal order, and disconnected users leave permanent 'is typing...' indicators forever. Debug and fix the chat session coordinator with clientMsgId idempotency, a contiguous sequence holdback reorder buffer, and TTL typing eviction.",
+    starterCode: `// Buggy Two-User Chat Session (Duplicates on Retry, Out-of-Order Renders & Ghost Typing)
+class BuggyChatSession {
+  constructor() {
+    this.transcript = [];
+    this.typing = new Set();
+  }
+  onPacket(packet) {
+    if (packet.type === "typing") {
+      this.typing.add(packet.user);
+      return;
+    }
+    // Bug 1: No duplicate check on clientMsgId!
+    // Bug 2: Appends out-of-order seq packets immediately!
+    this.transcript.push(packet);
+  }
+}`,
+    solutionCode: `// Debugged Two-User Chat Coordinator: Idempotent Deduplication + Causal Holdback Buffer + TTL Typing
+export class DebuggedChatCoordinator {
+  #nextExpectedSeq = 1;
+  #seenClientIds = new Map(); // clientMsgId -> committedPacket
+  #holdbackBuffer = new Map(); // seq -> packet
+  #transcript = [];
+  #typingExpiries = new Map(); // user -> expiresAtMs
+  #typingTtlMs;
+
+  constructor({ typingTtlMs = 3000 } = {}) {
+    this.#typingTtlMs = typingTtlMs;
+  }
+
+  ingestPacket(packet, nowMs = Date.now()) {
+    this.#evictExpiredTyping(nowMs);
+
+    if (packet.type === "typing") {
+      if (packet.isTyping === false) {
+        this.#typingExpiries.delete(packet.user);
+      } else {
+        this.#typingExpiries.set(packet.user, nowMs + this.#typingTtlMs);
+      }
+      return { status: "typing_updated", activeTyping: this.getActiveTyping(nowMs) };
+    }
+
+    // Fix 1: Idempotency deduplication by clientMsgId
+    if (packet.clientMsgId && this.#seenClientIds.has(packet.clientMsgId)) {
+      return {
+        status: "duplicate_ignored",
+        message: this.#seenClientIds.get(packet.clientMsgId),
+        flushed: [],
+      };
+    }
+
+    const seq = Number(packet.seq);
+    if (seq < this.#nextExpectedSeq) {
+      return { status: "stale_seq_ignored", flushed: [] };
+    }
+
+    // Fix 2: Hold back future sequence packets until missing gap arrives
+    if (seq > this.#nextExpectedSeq) {
+      this.#holdbackBuffer.set(seq, packet);
+      return {
+        status: "buffered_out_of_order",
+        waitingForSeq: this.#nextExpectedSeq,
+        bufferedCount: this.#holdbackBuffer.size,
+        flushed: [],
+      };
+    }
+
+    // Commit current packet and flush any contiguous buffered successors
+    const flushed = [];
+    let current = packet;
+    while (current) {
+      this.#transcript.push(current);
+      if (current.clientMsgId) {
+        this.#seenClientIds.set(current.clientMsgId, current);
+      }
+      // Sending a message clears that user's typing indicator
+      if (current.sender) {
+        this.#typingExpiries.delete(current.sender);
+      }
+      flushed.push(current);
+      this.#nextExpectedSeq++;
+      current = this.#holdbackBuffer.get(this.#nextExpectedSeq) || null;
+      if (current) this.#holdbackBuffer.delete(this.#nextExpectedSeq);
+    }
+
+    return { status: "committed", flushed };
+  }
+
+  getActiveTyping(nowMs = Date.now()) {
+    this.#evictExpiredTyping(nowMs);
+    return [...this.#typingExpiries.keys()];
+  }
+
+  getTranscript() {
+    return [...this.#transcript];
+  }
+
+  #evictExpiredTyping(nowMs) {
+    for (const [user, exp] of this.#typingExpiries.entries()) {
+      if (nowMs >= exp) this.#typingExpiries.delete(user);
+    }
+  }
+}`,
+    criteria: [
+      "Deduplicates retried packets using a clientMsgId lookup table without advancing sequence numbers",
+      "Buffers out-of-order packets (seq > nextExpectedSeq) and flushes contiguous sequences in strict order once gaps fill",
+      "Expires stale typing indicators via timestamps and clears typing state when a user sends a message",
+    ],
+  },
+  {
+    id: "task_chat_refactor_state_protocol",
+    title: "Refactor Tangled WebSocket/SSE Chat Handler into Pure Deterministic Protocol State Machine",
+    category: "realtime-chat",
+    difficulty: "intermediate",
+    tags: ["realtime-chat", "refactor", "state-machine", "reducer", "clean-architecture"],
+    instructions:
+      "A monolithic real-time chat handler mixes DOM mutations, global socket writes, unread badge counters, and message edits/reactions inside a single stateful callback, making it impossible to test deterministically. Refactor into a pure, immutable chat protocol reducer (chatProtocolReducer) that returns { state, effects } for MESSAGE_SENT, MESSAGE_EDITED, MESSAGE_READ, and TYPING_SET actions.",
+    starterCode: `// Tangled Imperative Chat Callback Mutating Global State & DOM Directly
+function onSocketFrame(rawFrame) {
+  const data = JSON.parse(rawFrame);
+  if (data.op === "msg") {
+    window.chatState.messages.push(data);
+    window.chatState.unread++;
+    document.querySelector("#unread").innerText = window.chatState.unread;
+    window.socket.send(JSON.stringify({ ack: data.id }));
+  }
+}`,
+    solutionCode: `// Pure Deterministic Two-User Chat Protocol Reducer Returning { state, effects }
+export const INITIAL_CHAT_STATE = Object.freeze({
+  roomId: "dm:agent:pp",
+  seq: 0,
+  messages: [],
+  unreadByPeer: { agent: 0, pp: 0 },
+  typingByPeer: { agent: false, pp: false },
+});
+
+export function chatProtocolReducer(state = INITIAL_CHAT_STATE, action) {
+  switch (action?.type) {
+    case "MESSAGE_SENT": {
+      const nextSeq = state.seq + 1;
+      const sender = action.sender;
+      const recipient = action.recipient;
+      const msg = {
+        id: \`m_\${nextSeq}\`,
+        seq: nextSeq,
+        sender,
+        recipient,
+        text: String(action.text || "").trim(),
+        edited: false,
+      };
+      return {
+        state: {
+          ...state,
+          seq: nextSeq,
+          messages: [...state.messages, msg],
+          unreadByPeer: {
+            ...state.unreadByPeer,
+            [recipient]: (state.unreadByPeer[recipient] || 0) + 1,
+          },
+          typingByPeer: {
+            ...state.typingByPeer,
+            [sender]: false,
+          },
+        },
+        effects: [
+          { type: "SSE_BROADCAST", event: "chat:message", payload: msg },
+          { type: "ACK_CLIENT", seq: nextSeq },
+        ],
+      };
+    }
+
+    case "MESSAGE_EDITED": {
+      const messages = state.messages.map((m) =>
+        m.seq === action.seq && m.sender === action.sender
+          ? { ...m, text: String(action.newText || "").trim(), edited: true }
+          : m
+      );
+      return {
+        state: { ...state, messages },
+        effects: [{ type: "SSE_BROADCAST", event: "chat:edit", payload: { seq: action.seq } }],
+      };
+    }
+
+    case "MESSAGE_READ": {
+      return {
+        state: {
+          ...state,
+          unreadByPeer: {
+            ...state.unreadByPeer,
+            [action.reader]: 0,
+          },
+        },
+        effects: [{ type: "SSE_BROADCAST", event: "chat:read", payload: { reader: action.reader } }],
+      };
+    }
+
+    case "TYPING_SET": {
+      return {
+        state: {
+          ...state,
+          typingByPeer: {
+            ...state.typingByPeer,
+            [action.user]: Boolean(action.isTyping),
+          },
+        },
+        effects: [],
+      };
+    }
+
+    default:
+      return { state, effects: [] };
+  }
+}`,
+    criteria: [
+      "Eliminates in-place mutations and DOM/socket side effects from protocol state transitions",
+      "Returns deterministic immutable { state, effects } tuples for MESSAGE_SENT, MESSAGE_EDITED, and MESSAGE_READ",
+      "Maintains per-participant unread counters and clears typing state upon message dispatch",
+    ],
+  },
+  {
+    id: "task_chat_perf_ringbuffer_fanout_bench",
+    title: "Optimize O(N²) Chat History & Fanout to Pre-Allocated Ring Buffer with P99 Latency Benchmark",
+    category: "realtime-chat",
+    difficulty: "advanced",
+    tags: ["realtime-chat", "performance", "benchmarking", "ring-buffer", "p99-latency", "zero-allocation"],
+    instructions:
+      "A high-frequency two-user agent-to-human chat stream clones the entire message array via [...messages, msg].slice(-cap) on every message and serializes JSON inside an inner subscriber loop, causing O(N²) GC spikes. Refactor to a fixed-capacity circular ring buffer with O(1) modular slot indexing, pre-serialized single-frame SSE fanout, and a built-in P50/P99 latency benchmark harness.",
+    starterCode: `// O(N^2) Array Spread Allocation & Redundant Per-Client Serialization
+class SlowChatFanout {
+  constructor(capacity = 256) {
+    this.capacity = capacity;
+    this.history = [];
+    this.subscribers = [];
+  }
+  publish(msg) {
+    // Re-allocates and copies the entire history array on every single message!
+    this.history = [...this.history, msg].slice(-this.capacity);
+    for (const sub of this.subscribers) {
+      sub.send("data: " + JSON.stringify(msg) + "\\n\\n");
+    }
+  }
+}`,
+    solutionCode: `// O(1) Circular Ring Buffer + Single-Encode Fanout + P50/P99 Latency Benchmark
+export class FastChatRingBuffer {
+  #buffer;
+  #capacity;
+  #head = 0;
+  #size = 0;
+  #subscribers = new Set();
+
+  constructor(capacity = 256) {
+    this.#capacity = capacity;
+    this.#buffer = new Array(capacity);
+  }
+
+  subscribe(fn) {
+    this.#subscribers.add(fn);
+    return () => this.#subscribers.delete(fn);
+  }
+
+  publish(msg) {
+    const writeIdx = (this.#head + this.#size) % this.#capacity;
+    this.#buffer[writeIdx] = msg;
+    if (this.#size < this.#capacity) {
+      this.#size++;
+    } else {
+      this.#head = (this.#head + 1) % this.#capacity;
+    }
+
+    if (this.#subscribers.size > 0) {
+      // Serialize once for all connected two-user tab streams
+      const frame = \`data: \${JSON.stringify(msg)}\\n\\n\`;
+      for (const sub of this.#subscribers) {
+        sub(frame);
+      }
+    }
+  }
+
+  snapshot() {
+    const out = new Array(this.#size);
+    for (let i = 0; i < this.#size; i++) {
+      out[i] = this.#buffer[(this.#head + i) % this.#capacity];
+    }
+    return out;
+  }
+
+  get size() {
+    return this.#size;
+  }
+}
+
+export function benchmarkTwoUserChatFanout(iterations = 200, capacity = 64) {
+  const ring = new FastChatRingBuffer(capacity);
+  let deliveredFrames = 0;
+  ring.subscribe(() => { deliveredFrames++; });
+  ring.subscribe(() => { deliveredFrames++; });
+
+  const samplesUs = new Float64Array(iterations);
+  for (let i = 0; i < iterations; i++) {
+    const t0 = Date.now();
+    ring.publish({
+      seq: i + 1,
+      sender: i % 2 === 0 ? "agent" : "pp",
+      recipient: i % 2 === 0 ? "pp" : "agent",
+      text: "msg_" + i,
+    });
+    samplesUs[i] = Math.max(1, (Date.now() - t0) * 1000);
+  }
+
+  const sorted = Array.from(samplesUs).sort((a, b) => a - b);
+  const p50Us = sorted[Math.floor(sorted.length * 0.5)];
+  const p99Us = sorted[Math.floor(sorted.length * 0.99)];
+
+  return {
+    iterations,
+    retainedCount: ring.size,
+    deliveredFrames,
+    oldestSeq: ring.snapshot()[0]?.seq,
+    newestSeq: ring.snapshot().at(-1)?.seq,
+    p50Us,
+    p99Us,
+  };
+}`,
+    criteria: [
+      "Uses O(1) modular ring-buffer indexing ((head + size) % capacity) instead of O(N) array spread/slice copies",
+      "Serializes the outbound SSE wire frame once per message before broadcasting to subscribers",
+      "Includes a benchmark harness computing retained window bounds, subscriber frame counts, and P50/P99 latency",
+    ],
+  },
 ];

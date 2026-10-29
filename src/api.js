@@ -580,6 +580,22 @@ const benchmarkSuite = new BenchmarkSuite();
           const hasArbiter = cleanSubmitted.includes("epoch") && cleanSubmitted.includes("StaleFencingTokenError") && cleanSubmitted.includes("startsWith");
           if (hasArbiter) passedCriteria.push("Coordinates hierarchical path leases with monotonic fencing token validation");
           else failedCriteria.push("Missing hierarchical path overlap check or fencing epoch validation");
+        } else if (taskId === "task_chat_realtime_instrumentation") {
+          const hasInst = cleanSubmitted.includes("dm:") && cleanSubmitted.includes("readWatermarks") && cleanSubmitted.includes("telemetry");
+          if (hasInst) passedCriteria.push("Instruments two-user canonical rooms, sequence IDs, typing TTL, and read watermarks");
+          else failedCriteria.push("Missing canonical dm: room ID, readWatermarks, or telemetry counters");
+        } else if (taskId === "task_chat_debug_race_duplication") {
+          const hasDebug = cleanSubmitted.includes("clientMsgId") && cleanSubmitted.includes("nextExpectedSeq") && cleanSubmitted.includes("holdbackBuffer");
+          if (hasDebug) passedCriteria.push("Eliminates duplicate retries, resequences out-of-order packets, and evicts ghost typing");
+          else failedCriteria.push("Missing clientMsgId deduplication or out-of-order holdback resequencing");
+        } else if (taskId === "task_chat_refactor_state_protocol") {
+          const hasReducer = cleanSubmitted.includes("MESSAGE_SENT") && cleanSubmitted.includes("MESSAGE_EDITED") && cleanSubmitted.includes("effects");
+          if (hasReducer) passedCriteria.push("Extracts pure deterministic chat protocol reducer returning { state, effects }");
+          else failedCriteria.push("Missing pure protocol reducer transitions or declarative effects array");
+        } else if (taskId === "task_chat_perf_ringbuffer_fanout_bench") {
+          const hasRing = cleanSubmitted.includes("%") && cleanSubmitted.includes("p99Us") && cleanSubmitted.includes("JSON.stringify");
+          if (hasRing) passedCriteria.push("Optimizes chat history to O(1) circular ring buffer with P99 fanout benchmark");
+          else failedCriteria.push("Missing modular ring buffer indexing or P99 fanout latency benchmark");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");

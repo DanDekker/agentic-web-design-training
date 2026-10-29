@@ -421,6 +421,50 @@ export class Evaluator {
         passed: code.includes("epoch") && code.includes("StaleFencingTokenError"),
         detail: "Rejects stale commits from expired or superseded fencing epochs",
       });
+    } else if (id === "task_chat_realtime_instrumentation") {
+      results.push({
+        name: "Canonical Two-User Room & Monotonic Sequence",
+        passed: code.includes("dm:") && code.includes("seq") && code.includes("readWatermarks"),
+        detail: "Normalizes dm:userA:userB room IDs, increments seq, and tracks read watermarks",
+      });
+      results.push({
+        name: "Ephemeral Typing TTL & Telemetry",
+        passed: code.includes("typing") && code.includes("telemetry"),
+        detail: "Prunes expired typing indicators and records real-time chat telemetry",
+      });
+    } else if (id === "task_chat_debug_race_duplication") {
+      results.push({
+        name: "ClientMsgId Idempotency Deduplication",
+        passed: code.includes("clientMsgId") && (code.includes("seenClientIds") || code.includes("duplicate")),
+        detail: "Suppresses duplicate retried messages using clientMsgId lookup",
+      });
+      results.push({
+        name: "Out-of-Order Holdback Resequencing",
+        passed: code.includes("nextExpectedSeq") && (code.includes("holdbackBuffer") || code.includes("while")),
+        detail: "Buffers future sequence packets and flushes contiguous runs when gaps fill",
+      });
+    } else if (id === "task_chat_refactor_state_protocol") {
+      results.push({
+        name: "Pure Immutable Chat Protocol Reducer",
+        passed: code.includes("MESSAGE_SENT") && code.includes("MESSAGE_EDITED") && code.includes("MESSAGE_READ"),
+        detail: "Handles chat protocol actions deterministically without DOM/socket side effects",
+      });
+      results.push({
+        name: "Declarative Effect Tuples",
+        passed: code.includes("effects") && code.includes("SSE_BROADCAST"),
+        detail: "Returns { state, effects } tuples for outbound broadcast and client ACKs",
+      });
+    } else if (id === "task_chat_perf_ringbuffer_fanout_bench") {
+      results.push({
+        name: "O(1) Modular Ring Buffer Indexing",
+        passed: code.includes("%") && code.includes("capacity") && !code.includes("[...this.history"),
+        detail: "Writes to circular buffer slots in O(1) time without array spread reallocation",
+      });
+      results.push({
+        name: "Single-Encode Fanout & P99 Latency Benchmark",
+        passed: code.includes("JSON.stringify") && code.includes("p99Us"),
+        detail: "Pre-serializes broadcast frame once and computes P50/P99 fanout latency metrics",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -459,6 +503,7 @@ export class Evaluator {
       Uint8Array,
       Int32Array,
       Float32Array,
+      Float64Array,
       ArrayBuffer,
       DataView,
       Map,
@@ -1337,6 +1382,112 @@ export class Evaluator {
         name: "Hierarchical Path Leases & Stale Epoch Fencing",
         passed: Boolean(res?.overlapBlocked && res?.betaCommitted && res?.zombieAlphaBlocked),
         detail: "Blocks parent/child path conflicts and fences zombie commits with stale lease epochs",
+      });
+    } else if (taskId === "task_chat_realtime_instrumentation") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Chat = typeof InstrumentedTwoUserChat === "function" ? InstrumentedTwoUserChat : exports.InstrumentedTwoUserChat;
+          const chat = new Chat({ typingTtlMs: 500 });
+          const m1 = chat.sendMessage({ sender: "pp", recipient: "agent", text: "Ping", nowMs: 1000 });
+          chat.setTyping({ sender: "agent", recipient: "pp", isTyping: true, nowMs: 1100 });
+          const snapActive = chat.getSnapshot("agent", "pp", 1200);
+          const snapExpired = chat.getSnapshot("agent", "pp", 1700);
+          const m2 = chat.sendMessage({ sender: "agent", recipient: "pp", text: "Pong", nowMs: 1800 });
+          chat.markRead({ reader: "pp", peer: "agent", upToSeq: 2, nowMs: 1900 });
+          const finalSnap = chat.getSnapshot("pp", "agent", 1900);
+
+          return {
+            canonicalOk: m1.roomId === "dm:agent:pp" && m2.seq === 2,
+            typingLifecycleOk: snapActive.typingUsers.includes("agent") && snapExpired.typingUsers.length === 0,
+            watermarksOk: finalSnap.readWatermarks.pp === 2 && finalSnap.readWatermarks.agent === 2,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Two-User Chat Instrumentation & Watermark Verification",
+        passed: Boolean(res?.canonicalOk && res?.typingLifecycleOk && res?.watermarksOk),
+        detail: "Verifies dm:agent:pp canonical room, monotonic seq, typing TTL pruning, and read watermarks",
+      });
+    } else if (taskId === "task_chat_debug_race_duplication") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Coord = typeof DebuggedChatCoordinator === "function" ? DebuggedChatCoordinator : exports.DebuggedChatCoordinator;
+          const coord = new Coord({ typingTtlMs: 400 });
+
+          // 1. Out-of-order: seq 2 arrives before seq 1
+          const r1 = coord.ingestPacket({ seq: 2, sender: "bob", text: "Second", clientMsgId: "id_2" }, 100);
+          const r2 = coord.ingestPacket({ seq: 1, sender: "alice", text: "First", clientMsgId: "id_1" }, 110);
+
+          // 2. Duplicate retry of clientMsgId "id_1"
+          const dup = coord.ingestPacket({ seq: 1, sender: "alice", text: "First", clientMsgId: "id_1" }, 120);
+
+          // 3. Ghost typing expiry
+          coord.ingestPacket({ type: "typing", user: "bob", isTyping: true }, 200);
+          const typingAt300 = coord.getActiveTyping(300);
+          const typingAt700 = coord.getActiveTyping(700);
+
+          const transcript = coord.getTranscript();
+          return {
+            resequencedOk: r1.status === "buffered_out_of_order" && r2.flushed.length === 2 && transcript.map(m => m.seq).join(",") === "1,2",
+            dupSuppressed: dup.status === "duplicate_ignored" && transcript.length === 2,
+            typingPruned: typingAt300.includes("bob") && typingAt700.length === 0,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Idempotent Deduplication & Causal Resequencing",
+        passed: Boolean(res?.resequencedOk && res?.dupSuppressed && res?.typingPruned),
+        detail: "Reorders out-of-order packets into [1,2], suppresses clientMsgId retries, and evicts ghost typing",
+      });
+    } else if (taskId === "task_chat_refactor_state_protocol") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const reducer = typeof chatProtocolReducer === "function" ? chatProtocolReducer : exports.chatProtocolReducer;
+          const init = typeof INITIAL_CHAT_STATE === "object" ? INITIAL_CHAT_STATE : exports.INITIAL_CHAT_STATE;
+
+          const step1 = reducer(init, { type: "TYPING_SET", user: "agent", isTyping: true });
+          const step2 = reducer(step1.state, { type: "MESSAGE_SENT", sender: "agent", recipient: "pp", text: "Hello pp" });
+          const step3 = reducer(step2.state, { type: "MESSAGE_EDITED", sender: "agent", seq: 1, newText: "Hello pp (edited)" });
+          const step4 = reducer(step3.state, { type: "MESSAGE_READ", reader: "pp" });
+
+          return {
+            pureImmutability: init.messages.length === 0 && step2.state.typingByPeer.agent === false,
+            unreadTrackedAndCleared: step2.state.unreadByPeer.pp === 1 && step4.state.unreadByPeer.pp === 0,
+            editedOk: step3.state.messages[0].text === "Hello pp (edited)" && step3.state.messages[0].edited === true,
+            effectsEmitted: step2.effects.some(e => e.type === "SSE_BROADCAST"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Pure Chat Protocol State Transitions & Effects",
+        passed: Boolean(res?.pureImmutability && res?.unreadTrackedAndCleared && res?.editedOk && res?.effectsEmitted),
+        detail: "Transitions send/edit/read/typing states immutably and emits declarative SSE broadcast effects",
+      });
+    } else if (taskId === "task_chat_perf_ringbuffer_fanout_bench") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const benchFn = typeof benchmarkTwoUserChatFanout === "function" ? benchmarkTwoUserChatFanout : exports.benchmarkTwoUserChatFanout;
+          const report = benchFn(120, 32);
+          return {
+            cappedAtCapacity: report.retainedCount === 32,
+            slidingWindowCorrect: report.oldestSeq === 89 && report.newestSeq === 120,
+            fanoutDelivered: report.deliveredFrames === 240,
+            hasPercentiles: typeof report.p50Us === "number" && typeof report.p99Us === "number",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "O(1) Ring Buffer Capacity & Fanout Benchmark",
+        passed: Boolean(res?.cappedAtCapacity && res?.slidingWindowCorrect && res?.fanoutDelivered && res?.hasPercentiles),
+        detail: "Retains latest 32 of 120 messages in O(1) ring buffer, fans out 240 frames, and reports P50/P99 latency",
       });
     } else {
       // General syntax evaluation
