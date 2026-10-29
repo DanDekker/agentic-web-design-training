@@ -168,4 +168,105 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     expect(ledger.balances.platform_commission).toBe(500);
     expect(ledger.balances.seller_escrow_payable).toBe(4180);
   });
+
+  test("executes end-to-end Web Shop flow: guest cart -> account creation & cart merge -> checkout -> catalog mutation isolation -> delivery & RMA refund", async () => {
+    // 1. Add physical & digital items to an anonymous guest cart
+    const g1 = await call("POST", "/api/commerce/shop/cart/items", {
+      cartId: "cart_guest_session_99",
+      sku: "LOOM-KB-OBS-TKL",
+      quantity: 2,
+    });
+    expect(g1.status).toBe(200);
+
+    const g2 = await call("POST", "/api/commerce/shop/cart/items", {
+      cartId: "cart_guest_session_99",
+      sku: "POLAR-PRO-SEAT-1Y",
+      quantity: 1,
+    });
+    expect(g2.status).toBe(200);
+
+    // 2. Create customer account & merge guest cart + deduplicate shipping address
+    const acctRes = await call("POST", "/api/commerce/shop/account", {
+      email: "  Shopper@Loom.Dev ",
+      displayName: "Ada Shopper",
+      guestCartId: "cart_guest_session_99",
+      shippingAddress: {
+        recipientName: "Ada Shopper",
+        line1: "742 Evergreen Terrace",
+        city: "San Francisco",
+        stateOrProvince: "CA",
+        postalCode: "94107",
+        countryCode: "US",
+      },
+    });
+    expect(acctRes.status).toBe(201);
+    const onboarded = await acctRes.json();
+    expect(onboarded.account.email).toBe("shopper@loom.dev");
+    expect(onboarded.cart.itemCount).toBe(3);
+    expect(onboarded.account.savedAddresses.length).toBe(1);
+
+    // 3. Promote authenticated cart to an immutable Order Snapshot (with idempotent retry check)
+    const chkPayload = {
+      checkoutIdempotencyKey: "chk_e2e_shop_001",
+      accountId: onboarded.account.accountId,
+      cartId: onboarded.cart.cartId,
+      paymentProvider: "stripe",
+      promoCode: "LOOM10",
+      buyerCountry: "US",
+      buyerState: "CA",
+    };
+    const chk1 = await call("POST", "/api/commerce/shop/checkout", chkPayload);
+    expect(chk1.status).toBe(201);
+    const promoted1 = await chk1.json();
+    expect(promoted1.idempotentReplay).toBe(false);
+    expect(promoted1.order.invoiceNumber).toBe("INV-2026-00001");
+    expect(promoted1.order.snapshotIntegrityValid).toBe(true);
+
+    // Duplicate retry returns exact same order without double-charging or deducting stock twice
+    const chk2 = await call("POST", "/api/commerce/shop/checkout", chkPayload);
+    const promoted2 = await chk2.json();
+    expect(promoted2.idempotentReplay).toBe(true);
+    expect(promoted2.order.orderId).toBe(promoted1.order.orderId);
+
+    // 4. Mutate live catalog price & title and verify historical order snapshot remains 100% isolated!
+    const origGrandTotal = promoted1.order.grandTotalMinor;
+    const mutRes = await call("POST", "/api/commerce/shop/catalog-mutate", {
+      sku: "LOOM-KB-OBS-TKL",
+      newTitle: "Renamed Keyboard v2",
+      newUnitPriceMinor: 39900,
+    });
+    expect(mutRes.status).toBe(200);
+
+    // 5. Ship & deliver physical order items, then process a 1-unit RMA return
+    const shipRes = await call("POST", "/api/commerce/shop/orders/lifecycle", {
+      orderId: promoted1.order.orderId,
+      action: "SHIP_AND_DELIVER",
+    });
+    expect(shipRes.status).toBe(200);
+    const delivered = await shipRes.json();
+    expect(delivered.status).toBe("FULFILLED");
+    expect(delivered.grandTotalMinor).toBe(origGrandTotal);
+    expect(delivered.lines.find((l) => l.sku === "LOOM-KB-OBS-TKL").snapshotTitle).toBe(
+      "Loom Monochrome Mechanical Keyboard (Obsidian · TKL)",
+    );
+
+    const rmaRes = await call("POST", "/api/commerce/shop/orders/lifecycle", {
+      orderId: promoted1.order.orderId,
+      action: "RMA_REFUND_LINE",
+      refundLineSku: "LOOM-KB-OBS-TKL",
+      refundQty: 1,
+    });
+    expect(rmaRes.status).toBe(200);
+    const refunded = await rmaRes.json();
+    expect(refunded.status).toBe("PARTIALLY_REFUNDED");
+    expect(refunded.refundedMinor).toBeGreaterThan(0);
+    expect(refunded.netRetainedMinor).toBe(origGrandTotal - refunded.refundedMinor);
+    expect(refunded.snapshotIntegrityValid).toBe(true);
+
+    // 6. Verify global store referential & financial integrity
+    const stateRes = await call("GET", "/api/commerce/shop/state");
+    const shopState = await stateRes.json();
+    expect(shopState.integrity.healthy).toBe(true);
+    expect(shopState.integrity.violations).toEqual([]);
+  });
 });
