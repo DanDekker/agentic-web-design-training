@@ -874,6 +874,39 @@ export class Evaluator {
           code.includes("INVALID_TIME_DATETIME"),
         detail: "Verifies https://schema.org/ Microdata scoping and machine-readable ISO <time datetime>",
       });
+    } else if (id === "task_html_importmap_modulepreload_sri") {
+      results.push({
+        name: "WHATWG <script type=\"importmap\"> Ordering & SRI Integrity Map",
+        passed:
+          code.includes('type="importmap"') &&
+          code.includes("integrity") &&
+          code.includes("sha384-"),
+        detail: "Emits importmap with imports, scopes, and sha384- integrity map before module scripts",
+      });
+      results.push({
+        name: "ESM <link rel=\"modulepreload\"> Waterfall Flattening",
+        passed: code.includes('rel="modulepreload"') && code.includes('crossorigin="anonymous"'),
+        detail: "Generates modulepreload link hints with SRI integrity and anonymous crossorigin",
+      });
+    } else if (id === "task_seo_software_app_faq_dataset_graph") {
+      results.push({
+        name: "Schema.org Dataset DataDownload & License Metadata",
+        passed:
+          code.includes('"Dataset"') &&
+          code.includes('"DataDownload"') &&
+          code.includes("encodingFormat") &&
+          code.includes("license"),
+        detail: "Emits Dataset with DataDownload distribution, encodingFormat, and license URI",
+      });
+      results.push({
+        name: "WebSite SearchAction, Organization sameAs & FAQPage Graph",
+        passed:
+          code.includes('"SearchAction"') &&
+          code.includes("{search_term_string}") &&
+          code.includes('"FAQPage"') &&
+          code.includes("sameAs"),
+        detail: "Connects Organization sameAs, WebSite SearchAction, and FAQPage Question/Answer nodes",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -3010,6 +3043,95 @@ export class Evaluator {
             res?.caughtMicrodataAndTime,
         ),
         detail: "Validates clean HTML5/Microdata documents and catches heading skips, missing <main>, and unscoped itemprop",
+      });
+    } else if (taskId === "task_html_importmap_modulepreload_sri") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const compileMap = typeof compileImportMapBootstrapHtml === "function"
+            ? compileImportMapBootstrapHtml
+            : exports.compileImportMapBootstrapHtml;
+
+          const out = compileMap({
+            entries: [
+              {
+                specifier: "@loom/core",
+                url: "https://cdn.loom.dev/core@1.0.0/index.mjs",
+                integritySha384: "sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC",
+                preload: true,
+              },
+            ],
+            scopes: {
+              "/legacy/": { "@loom/core": "https://cdn.loom.dev/core@0.9.0/index.mjs" },
+            },
+            entryModuleSrc: "/app.mjs",
+          });
+
+          const importMapIdx = out.html.indexOf('<script type="importmap">');
+          const preloadIdx = out.html.indexOf('<link rel="modulepreload"');
+          const moduleScriptIdx = out.html.indexOf('<script type="module"');
+
+          return {
+            orderingValid: importMapIdx === 0 && importMapIdx < preloadIdx && preloadIdx < moduleScriptIdx,
+            sriMappedOk:
+              out.importMapJson.integrity["https://cdn.loom.dev/core@1.0.0/index.mjs"].startsWith("sha384-") &&
+              out.importMapJson.scopes["/legacy/"]["@loom/core"].includes("0.9.0"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Import Map Precedence, Scoped Resolution & SRI Modulepreload",
+        passed: Boolean(res?.orderingValid && res?.sriMappedOk),
+        detail: "Places <script type=\"importmap\"> before modulepreload/module tags and maps sha384- SRI hashes",
+      });
+    } else if (taskId === "task_seo_software_app_faq_dataset_graph") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const buildPortal = typeof buildBenchmarkPortalJsonLdGraph === "function"
+            ? buildBenchmarkPortalJsonLdGraph
+            : exports.buildBenchmarkPortalJsonLdGraph;
+
+          const graphDoc = buildPortal({
+            origin: "https://loom.dev/",
+            orgName: "Loom Research",
+            sameAsUrls: ["https://github.com/loom-labs", "https://wikidata.org/wiki/Q12345"],
+            searchUrlTemplate: "https://loom.dev/search?q={search_term_string}",
+            dataset: {
+              name: "Agentic 1M Refactoring Benchmark Dataset",
+              description: "Sandboxed execution traces and AST evaluation scores across 62 software engineering tasks.",
+              licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+              downloadUrl: "https://loom.dev/datasets/agentic-1m.parquet",
+              encodingFormat: "application/parquet",
+            },
+            faqs: [
+              { question: "How are tasks evaluated?", answerHtml: "<p>Inside an isolated node:vm sandbox.</p>" },
+            ],
+          });
+
+          const nodes = graphDoc["@graph"];
+          const ds = nodes.find((n) => n["@type"] === "Dataset");
+          const ws = nodes.find((n) => n["@type"] === "WebSite");
+          const faq = nodes.find((n) => n["@type"] === "FAQPage");
+
+          return {
+            datasetOk:
+              ds?.distribution?.[0]?.["@type"] === "DataDownload" &&
+              ds?.distribution?.[0]?.encodingFormat === "application/parquet" &&
+              ds?.creator?.["@id"] === "https://loom.dev/#organization",
+            searchActionOk:
+              ws?.potentialAction?.["@type"] === "SearchAction" &&
+              ws?.potentialAction?.["query-input"] === "required name=search_term_string",
+            faqOk: faq?.mainEntity?.[0]?.acceptedAnswer?.["@type"] === "Answer",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Dataset DataDownload, WebSite SearchAction & FAQPage @graph Verification",
+        passed: Boolean(res?.datasetOk && res?.searchActionOk && res?.faqOk),
+        detail: "Verifies linked Dataset distribution, SearchAction urlTemplate, and FAQPage Question/Answer graph",
       });
     } else {
       // General syntax evaluation

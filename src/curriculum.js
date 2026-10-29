@@ -5011,6 +5011,190 @@ export function auditHtmlSemanticSeo(html: string): SeoAuditReport {
       "Enforces valid Schema.org Microdata scoping (itemscope with https://schema.org/* itemtype for itemprop nodes)",
     ],
   },
+  {
+    id: "task_html_importmap_modulepreload_sri",
+    title: "Implement HTML <script type=\"importmap\"> with Scoped Module Resolution, Subresource Integrity Map & <link rel=\"modulepreload\">",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "importmap", "modulepreload", "sri-integrity", "esm", "whatwg"],
+    instructions:
+      "A buildless ESM web application loads 20 unpinned bare specifiers over a slow waterfall without Subresource Integrity (SRI) verification or modulepreload hints, and places <script type=\"importmap\"> after a <script type=\"module\"> tag (which the WHATWG HTML parser ignores). Build a TypeScript Import Map & Modulepreload compiler that emits a valid <script type=\"importmap\"> with imports, scopes, and SHA-384 integrity maps before any module scripts, plus <link rel=\"modulepreload\" integrity=\"...\" crossorigin=\"anonymous\"> tags.",
+    starterCode: `// Invalid Import Map Placed After Module Script & Missing Integrity Map / Modulepreload
+export function renderModuleBootstrap(modules: any[]) {
+  return \`
+    <script type="module" src="/app.js"></script>
+    <script type="importmap">{ "imports": {} }</script>
+  \`;
+}`,
+    solutionCode: `// WHATWG HTML <script type="importmap"> with Scoped Resolution, Integrity Map & <link rel="modulepreload">
+export interface ImportMapModuleEntry {
+  readonly specifier: string;
+  readonly url: string;
+  readonly integritySha384: \`sha384-\${string}\`;
+  readonly preload?: boolean;
+}
+
+export interface ImportMapConfig {
+  readonly entries: readonly ImportMapModuleEntry[];
+  readonly scopes?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly entryModuleSrc: string;
+}
+
+export function compileImportMapBootstrapHtml(config: ImportMapConfig): {
+  readonly importMapJson: {
+    readonly imports: Record<string, string>;
+    readonly scopes: Record<string, Record<string, string>>;
+    readonly integrity: Record<string, string>;
+  };
+  readonly html: string;
+} {
+  const imports: Record<string, string> = {};
+  const integrity: Record<string, string> = {};
+  const preloadLinks: string[] = [];
+
+  for (const entry of config.entries) {
+    if (!entry.integritySha384.startsWith("sha384-")) {
+      throw new Error(\`Invalid SRI hash for '\${entry.specifier}'\`);
+    }
+    imports[entry.specifier] = entry.url;
+    integrity[entry.url] = entry.integritySha384;
+
+    if (entry.preload !== false) {
+      preloadLinks.push(
+        \`<link rel="modulepreload" href="\${entry.url}" integrity="\${entry.integritySha384}" crossorigin="anonymous" />\`,
+      );
+    }
+  }
+
+  const scopes: Record<string, Record<string, string>> = {};
+  for (const [scopePrefix, map] of Object.entries(config.scopes ?? {})) {
+    scopes[scopePrefix] = { ...map };
+  }
+
+  const importMapJson = { imports, scopes, integrity };
+  const serializedMap = JSON.stringify(importMapJson).replace(/</g, "\\\\u003c");
+
+  // WHATWG rule: <script type="importmap"> MUST precede all <script type="module"> and <link rel="modulepreload">
+  const html = [
+    \`<script type="importmap">\${serializedMap}</script>\`,
+    ...preloadLinks,
+    \`<script type="module" src="\${config.entryModuleSrc}" crossorigin="anonymous"></script>\`,
+  ].join("\\n");
+
+  return { importMapJson, html };
+}`,
+    criteria: [
+      "Emits <script type=\"importmap\"> strictly before any <link rel=\"modulepreload\"> or <script type=\"module\"> tags",
+      "Populates the WHATWG importmap integrity dictionary mapping resolved module URLs to sha384- SRI digests",
+      "Generates <link rel=\"modulepreload\" integrity=\"...\" crossorigin=\"anonymous\"> hints to flatten ESM dependency waterfalls",
+    ],
+  },
+  {
+    id: "task_seo_software_app_faq_dataset_graph",
+    title: "Architect Schema.org Dataset, WebSite Sitelinks SearchAction & FAQPage Multi-Entity JSON-LD Validator with sameAs Graph",
+    category: "seo-structured-data",
+    difficulty: "advanced",
+    tags: ["seo", "schema-org", "json-ld", "dataset-schema", "search-action", "faq-page", "knowledge-graph"],
+    instructions:
+      "An open benchmark portal publishes benchmark datasets and technical FAQs without Schema.org Dataset distribution metadata (DataDownload, encodingFormat, license), WebSite potentialAction (SearchAction with EntryPoint urlTemplate), or Organization sameAs authority links. Build a TypeScript Schema.org Dataset + SearchAction + FAQPage @graph generator with strict entity validation.",
+    starterCode: `// Incomplete Unlinked Dataset JSON-LD Missing DataDownload, license & SearchAction
+export function buildPortalSchema(portal: any) {
+  return { "@type": "Dataset", name: portal.name };
+}`,
+    solutionCode: `// Schema.org Dataset, WebSite SearchAction & FAQPage Connected @graph Builder
+export interface BenchmarkPortalSchemaSpec {
+  readonly origin: string;
+  readonly orgName: string;
+  readonly sameAsUrls: readonly string[];
+  readonly searchUrlTemplate: \`\${string}{search_term_string}\${string}\`;
+  readonly dataset: {
+    readonly name: string;
+    readonly description: string;
+    readonly licenseUrl: string;
+    readonly downloadUrl: string;
+    readonly encodingFormat: "application/json" | "text/csv" | "application/parquet";
+  };
+  readonly faqs: readonly { readonly question: string; readonly answerHtml: string }[];
+}
+
+export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec) {
+  if (spec.dataset.description.trim().length < 25) {
+    throw new Error("Schema.org Dataset description must be at least 25 characters");
+  }
+  if (!spec.searchUrlTemplate.includes("{search_term_string}")) {
+    throw new Error("SearchAction target urlTemplate must include {search_term_string}");
+  }
+
+  const base = spec.origin.replace(/\\/+$/, "");
+  const orgId = \`\${base}/#organization\`;
+  const websiteId = \`\${base}/#website\`;
+  const datasetId = \`\${base}/#dataset\`;
+  const faqId = \`\${base}/#faq\`;
+
+  const graph = [
+    {
+      "@type": "Organization",
+      "@id": orgId,
+      name: spec.orgName,
+      url: base,
+      sameAs: [...spec.sameAsUrls],
+    },
+    {
+      "@type": "WebSite",
+      "@id": websiteId,
+      url: base,
+      publisher: { "@id": orgId },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: spec.searchUrlTemplate,
+        },
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "Dataset",
+      "@id": datasetId,
+      name: spec.dataset.name,
+      description: spec.dataset.description,
+      license: spec.dataset.licenseUrl,
+      creator: { "@id": orgId },
+      isAccessibleForFree: true,
+      distribution: [
+        {
+          "@type": "DataDownload",
+          encodingFormat: spec.dataset.encodingFormat,
+          contentUrl: spec.dataset.downloadUrl,
+        },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      "@id": faqId,
+      isPartOf: { "@id": websiteId },
+      mainEntity: spec.faqs.map((f) => ({
+        "@type": "Question",
+        name: f.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: f.answerHtml,
+        },
+      })),
+    },
+  ];
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": graph,
+  };
+}`,
+    criteria: [
+      "Emits a Schema.org Dataset node with license, creator @id link, and DataDownload distribution (encodingFormat + contentUrl)",
+      "Configures WebSite potentialAction with a SearchAction EntryPoint urlTemplate and query-input binding",
+      "Links Organization sameAs authority URLs and FAQPage Question/AcceptedAnswer entities inside a single @graph",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({
