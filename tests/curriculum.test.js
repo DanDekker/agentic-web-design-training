@@ -398,6 +398,25 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies Deep Web Cookies, Client Storage Data & HTTP Traffic tasks (RFC 6265bis/CHIPS/DBSC, IndexedDB/Web Locks/Quota/Outbox, RFC 9111/Singleflight/RateLimit/traceparent)", async () => {
+    for (const cat of ["web-cookies", "web-storage-data", "web-traffic"]) {
+      const tasksRes = await call("GET", `/api/curriculum/tasks?category=${cat}`);
+      const { tasks: catTasks } = await tasksRes.json();
+      expect(catTasks.length).toBe(4);
+
+      for (const task of catTasks) {
+        const verifyRes = await call("POST", "/api/curriculum/verify", {
+          taskId: task.id,
+          code: task.solutionCode,
+        });
+        expect(verifyRes.status).toBe(200);
+        const body = await verifyRes.json();
+        expect(body.success).toBe(true);
+        expect(body.score).toBe(100);
+      }
+    }
+  });
+
   test("exposes TypeScript framework ecosystem catalog, migration matrix, and package manager specs via API", async () => {
     const res = await call("GET", "/api/curriculum/ecosystem");
     expect(res.status).toBe(200);
@@ -411,9 +430,9 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(82);
-    expect(CURRICULUM_CATEGORIES.length).toBe(21);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(9);
+    expect(validation.totalTasks).toBe(94);
+    expect(CURRICULUM_CATEGORIES.length).toBe(24);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(10);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });

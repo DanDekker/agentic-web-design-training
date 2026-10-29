@@ -313,9 +313,33 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
+  test("evaluates Deep Web Cookies, Client Storage Data & HTTP Traffic tasks in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_cookie_rfc6265bis_host_prefix_chips_serializer",
+      "task_cookie_key_ring_hmac_rotation_anti_downgrade",
+      "task_cookie_dbsc_device_bound_session_credentials_refresh",
+      "task_cookie_privacy_consent_gcm_partitioned_sync",
+      "task_webdata_indexeddb_schema_migration_cursor_index",
+      "task_webdata_cross_tab_broadcast_web_locks_leader",
+      "task_webdata_quota_eviction_opfs_tiered_cache",
+      "task_webdata_offline_mutation_outbox_etag_reconciler",
+      "task_traffic_rfc9111_http_cache_swr_vary_etag",
+      "task_traffic_edge_request_coalescing_singleflight_stampede",
+      "task_traffic_ietf_ratelimit_token_bucket_sliding_window",
+      "task_traffic_w3c_traceparent_server_timing_rfc9218_priority",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(82);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(94);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
