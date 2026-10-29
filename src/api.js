@@ -514,6 +514,18 @@ const benchmarkSuite = new BenchmarkSuite();
           const hasRotation = cleanSubmitted.includes("familyId") && cleanSubmitted.includes("used") && cleanSubmitted.includes("revokeFamily");
           if (hasRotation) passedCriteria.push("Rotates one-time refresh tokens and revokes entire family on token reuse");
           else failedCriteria.push("Missing refresh token family tracking or reuse revocation");
+        } else if (taskId === "task_fingerprint_entropy_normalizer") {
+          const hasFp = cleanSubmitted.includes("SwiftShader") && cleanSubmitted.includes("webdriver") && cleanSubmitted.includes("platform");
+          if (hasFp) passedCriteria.push("Normalizes multi-surface fingerprint entropy and detects cross-layer spoofing");
+          else failedCriteria.push("Missing cross-layer anomaly checks (SwiftShader, webdriver, platform)");
+        } else if (taskId === "task_fingerprint_tls_ja4_http2") {
+          const hasJa4 = (cleanSubmitted.includes("0x0a0a") || cleanSubmitted.includes("isTlsGreaseValue")) && cleanSubmitted.includes(":method,:authority,:scheme,:path");
+          if (hasJa4) passedCriteria.push("Strips RFC 8701 GREASE values and correlates JA4 TLS with HTTP/2 framing");
+          else failedCriteria.push("Missing GREASE filtering or HTTP/2 pseudo-header order check");
+        } else if (taskId === "task_fingerprint_privacy_budget_defense") {
+          const hasBudget = cleanSubmitted.includes("maxBudgetBits") && cleanSubmitted.includes("farbleCanvasPixels");
+          if (hasBudget) passedCriteria.push("Enforces per-origin entropy budget and deterministic canvas farbling");
+          else failedCriteria.push("Missing per-origin entropy budget or deterministic pixel farbling");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");

@@ -267,6 +267,39 @@ export class Evaluator {
         passed: code.includes("revokeFamily") || (code.includes("revoked") && code.includes("familyId")),
         detail: "Revokes the entire token family immediately when a rotated token is replayed",
       });
+    } else if (id === "task_fingerprint_entropy_normalizer") {
+      results.push({
+        name: "Multi-Surface Deterministic Digest",
+        passed: (code.includes("0x811c9dc5") || code.includes("Math.imul") || code.includes("hash")) && code.includes("webgl"),
+        detail: "Hashes normalized Canvas, WebGL, Audio, and hardware signals into a deterministic ID",
+      });
+      results.push({
+        name: "Cross-Layer Spoofing Anomaly Checks",
+        passed: code.includes("SwiftShader") && code.includes("webdriver") && code.includes("platform"),
+        detail: "Detects UA/platform contradictions, software WebGL renderers, and webdriver flags",
+      });
+    } else if (id === "task_fingerprint_tls_ja4_http2") {
+      results.push({
+        name: "RFC 8701 TLS GREASE Filtering",
+        passed: code.includes("0x0a0a") || code.includes("0x0f0f") || code.includes("isTlsGreaseValue"),
+        detail: "Strips GREASE values before computing TLS ClientHello signature",
+      });
+      results.push({
+        name: "JA4 & HTTP/2 Pseudo-Header Correlation",
+        passed: code.includes(":method,:authority,:scheme,:path") && code.includes("ja4"),
+        detail: "Correlates JA4 TLS signature and HTTP/2 pseudo-header order against claimed User-Agent",
+      });
+    } else if (id === "task_fingerprint_privacy_budget_defense") {
+      results.push({
+        name: "Per-Origin Entropy Budget Enforcement",
+        passed: code.includes("maxBudgetBits") && code.includes("PrivacyBudgetExceededError"),
+        detail: "Tracks cumulative entropy cost per origin and blocks reads past maxBudgetBits",
+      });
+      results.push({
+        name: "Session+Origin Keyed Deterministic Farbling",
+        passed: code.includes("farbleCanvasPixels") || (code.includes("Uint8Array") && code.includes("^")),
+        detail: "Applies deterministic per-origin LSB perturbation to break cross-site fingerprint linking",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -595,6 +628,116 @@ export class Evaluator {
         name: "Refresh Rotation & Family Breach Revocation",
         passed: Boolean(res?.t2ActiveBefore === true && res?.theftDetected === true && res?.t2ActiveAfterReplay === false),
         detail: "Rotates refresh tokens and revokes active family descendants when a prior token is replayed",
+      });
+    } else if (taskId === "task_fingerprint_entropy_normalizer") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const fn = typeof analyzeBrowserFingerprint === "function" ? analyzeBrowserFingerprint : exports.analyzeBrowserFingerprint;
+          const clean = fn({
+            userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            platform: "MacIntel",
+            webdriver: false,
+            webgl: { vendor: "Apple Inc.", renderer: "Apple M3 Max" },
+            audioSampleSum: 124.8391,
+            canvasGeometry: "c_hash_1",
+            hardwareConcurrency: 12,
+          });
+          const spoofed = fn({
+            userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            platform: "Linux x86_64",
+            webdriver: true,
+            webgl: { vendor: "Google Inc.", renderer: "Google SwiftShader" },
+            audioSampleSum: 124.8391,
+            canvasGeometry: "c_hash_1",
+            hardwareConcurrency: 4,
+          });
+          return {
+            cleanOk: !clean.isBotSuspected && clean.fingerprintId.startsWith("fp_"),
+            spoofCaught: spoofed.isBotSuspected && spoofed.anomalies.length >= 2,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Entropy Hashing & Spoofed Signal Detection",
+        passed: Boolean(res?.cleanOk && res?.spoofCaught),
+        detail: "Passes consistent browser profiles and flags Linux/SwiftShader/webdriver spoofing",
+      });
+    } else if (taskId === "task_fingerprint_tls_ja4_http2") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const fn = typeof correlateNetworkFingerprint === "function" ? correlateNetworkFingerprint : exports.correlateNetworkFingerprint;
+          const legitChrome = fn({
+            userAgent: "Mozilla/5.0 Chrome/128.0.0.0 Safari/537.36",
+            tls: {
+              version: 0x0304,
+              sni: "example.com",
+              alpn: "h2",
+              ciphers: [0x0a0a, 0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f],
+              extensions: [0x2a2a, 0x0000, 0x0010, 0x0017, 0x000d],
+            },
+            http2: {
+              pseudoHeaders: [":method", ":authority", ":scheme", ":path"],
+            },
+          });
+          const spoofedBot = fn({
+            userAgent: "Mozilla/5.0 Chrome/128.0.0.0 Safari/537.36",
+            tls: {
+              version: 0x0304,
+              sni: "example.com",
+              alpn: "h2",
+              ciphers: [0x1301, 0x1302, 0x1303, 0xc02b, 0xc02f],
+              extensions: [0x0017, 0x000d],
+            },
+            http2: {
+              pseudoHeaders: [":method", ":path", ":authority", ":scheme"], // Non-Chrome order!
+            },
+          });
+          return {
+            greaseStripped: legitChrome.cleanCipherCount === 5 && !legitChrome.ja4.includes("0a0a"),
+            legitPass: !legitChrome.impersonated,
+            botFlagged: spoofedBot.impersonated,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "JA4 GREASE Stripping & HTTP/2 Order Correlation",
+        passed: Boolean(res?.greaseStripped && res?.legitPass && res?.botFlagged),
+        detail: "Strips 0x0a0a/0x2a2a GREASE values and catches non-Chrome HTTP/2 pseudo-header order",
+      });
+    } else if (taskId === "task_fingerprint_privacy_budget_defense") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Guard = typeof PrivacyBudgetGuard === "function" ? PrivacyBudgetGuard : exports.PrivacyBudgetGuard;
+          const guard = new Guard({ sessionSecret: "sec_99", maxBudgetBits: 30 });
+          const raw = new Uint8Array([100, 150, 200, 255, 50, 60, 70, 255]);
+          const fA = guard.farbleCanvasPixels("https://tracker-a.example", raw);
+          const fB = guard.farbleCanvasPixels("https://tracker-b.example", raw);
+
+          // Same origin in a new guard with same sessionSecret must be deterministic
+          const guard2 = new Guard({ sessionSecret: "sec_99", maxBudgetBits: 30 });
+          const fA2 = guard2.farbleCanvasPixels("https://tracker-a.example", raw);
+          const deterministicSameOrigin = fA.every((v, i) => v === fA2[i]);
+
+          let budgetBlocked = false;
+          try {
+            // Second canvas read on tracker-a (18 + 18 = 36 > 30 bits) must throw!
+            guard.farbleCanvasPixels("https://tracker-a.example", raw);
+          } catch {
+            budgetBlocked = true;
+          }
+          return { deterministicSameOrigin, budgetBlocked, validLength: fB.length === 8 };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Deterministic Farbling & Privacy Budget Enforcement",
+        passed: Boolean(res?.deterministicSameOrigin && res?.budgetBlocked && res?.validLength),
+        detail: "Applies deterministic per-origin pixel farbling and blocks reads exceeding privacy budget",
       });
     } else {
       // General syntax evaluation

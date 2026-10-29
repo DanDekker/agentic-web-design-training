@@ -921,4 +921,230 @@ export class RefreshTokenRotationStore {
       "Immediately revokes all descendant and sibling tokens in the compromised familyId upon reuse",
     ],
   },
+  {
+    id: "task_fingerprint_entropy_normalizer",
+    title: "Multi-Surface Browser Fingerprint Entropy Aggregator & Spoofing Detector",
+    category: "web-fingerprinting",
+    difficulty: "advanced",
+    tags: ["web-fingerprinting", "canvas", "webgl", "audio-context", "anti-bot", "entropy"],
+    instructions:
+      "A naive bot filter only checks navigator.userAgent.includes('Headless'), which is trivially bypassed by spoofing the User-Agent string. Refactor into a multi-surface browser fingerprint analyzer that computes a deterministic FNV-1a hash across normalized Canvas, WebGL renderer/vendor, AudioContext dynamics, and hardware signals while detecting cross-layer spoofing anomalies (UA vs navigator.platform mismatch, SwiftShader/llvmpipe software renderers on claimed Apple/NVIDIA hardware, and webdriver artifacts).",
+    starterCode: `// Naive User-Agent Substring Check (Trivially Bypassed)
+function checkBrowserClient(signals) {
+  if (signals.userAgent.includes("HeadlessChrome")) {
+    return { isBotSuspected: true };
+  }
+  return { isBotSuspected: false, fingerprintId: signals.userAgent };
+}`,
+    solutionCode: `// Multi-Surface Browser Fingerprint Normalizer & Cross-Layer Anomaly Detector
+function fnv1aHex(str) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+export function analyzeBrowserFingerprint(signals) {
+  const anomalies = [];
+  const ua = String(signals?.userAgent || "");
+  const platform = String(signals?.platform || "");
+  const webglRenderer = String(signals?.webgl?.renderer || "");
+  const webglVendor = String(signals?.webgl?.vendor || "");
+  const audioSampleSum = Number(signals?.audioSampleSum || 0).toFixed(4);
+  const canvasHash = String(signals?.canvasGeometry || "empty");
+  const cores = Number(signals?.hardwareConcurrency ?? 0);
+
+  if (signals?.webdriver === true) {
+    anomalies.push("navigator.webdriver flag is true");
+  }
+
+  const claimsMac = /Macintosh|Mac OS X/i.test(ua);
+  const claimsWindows = /Windows NT/i.test(ua);
+  if (claimsMac && /Linux|Win/i.test(platform)) {
+    anomalies.push("UA claims macOS but navigator.platform is " + platform);
+  }
+  if (claimsWindows && /Linux|MacIntel/i.test(platform)) {
+    anomalies.push("UA claims Windows but navigator.platform is " + platform);
+  }
+
+  if (/SwiftShader|llvmpipe|Subzero/i.test(webglRenderer)) {
+    anomalies.push("Software WebGL rasterizer detected (" + webglRenderer + ")");
+  }
+  if (claimsMac && /NVIDIA|Direct3D/i.test(webglRenderer)) {
+    anomalies.push("Improbable WebGL renderer for modern macOS client");
+  }
+  if (cores <= 0 || cores > 256) {
+    anomalies.push("Implausible hardwareConcurrency value: " + cores);
+  }
+
+  const canonicalFeatures = [
+    platform.trim().toLowerCase(),
+    webglVendor.trim().toLowerCase(),
+    webglRenderer.trim().toLowerCase(),
+    canvasHash,
+    audioSampleSum,
+    String(cores),
+    String(signals?.colorDepth || 24),
+    String(signals?.timezone || "UTC"),
+  ].join("|");
+
+  const fingerprintId = "fp_" + fnv1aHex(canonicalFeatures);
+  return {
+    fingerprintId,
+    anomalies,
+    isBotSuspected: anomalies.length > 0,
+    entropySurfaceCount: 8,
+  };
+}`,
+    criteria: [
+      "Computes a deterministic FNV-1a or cryptographic digest across normalized Canvas, WebGL, Audio, and platform signals",
+      "Detects cross-layer OS/platform contradictions (e.g. macOS User-Agent on Linux navigator.platform)",
+      "Flags headless software WebGL rasterizers (SwiftShader/llvmpipe) and webdriver automation signals",
+    ],
+  },
+  {
+    id: "task_fingerprint_tls_ja4_http2",
+    title: "JA4+ TLS ClientHello & HTTP/2 SETTINGS Frame Fingerprint Correlator",
+    category: "web-fingerprinting",
+    difficulty: "advanced",
+    tags: ["web-fingerprinting", "tls", "ja4", "http2", "grease", "network-security"],
+    instructions:
+      "HTTP scraper scripts spoof Chrome User-Agent headers while using default Go/Python/curl TLS and HTTP/2 stacks. Refactor the network inspector to strip RFC 8701 TLS GREASE values (0x?a?a), compute a canonical JA4-style TLS ClientHello signature, inspect HTTP/2 pseudo-header ordering (:method, :authority, :scheme, :path), and flag transport-layer impersonation.",
+    starterCode: `// Naive Header Check Ignoring TLS ClientHello & HTTP/2 Framing
+function inspectConnection(packet) {
+  const isChrome = packet.userAgent.includes("Chrome/");
+  return { clientType: isChrome ? "browser" : "script", impersonated: false };
+}`,
+    solutionCode: `// RFC 8701 GREASE Filter + JA4 TLS ClientHello + HTTP/2 Pseudo-Header Correlator
+export function isTlsGreaseValue(val) {
+  return (val & 0x0f0f) === 0x0a0a && ((val >> 12) & 0x0f) === ((val >> 4) & 0x0f);
+}
+
+export function correlateNetworkFingerprint(packet) {
+  const ciphers = (packet?.tls?.ciphers || []).filter((c) => !isTlsGreaseValue(c));
+  const extensions = (packet?.tls?.extensions || []).filter((e) => !isTlsGreaseValue(e));
+  const tlsVersion = packet?.tls?.version === 0x0304 ? "13" : "12";
+  const sniMode = packet?.tls?.sni ? "d" : "i";
+  const alpn = (packet?.tls?.alpn || "00").slice(0, 2);
+
+  const sortedCiphers = [...ciphers].map((c) => c.toString(16).padStart(4, "0")).sort().join(",");
+  const sortedExts = [...extensions]
+    .filter((e) => e !== 0x0000 && e !== 0x0010) // Exclude SNI & ALPN per JA4 spec
+    .map((e) => e.toString(16).padStart(4, "0"))
+    .sort()
+    .join(",");
+
+  const prefix = \`t\${tlsVersion}\${sniMode}\${String(ciphers.length).padStart(2, "0")}\${String(extensions.length).padStart(2, "0")}\${alpn}\`;
+  const ja4 = \`\${prefix}_\${sortedCiphers}_\${sortedExts}\`;
+
+  const h2Order = (packet?.http2?.pseudoHeaders || []).join(",");
+  const chromeH2Order = ":method,:authority,:scheme,:path";
+  const claimsChrome = /Chrome\\/\\d+/i.test(packet?.userAgent || "");
+
+  const reasons = [];
+  if (claimsChrome && h2Order && h2Order !== chromeH2Order) {
+    reasons.push(\`Chrome UA mismatch with HTTP/2 pseudo-header order (\${h2Order})\`);
+  }
+  if (claimsChrome && ciphers.length < 5) {
+    reasons.push("Chrome UA mismatch with abnormally small TLS cipher suite list");
+  }
+
+  return {
+    ja4,
+    cleanCipherCount: ciphers.length,
+    cleanExtensionCount: extensions.length,
+    h2PseudoHeaderOrder: h2Order,
+    impersonated: reasons.length > 0,
+    reasons,
+  };
+}`,
+    criteria: [
+      "Filters RFC 8701 TLS GREASE values (0x0a0a..0xfafa) from cipher suites and extensions",
+      "Constructs a canonical JA4-style TLS ClientHello fingerprint with sorted cipher and extension hex codes",
+      "Correlates claimed browser User-Agent against HTTP/2 pseudo-header ordering (:method,:authority,:scheme,:path)",
+    ],
+  },
+  {
+    id: "task_fingerprint_privacy_budget_defense",
+    title: "Anti-Fingerprinting Privacy Budget & Deterministic Per-Origin Farbling Guard",
+    category: "web-fingerprinting",
+    difficulty: "intermediate",
+    tags: ["web-fingerprinting", "privacy-budget", "farbling", "canvas-defense", "anti-tracking"],
+    instructions:
+      "Cross-origin scripts read raw Canvas pixel buffers and AudioContext samples to compute identical tracking IDs across unrelated websites. Implement a PrivacyBudgetGuard that tracks cumulative entropy bits per eTLD+1 origin, blocks reads once maxBudgetBits is exceeded, and applies deterministic session+origin keyed PRNG micro-noise ('farbling') so each origin observes a distinct, stable fingerprint.",
+    starterCode: `// Unprotected High-Entropy Surface (Allows Cross-Site Identity Linking)
+class BrowserSurfaceProxy {
+  readCanvasPixels(origin, pixels) {
+    // Every origin receives the exact same raw pixel bytes!
+    return new Uint8Array(pixels);
+  }
+}`,
+    solutionCode: `// Per-Origin Privacy Budget Enforcer & Deterministic Keyed Canvas Farbling Guard
+const SURFACE_ENTROPY_BITS = {
+  canvas: 18,
+  webgl: 16,
+  audio: 14,
+  hardware: 8,
+};
+
+function deriveOriginSeed(sessionSecret, origin) {
+  const input = \`\${sessionSecret}::\${String(origin).toLowerCase()}\`;
+  let seed = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    seed ^= input.charCodeAt(i);
+    seed = Math.imul(seed, 0x01000193) >>> 0;
+  }
+  return seed || 0x12345678;
+}
+
+export class PrivacyBudgetGuard {
+  #sessionSecret;
+  #maxBudgetBits;
+  #consumedByOrigin = new Map();
+
+  constructor({ sessionSecret = "session_default_key", maxBudgetBits = 32 } = {}) {
+    this.#sessionSecret = sessionSecret;
+    this.#maxBudgetBits = maxBudgetBits;
+  }
+
+  consumeBudget(origin, surface) {
+    const cost = SURFACE_ENTROPY_BITS[surface] ?? 10;
+    const used = this.#consumedByOrigin.get(origin) || 0;
+    if (used + cost > this.#maxBudgetBits) {
+      throw new Error(\`PrivacyBudgetExceededError: origin \${origin} exhausted \${this.#maxBudgetBits}-bit budget\`);
+    }
+    this.#consumedByOrigin.set(origin, used + cost);
+    return this.#maxBudgetBits - (used + cost);
+  }
+
+  farbleCanvasPixels(origin, rawPixels) {
+    this.consumeBudget(origin, "canvas");
+    const out = new Uint8Array(rawPixels);
+    let prng = deriveOriginSeed(this.#sessionSecret, origin);
+
+    for (let i = 0; i < out.length; i += 4) {
+      // Xorshift32 PRNG step keyed by (sessionSecret, origin)
+      prng ^= prng << 13;
+      prng ^= prng >>> 17;
+      prng ^= prng << 5;
+      prng >>>= 0;
+      // Flip LSB of Red/Green channels deterministically per origin
+      out[i] = out[i] ^ (prng & 1);
+      if (i + 1 < out.length) out[i + 1] = out[i + 1] ^ ((prng >>> 1) & 1);
+    }
+    return out;
+  }
+
+  remainingBudget(origin) {
+    return Math.max(0, this.#maxBudgetBits - (this.#consumedByOrigin.get(origin) || 0));
+  }
+}`,
+    criteria: [
+      "Tracks cumulative entropy bits consumed per origin and throws when maxBudgetBits is exceeded",
+      "Derives a deterministic PRNG seed from (sessionSecret, origin) for per-origin farbling",
+      "Produces identical farbled buffers within the same origin/session while decorrelating hashes across origins",
+    ],
+  },
 ];

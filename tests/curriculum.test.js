@@ -150,4 +150,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
       expect(body.score).toBe(100);
     }
   });
+
+  test("verifies web-fingerprinting curriculum tasks (Entropy Normalizer, JA4/HTTP2, Privacy Budget)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks");
+    const { tasks } = await tasksRes.json();
+    const fpTasks = tasks.filter((t) => t.category === "web-fingerprinting");
+    expect(fpTasks.length).toBeGreaterThanOrEqual(3);
+
+    for (const fpTask of fpTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: fpTask.id,
+        code: fpTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
 });

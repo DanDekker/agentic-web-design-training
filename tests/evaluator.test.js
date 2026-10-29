@@ -136,4 +136,19 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       expect(result.score).toBe(100);
     }
   });
+
+  test("evaluates web-fingerprinting tasks (Entropy Normalizer, JA4+ TLS/HTTP2, Privacy Budget Farbling) in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_fingerprint_entropy_normalizer",
+      "task_fingerprint_tls_ja4_http2",
+      "task_fingerprint_privacy_budget_defense",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
 });
