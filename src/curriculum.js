@@ -51,6 +51,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Web Shop Storefront UI, Account-to-Checkout Flow & Order History Data Architecture",
     categories: ["storefront-ui", "order-lifecycle-data"],
   },
+  "web-cookies-data-traffic": {
+    id: "web-cookies-data-traffic",
+    name: "Deep Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Storage & HTTP Traffic Engineering",
+    categories: ["web-cookies", "web-storage-data", "web-traffic"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -75,6 +80,9 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "payment-processing": "commerce-fintech",
   "storefront-ui": "storefront-order-lifecycle",
   "order-lifecycle-data": "storefront-order-lifecycle",
+  "web-cookies": "web-cookies-data-traffic",
+  "web-storage-data": "web-cookies-data-traffic",
+  "web-traffic": "web-cookies-data-traffic",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -7771,6 +7779,495 @@ export class EventSourcedOrderLifecycleLog {
       "Enforces causal lifecycle state transitions (ACCOUNT_CREATED -> GUEST_CART_MERGED -> CHECKOUT_AUTHORIZED -> ORDER_CAPTURED -> SHIPMENT_DELIVERED -> RMA_RETURN_APPROVED -> ORDER_REFUNDED)",
       "Links every domain event via a tamper-evident prevHash -> eventHash cryptographic chain",
       "Projects netRetainedMinor (capturedMinor - refundedMinor) and guards against over-refunding",
+    ],
+  },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 14: DEEP WEB COOKIES — RFC 6265bis, CHIPS & DBSC (web-cookies)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_cookie_rfc6265bis_host_prefix_chips_serializer",
+    title: "Build RFC 6265bis Set-Cookie Serializer & Auditor Enforcing __Host- / __Secure- Prefixes, CHIPS Partitioned & 400-Day Max-Age Limits",
+    category: "web-cookies",
+    difficulty: "advanced",
+    tags: ["web-cookies", "rfc6265bis", "chips-partitioned", "host-prefix", "samesite", "typescript"],
+    instructions:
+      "Browsers enforce strict RFC 6265bis and CHIPS (Cookies Having Independent Partitioned State) rules: __Host- cookies are silently rejected if they include a Domain attribute, omit Secure, or use a Path other than '/'; SameSite=None cookies are rejected without Secure; Partitioned cookies require Secure and Path=/; and Max-Age values exceeding 400 days (34,560,000 seconds) are clamped. Build a strict Rfc6265bisCookieCodec that validates, clamps, and serializes hardened Set-Cookie headers.",
+    starterCode: `// Unvalidated Set-Cookie String Concatenation Vulnerable to Silent Browser Rejection
+export function makeCookie(name: string, value: string, domain?: string) {
+  return \`\${name}=\${value}; Domain=\${domain}; SameSite=None\`;
+}`,
+    solutionCode: `// RFC 6265bis & CHIPS Partitioned Set-Cookie Validator & Serializer
+export interface CookieSerializeSpec {
+  readonly name: string;
+  readonly value: string;
+  readonly path?: string;
+  readonly domain?: string;
+  readonly maxAgeSec?: number;
+  readonly secure?: boolean;
+  readonly httpOnly?: boolean;
+  readonly sameSite?: "Strict" | "Lax" | "None";
+  readonly partitioned?: boolean;
+}
+
+export const RFC6265BIS_MAX_AGE_CAP_SEC = 400 * 86_400; // 34,560,000s (400 days)
+export const MAX_COOKIE_WIRE_BYTES = 4096;
+
+export function serializeRfc6265bisCookie(spec: CookieSerializeSpec): {
+  readonly header: string;
+  readonly clampedMaxAgeSec: number | null;
+  readonly warnings: readonly string[];
+} {
+  if (!/^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$/.test(spec.name)) {
+    throw new Error(\`InvalidCookieNameError: '\${spec.name}' contains illegal RFC 6265 token characters\`);
+  }
+
+  const isHostPrefix = spec.name.startsWith("__Host-");
+  const isSecurePrefix = spec.name.startsWith("__Secure-");
+  const path = spec.path ?? "/";
+  const warnings: string[] = [];
+
+  if (isHostPrefix) {
+    if (!spec.secure) {
+      throw new Error("__Host- prefix cookie must set Secure=true");
+    }
+    if (spec.domain) {
+      throw new Error("__Host- prefix cookie must not specify a Domain attribute");
+    }
+    if (path !== "/") {
+      throw new Error("__Host- prefix cookie must specify Path=/");
+    }
+  }
+
+  if (isSecurePrefix && !spec.secure) {
+    throw new Error("__Secure- prefix cookie must set Secure=true");
+  }
+
+  const sameSite = spec.sameSite ?? "Lax";
+  if (sameSite === "None" && !spec.secure) {
+    throw new Error("SameSite=None requires the Secure attribute");
+  }
+
+  if (spec.partitioned) {
+    if (!spec.secure) {
+      throw new Error("CHIPS Partitioned cookie requires Secure=true");
+    }
+    if (path !== "/") {
+      throw new Error("CHIPS Partitioned cookie requires Path=/ for top-level site partition key alignment");
+    }
+  }
+
+  let clampedMaxAgeSec: number | null = null;
+  if (spec.maxAgeSec !== undefined) {
+    if (!Number.isFinite(spec.maxAgeSec)) throw new Error("Invalid maxAgeSec");
+    const rounded = Math.floor(spec.maxAgeSec);
+    if (rounded > RFC6265BIS_MAX_AGE_CAP_SEC) {
+      clampedMaxAgeSec = RFC6265BIS_MAX_AGE_CAP_SEC;
+      warnings.push("MAX_AGE_CLAMPED_TO_400_DAYS");
+    } else {
+      clampedMaxAgeSec = rounded;
+    }
+  }
+
+  const encodedVal = encodeURIComponent(spec.value);
+  const parts = [\`\${spec.name}=\${encodedVal}\`];
+  if (spec.domain) parts.push(\`Domain=\${spec.domain.trim().toLowerCase()}\`);
+  parts.push(\`Path=\${path}\`);
+  if (clampedMaxAgeSec !== null) parts.push(\`Max-Age=\${clampedMaxAgeSec}\`);
+  if (spec.httpOnly !== false) parts.push("HttpOnly");
+  if (spec.secure) parts.push("Secure");
+  parts.push(\`SameSite=\${sameSite}\`);
+  if (spec.partitioned) parts.push("Partitioned");
+
+  const header = parts.join("; ");
+  if (header.length > MAX_COOKIE_WIRE_BYTES) {
+    throw new Error(\`CookieOversizeError: Set-Cookie exceeds 4096-byte RFC limit (\${header.length} bytes)\`);
+  }
+
+  return {
+    header,
+    clampedMaxAgeSec,
+    warnings,
+  };
+}`,
+    criteria: [
+      "Enforces __Host- invariants (Secure=true, no Domain attribute, Path=/) and __Secure- / SameSite=None Secure requirements",
+      "Validates CHIPS Partitioned attribute requirements (Secure=true, Path=/) for cross-site partitioned storage",
+      "Clamps Max-Age to the RFC 6265bis 400-day ceiling (34,560,000s) and enforces the 4096-byte Set-Cookie wire limit",
+    ],
+  },
+  {
+    id: "task_cookie_key_ring_hmac_rotation_anti_downgrade",
+    title: "Implement Key-Ring Signed Cookie Jar (kid Rotation) & Subdomain Cookie-Tossing Defense",
+    category: "web-cookies",
+    difficulty: "advanced",
+    tags: ["web-cookies", "key-rotation", "cookie-tossing", "hmac", "session-security", "typescript"],
+    instructions:
+      "When an attacker compromises or controls a sibling subdomain (e.g. promo.example.com), they can inject a Domain=.example.com cookie with the same name as the main app's session cookie. Because the HTTP Cookie request header sends all matching cookies as 'name=val1; name=val2' without Domain or Path metadata, naive parsers pick the attacker's first cookie! Build a KeyRingSignedCookieJar that binds the cookie name + payload + timestamp into a key-ID (kid) tagged signature, scans all duplicate Cookie header candidates to pick the valid signed token, and signals transparent re-signing when verified by a retiring key.",
+    starterCode: `// Vulnerable to Subdomain Cookie Tossing & Single-Key Outages
+export function parseSessionCookie(cookieHeader: string) {
+  const m = cookieHeader.match(/sid=([^;]+)/);
+  return m ? m[1] : null;
+}`,
+    solutionCode: `// Key-Ring Signed Cookie Jar with Subdomain Cookie-Tossing Defense & Zero-Downtime Rotation
+export interface SigningKeyEntry {
+  readonly kid: string;
+  readonly secret: string;
+}
+
+function computeCookieMac(secret: string, cookieName: string, kid: string, payloadB64: string): string {
+  const input = \`\${cookieName}|\${kid}|\${payloadB64}|\${secret}\`;
+  let h1 = 0xdeadbeef ^ input.length;
+  let h2 = 0x41c6ce57 ^ input.length;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return \`\${(h1 >>> 0).toString(16).padStart(8, "0")}\${(h2 >>> 0).toString(16).padStart(8, "0")}\`;
+}
+
+function timingSafeStrEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+export class KeyRingSignedCookieJar {
+  readonly #keys: readonly SigningKeyEntry[];
+
+  constructor(keys: readonly SigningKeyEntry[]) {
+    if (keys.length === 0) throw new Error("KeyRing requires at least one active signing key");
+    this.#keys = keys;
+  }
+
+  signCookieValue(cookieName: string, claims: { readonly sub: string; readonly expSec: number }): string {
+    const primary = this.#keys[0];
+    const payloadB64 = btoa(JSON.stringify(claims))
+      .replace(/\\+/g, "-")
+      .replace(/\\//g, "_")
+      .replace(/=+$/, "");
+    const mac = computeCookieMac(primary.secret, cookieName, primary.kid, payloadB64);
+    return \`v1.\${primary.kid}.\${payloadB64}.\${mac}\`;
+  }
+
+  verifyFromCookieHeader(
+    cookieHeader: string,
+    cookieName: string,
+    nowSec: number,
+  ): {
+    readonly valid: boolean;
+    readonly claims: { readonly sub: string; readonly expSec: number } | null;
+    readonly verifiedByKid: string | null;
+    readonly needsKeyRotationReSign: boolean;
+    readonly tossedDuplicatesRejected: number;
+  } {
+    const pairs = cookieHeader.split(";").map((p) => p.trim()).filter(Boolean);
+    const candidates: string[] = [];
+
+    for (const pair of pairs) {
+      const eqIdx = pair.indexOf("=");
+      if (eqIdx === -1) continue;
+      const k = pair.slice(0, eqIdx).trim();
+      const v = pair.slice(eqIdx + 1).trim();
+      if (k === cookieName) candidates.push(v);
+    }
+
+    let tossedDuplicatesRejected = 0;
+    for (const rawVal of candidates) {
+      const segments = rawVal.split(".");
+      if (segments.length !== 4 || segments[0] !== "v1") {
+        tossedDuplicatesRejected++;
+        continue;
+      }
+      const [, kid, payloadB64, providedMac] = segments;
+      const keyEntry = this.#keys.find((k) => k.kid === kid);
+      if (!keyEntry) {
+        tossedDuplicatesRejected++;
+        continue;
+      }
+
+      const expectedMac = computeCookieMac(keyEntry.secret, cookieName, kid, payloadB64);
+      if (!timingSafeStrEq(expectedMac, providedMac)) {
+        tossedDuplicatesRejected++;
+        continue;
+      }
+
+      try {
+        const padded = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+        const claims = JSON.parse(atob(padded));
+        if (typeof claims?.expSec !== "number" || nowSec >= claims.expSec) {
+          tossedDuplicatesRejected++;
+          continue;
+        }
+        return {
+          valid: true,
+          claims,
+          verifiedByKid: kid,
+          needsKeyRotationReSign: kid !== this.#keys[0].kid,
+          tossedDuplicatesRejected,
+        };
+      } catch {
+        tossedDuplicatesRejected++;
+      }
+    }
+
+    return {
+      valid: false,
+      claims: null,
+      verifiedByKid: null,
+      needsKeyRotationReSign: false,
+      tossedDuplicatesRejected,
+    };
+  }
+}`,
+    criteria: [
+      "Binds cookieName, kid, and base64url claims into the HMAC signature to prevent cross-cookie substitution",
+      "Iterates through all duplicate same-name cookies in the Cookie header to defeat subdomain cookie-tossing attacks",
+      "Supports multi-key rotation ([activeKey, ...retiringKeys]) and sets needsKeyRotationReSign=true when verified by a retiring key",
+    ],
+  },
+  {
+    id: "task_cookie_dbsc_device_bound_session_credentials_refresh",
+    title: "Architect W3C Device Bound Session Credentials (DBSC) Hardware-Backed Short-Lived Cookie Refresh & Clear-Site-Data Revocation",
+    category: "web-cookies",
+    difficulty: "advanced",
+    tags: ["web-cookies", "dbsc", "device-bound-sessions", "clear-site-data", "anti-theft", "typescript"],
+    instructions:
+      "Infostealer malware exfiltrates long-lived session cookies from browser disk stores to hijack accounts from attacker machines. W3C Device Bound Session Credentials (DBSC) defeats cookie theft by pairing a short-lived __Host-dbsc_sid cookie (e.g. 300s TTL) with a TPM/Secure-Enclave public key registered via Sec-Session-Registration. When the short-lived cookie expires, the server issues Sec-Session-Challenge and verifies a signed Sec-Session-Response proof-of-possession before refreshing the cookie. Build a DbscSessionCoordinator.",
+    starterCode: `// Long-Lived Unbound Session Cookie Vulnerable to Malware Exfiltration Replay
+export function issueLongLivedCookie(userId: string) {
+  return \`__Host-sid=\${userId}; Max-Age=31536000; Secure; HttpOnly\`;
+}`,
+    solutionCode: `// W3C Device Bound Session Credentials (DBSC) Coordinator & Clear-Site-Data Evictor
+export interface DbscSessionRecord {
+  readonly sessionId: string;
+  readonly userId: string;
+  readonly devicePublicKeyThumbprint: string;
+  activeChallengeNonce: string;
+  cookieExpiresAtSec: number;
+  revoked: boolean;
+}
+
+function computeDbscPopSignature(deviceThumbprint: string, sessionId: string, challengeNonce: string): string {
+  const raw = \`dbsc_pop|\${deviceThumbprint}|\${sessionId}|\${challengeNonce}\`;
+  let h = 2166136261;
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return \`pop_\${(h >>> 0).toString(16).padStart(8, "0")}\`;
+}
+
+export { computeDbscPopSignature };
+
+export class DbscSessionCoordinator {
+  #sessions = new Map<string, DbscSessionRecord>();
+  #nonceCounter = 0;
+
+  registerDeviceSession(params: {
+    readonly sessionId: string;
+    readonly userId: string;
+    readonly devicePublicKeyThumbprint: string;
+    readonly nowSec: number;
+    readonly shortCookieTtlSec?: number;
+  }): {
+    readonly sessionConfigJson: {
+      readonly session_identifier: string;
+      readonly refresh_url: string;
+      readonly credentials: readonly { readonly type: "cookie"; readonly name: "__Host-dbsc_sid"; readonly attributes: string }[];
+    };
+    readonly setCookieHeader: string;
+    readonly secSessionChallengeHeader: string;
+  } {
+    const ttl = params.shortCookieTtlSec ?? 300;
+    const challenge = \`nonce_\${++this.#nonceCounter}_\${params.sessionId}\`;
+
+    this.#sessions.set(params.sessionId, {
+      sessionId: params.sessionId,
+      userId: params.userId,
+      devicePublicKeyThumbprint: params.devicePublicKeyThumbprint,
+      activeChallengeNonce: challenge,
+      cookieExpiresAtSec: params.nowSec + ttl,
+      revoked: false,
+    });
+
+    return {
+      sessionConfigJson: {
+        session_identifier: params.sessionId,
+        refresh_url: "/api/auth/dbsc/refresh",
+        credentials: [
+          {
+            type: "cookie",
+            name: "__Host-dbsc_sid",
+            attributes: "Path=/; Secure; HttpOnly; SameSite=Lax",
+          },
+        ],
+      },
+      setCookieHeader: \`__Host-dbsc_sid=\${params.sessionId}; Max-Age=\${ttl}; Path=/; Secure; HttpOnly; SameSite=Lax\`,
+      secSessionChallengeHeader: \`"\${challenge}";id="\${params.sessionId}"\`,
+    };
+  }
+
+  refreshShortLivedCookie(params: {
+    readonly sessionId: string;
+    readonly secSessionResponseProof: string;
+    readonly providedChallengeNonce: string;
+    readonly nowSec: number;
+    readonly shortCookieTtlSec?: number;
+  }): {
+    readonly refreshed: boolean;
+    readonly status: 200 | 401 | 403;
+    readonly setCookieHeader?: string;
+    readonly nextChallengeHeader?: string;
+    readonly clearSiteDataHeader?: string;
+    readonly reason?: string;
+  } {
+    const sess = this.#sessions.get(params.sessionId);
+    if (!sess || sess.revoked) {
+      return {
+        refreshed: false,
+        status: 401,
+        clearSiteDataHeader: '"cookies", "storage"',
+        reason: "SESSION_REVOKED_OR_UNKNOWN",
+      };
+    }
+
+    if (params.providedChallengeNonce !== sess.activeChallengeNonce) {
+      return {
+        refreshed: false,
+        status: 403,
+        nextChallengeHeader: \`"\${sess.activeChallengeNonce}";id="\${sess.sessionId}"\`,
+        reason: "STALE_DBSC_CHALLENGE_NONCE",
+      };
+    }
+
+    const expectedPop = computeDbscPopSignature(
+      sess.devicePublicKeyThumbprint,
+      sess.sessionId,
+      sess.activeChallengeNonce,
+    );
+    if (params.secSessionResponseProof !== expectedPop) {
+      return {
+        refreshed: false,
+        status: 401,
+        clearSiteDataHeader: '"cookies", "storage"',
+        reason: "INVALID_DEVICE_POP_SIGNATURE",
+      };
+    }
+
+    const ttl = params.shortCookieTtlSec ?? 300;
+    const nextNonce = \`nonce_\${++this.#nonceCounter}_\${sess.sessionId}\`;
+    sess.activeChallengeNonce = nextNonce;
+    sess.cookieExpiresAtSec = params.nowSec + ttl;
+
+    return {
+      refreshed: true,
+      status: 200,
+      setCookieHeader: \`__Host-dbsc_sid=\${sess.sessionId}; Max-Age=\${ttl}; Path=/; Secure; HttpOnly; SameSite=Lax\`,
+      nextChallengeHeader: \`"\${nextNonce}";id="\${sess.sessionId}"\`,
+    };
+  }
+}`,
+    criteria: [
+      "Registers W3C DBSC device sessions with short-lived __Host-dbsc_sid cookies and Sec-Session-Challenge headers",
+      "Verifies hardware proof-of-possession (secSessionResponseProof) against the active challenge nonce before rotating the short-lived cookie",
+      "Emits Clear-Site-Data: \"cookies\", \"storage\" when a session is revoked or fails hardware key proof verification",
+    ],
+  },
+  {
+    id: "task_cookie_privacy_consent_gcm_partitioned_sync",
+    title: "Build Granular Cookie Consent & Retention Gatekeeper with Automatic Unconsented Cookie Eviction Headers",
+    category: "web-cookies",
+    difficulty: "advanced",
+    tags: ["web-cookies", "privacy-consent", "gdpr-eprivacy", "cookie-eviction", "compliance", "typescript"],
+    instructions:
+      "Web applications must classify cookies by purpose (strictly_necessary, functional, analytics, marketing), block non-essential Set-Cookie headers when consent is absent, and immediately emit Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT eviction headers for any existing cookies belonging to a category the user revokes. Build a CookieConsentPolicyGatekeeper.",
+    starterCode: `// Unconditional Cookie Setter Ignoring User Consent Revocation
+export function setTrackingCookies(cookies: string[]) {
+  return cookies;
+}`,
+    solutionCode: `// Granular Cookie Consent & Retention Gatekeeper with Automatic Revocation Eviction
+export type CookieCategory = "strictly_necessary" | "functional" | "analytics" | "marketing";
+
+export interfaceRegisteredCookiePolicy {
+  readonly namePattern: RegExp;
+  readonly category: CookieCategory;
+  readonly path: string;
+}
+
+export interface ConsentPreferences {
+  readonly functional: boolean;
+  readonly analytics: boolean;
+  readonly marketing: boolean;
+}
+
+export class CookieConsentPolicyGatekeeper {
+  readonly #policies: readonly { readonly name: string; readonly category: CookieCategory; readonly path: string }[];
+
+  constructor(policies: readonly { readonly name: string; readonly category: CookieCategory; readonly path?: string }[]) {
+    this.#policies = policies.map((p) => ({ name: p.name, category: p.category, path: p.path ?? "/" }));
+  }
+
+  isCategoryAllowed(category: CookieCategory, prefs: ConsentPreferences): boolean {
+    if (category === "strictly_necessary") return true;
+    return Boolean(prefs[category]);
+  }
+
+  reconcileCookies(params: {
+    readonly existingBrowserCookieNames: readonly string[];
+    readonly outgoingCandidateCookies: readonly { readonly name: string; readonly value: string; readonly maxAgeSec: number }[];
+    readonly consent: ConsentPreferences;
+  }): {
+    readonly allowedSetCookieHeaders: readonly string[];
+    readonly blockedCookieNames: readonly string[];
+    readonly evictionSetCookieHeaders: readonly string[];
+  } {
+    const allowedSetCookieHeaders: string[] = [];
+    const blockedCookieNames: string[] = [];
+    const evictionSetCookieHeaders: string[] = [];
+
+    // 1. Filter outgoing candidate Set-Cookie writes
+    for (const candidate of params.outgoingCandidateCookies) {
+      const policy = this.#policies.find((p) => p.name === candidate.name);
+      const category = policy?.category ?? "marketing"; // fail-closed for unclassified cookies
+
+      if (this.isCategoryAllowed(category, params.consent)) {
+        allowedSetCookieHeaders.push(
+          \`\${candidate.name}=\${encodeURIComponent(candidate.value)}; Max-Age=\${candidate.maxAgeSec}; Path=\${policy?.path ?? "/"}; Secure; SameSite=Lax\`,
+        );
+      } else {
+        blockedCookieNames.push(candidate.name);
+      }
+    }
+
+    // 2. Generate immediate eviction headers for existing browser cookies whose category is now disallowed
+    for (const existingName of params.existingBrowserCookieNames) {
+      const policy = this.#policies.find((p) => p.name === existingName);
+      const category = policy?.category ?? "marketing";
+      if (!this.isCategoryAllowed(category, params.consent)) {
+        evictionSetCookieHeaders.push(
+          \`\${existingName}=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=\${policy?.path ?? "/"}; Secure; SameSite=Lax\`,
+        );
+      }
+    }
+
+    return {
+      allowedSetCookieHeaders,
+      blockedCookieNames,
+      evictionSetCookieHeaders,
+    };
+  }
+}`,
+    criteria: [
+      "Always permits strictly_necessary cookies while gating functional, analytics, and marketing cookies on explicit user consent",
+      "Fails closed by treating unclassified cookies as marketing and blocking unconsented Set-Cookie writes",
+      "Generates immediate Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT eviction headers for existing cookies when consent is revoked",
     ],
   },
 ];

@@ -1248,6 +1248,73 @@ export class Evaluator {
           code.includes("FinancialInvariantError"),
         detail: "Folds domain events into current state and blocks refunds exceeding captured funds",
       });
+    } else if (id === "task_cookie_rfc6265bis_host_prefix_chips_serializer") {
+      results.push({
+        name: "__Host- / __Secure- Prefix & SameSite=None Invariant Enforcement",
+        passed:
+          code.includes("__Host-") &&
+          code.includes("__Secure-") &&
+          code.includes("SameSite=None"),
+        detail: "Enforces __Host- (Secure, Path=/, no Domain) and SameSite=None Secure invariants",
+      });
+      results.push({
+        name: "CHIPS Partitioned Attribute & RFC 6265bis 400-Day Max-Age Cap",
+        passed:
+          code.includes("Partitioned") &&
+          code.includes("MAX_AGE_CLAMPED_TO_400_DAYS") &&
+          code.includes("4096"),
+        detail: "Validates CHIPS Partitioned cookies, clamps Max-Age to 400 days, and enforces 4096-byte cap",
+      });
+    } else if (id === "task_cookie_key_ring_hmac_rotation_anti_downgrade") {
+      results.push({
+        name: "Key-Ring (kid) HMAC Cookie Signing & Retiring Key Detection",
+        passed:
+          code.includes("signCookieValue") &&
+          code.includes("needsKeyRotationReSign") &&
+          code.includes("verifiedByKid"),
+        detail: "Verifies cookies across active and retiring keys and flags needsKeyRotationReSign",
+      });
+      results.push({
+        name: "Subdomain Cookie-Tossing Duplicate Candidate Filtering",
+        passed:
+          code.includes("tossedDuplicatesRejected") &&
+          code.includes("timingSafeStrEq"),
+        detail: "Scans all duplicate same-name cookies in Cookie header to reject subdomain-tossed forgeries",
+      });
+    } else if (id === "task_cookie_dbsc_device_bound_session_credentials_refresh") {
+      results.push({
+        name: "W3C DBSC Session Registration & Sec-Session-Challenge Nonce Handshake",
+        passed:
+          code.includes("__Host-dbsc_sid") &&
+          code.includes("secSessionChallengeHeader") &&
+          code.includes("registerDeviceSession"),
+        detail: "Issues short-lived __Host-dbsc_sid cookies bound to hardware key thumbprints",
+      });
+      results.push({
+        name: "Hardware Proof-of-Possession Verification & Clear-Site-Data Eviction",
+        passed:
+          code.includes("secSessionResponseProof") &&
+          code.includes("clearSiteDataHeader") &&
+          code.includes('"cookies", "storage"'),
+        detail: "Verifies DBSC PoP signatures on refresh and emits Clear-Site-Data on revocation/mismatch",
+      });
+    } else if (id === "task_cookie_privacy_consent_gcm_partitioned_sync") {
+      results.push({
+        name: "Purpose-Scoped Cookie Classification & Fail-Closed Consent Gate",
+        passed:
+          code.includes("strictly_necessary") &&
+          code.includes("allowedSetCookieHeaders") &&
+          code.includes("blockedCookieNames"),
+        detail: "Permits strictly_necessary cookies while gating functional, analytics, and marketing cookies",
+      });
+      results.push({
+        name: "Immediate Revocation Eviction Headers (Max-Age=0; 1970 Expires)",
+        passed:
+          code.includes("evictionSetCookieHeaders") &&
+          code.includes("Max-Age=0") &&
+          code.includes("1970"),
+        detail: "Emits immediate Max-Age=0 eviction headers for existing cookies when consent is withdrawn",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -1287,6 +1354,7 @@ export class Evaluator {
       task?.track === "semantic-web-seo" ||
       task?.track === "commerce-fintech" ||
       task?.track === "storefront-order-lifecycle" ||
+      task?.track === "web-cookies-data-traffic" ||
       /\b(interface|type\s+[A-Za-z0-9_]+\s*=|readonly\s+|:\s*(string|number|boolean|unknown|any|Record|Promise|Readonly))\b/.test(code)
     ) {
       const transpiler = new Bun.Transpiler({ loader: "tsx", target: "bun" });
@@ -4500,6 +4568,183 @@ export class Evaluator {
         name: "Event-Sourced Lifecycle Causal Guard & Hash-Chained Projection",
         passed: Boolean(res?.causalAndProjectedOk),
         detail: "Blocks out-of-order lifecycle transitions and projects netRetainedMinor ($100.00) over hash chain",
+      });
+    } else if (taskId === "task_cookie_rfc6265bis_host_prefix_chips_serializer") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const serialize = typeof serializeRfc6265bisCookie === "function"
+            ? serializeRfc6265bisCookie
+            : exports.serializeRfc6265bisCookie;
+
+          // 1. Valid __Host- + CHIPS Partitioned cookie with >400d Max-Age clamped
+          const valid = serialize({
+            name: "__Host-loom_sess",
+            value: "tok_123",
+            path: "/",
+            secure: true,
+            httpOnly: true,
+            sameSite: "None",
+            partitioned: true,
+            maxAgeSec: 999_999_999,
+          });
+
+          // 2. Reject __Host- with Domain
+          let hostDomainRejected = false;
+          try {
+            serialize({
+              name: "__Host-bad",
+              value: "1",
+              domain: "example.com",
+              path: "/",
+              secure: true,
+            });
+          } catch {
+            hostDomainRejected = true;
+          }
+
+          return {
+            hostChipsAndClampOk:
+              valid.header.includes("__Host-loom_sess=tok_123") &&
+              valid.header.includes("Partitioned") &&
+              valid.clampedMaxAgeSec === 34560000 &&
+              valid.warnings.includes("MAX_AGE_CLAMPED_TO_400_DAYS") &&
+              hostDomainRejected === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "RFC 6265bis __Host- Validation, CHIPS Partitioned & 400-Day Clamp",
+        passed: Boolean(res?.hostChipsAndClampOk),
+        detail: "Rejects Domain on __Host- cookies, serializes Partitioned, and clamps Max-Age to 34,560,000s",
+      });
+    } else if (taskId === "task_cookie_key_ring_hmac_rotation_anti_downgrade") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Jar = typeof KeyRingSignedCookieJar === "function"
+            ? KeyRingSignedCookieJar
+            : exports.KeyRingSignedCookieJar;
+
+          const oldJar = new Jar([{ kid: "k_2025", secret: "sec_old_2025" }]);
+          const tokenSignedWithOldKey = oldJar.signCookieValue("__Host-sid", { sub: "usr_pp", expSec: 2000 });
+
+          // Rotate keyring: k_2026 is now primary, k_2025 is retiring
+          const rotatedJar = new Jar([
+            { kid: "k_2026", secret: "sec_new_2026" },
+            { kid: "k_2025", secret: "sec_old_2025" },
+          ]);
+
+          // Simulate subdomain cookie-tossing attack: attacker injects forged __Host-sid first!
+          const cookieHeader = "__Host-sid=v1.k_2026.forged.deadbeef; __Host-sid=" + tokenSignedWithOldKey;
+          const verified = rotatedJar.verifyFromCookieHeader(cookieHeader, "__Host-sid", 1500);
+
+          return {
+            antiTossingAndRotationOk:
+              verified.valid === true &&
+              verified.claims?.sub === "usr_pp" &&
+              verified.verifiedByKid === "k_2025" &&
+              verified.needsKeyRotationReSign === true &&
+              verified.tossedDuplicatesRejected === 1,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Subdomain Cookie-Tossing Defense & Key-Ring Rotation Verification",
+        passed: Boolean(res?.antiTossingAndRotationOk),
+        detail: "Skips forged subdomain-tossed duplicate cookie, verifies retiring key k_2025, and flags re-sign",
+      });
+    } else if (taskId === "task_cookie_dbsc_device_bound_session_credentials_refresh") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Coordinator = typeof DbscSessionCoordinator === "function"
+            ? DbscSessionCoordinator
+            : exports.DbscSessionCoordinator;
+          const signPop = typeof computeDbscPopSignature === "function"
+            ? computeDbscPopSignature
+            : exports.computeDbscPopSignature;
+
+          const dbsc = new Coordinator();
+          const reg = dbsc.registerDeviceSession({
+            sessionId: "dbsc_sess_1",
+            userId: "usr_1",
+            devicePublicKeyThumbprint: "tpm_pubkey_sha256_abc",
+            nowSec: 1000,
+          });
+
+          const initialNonce = "nonce_1_dbsc_sess_1";
+          const validProof = signPop("tpm_pubkey_sha256_abc", "dbsc_sess_1", initialNonce);
+          const refreshed = dbsc.refreshShortLivedCookie({
+            sessionId: "dbsc_sess_1",
+            secSessionResponseProof: validProof,
+            providedChallengeNonce: initialNonce,
+            nowSec: 1250,
+          });
+
+          const badProof = dbsc.refreshShortLivedCookie({
+            sessionId: "dbsc_sess_1",
+            secSessionResponseProof: "pop_forged_stolen_cookie",
+            providedChallengeNonce: "nonce_2_dbsc_sess_1",
+            nowSec: 1300,
+          });
+
+          return {
+            dbscRefreshAndEvictOk:
+              reg.setCookieHeader.includes("__Host-dbsc_sid=dbsc_sess_1") &&
+              refreshed.refreshed === true &&
+              refreshed.status === 200 &&
+              badProof.refreshed === false &&
+              badProof.status === 401 &&
+              badProof.clearSiteDataHeader === '"cookies", "storage"',
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "W3C DBSC Proof-of-Possession Cookie Refresh & Clear-Site-Data Eviction",
+        passed: Boolean(res?.dbscRefreshAndEvictOk),
+        detail: "Refreshes short-lived __Host-dbsc_sid on valid hardware PoP and emits Clear-Site-Data on theft attempt",
+      });
+    } else if (taskId === "task_cookie_privacy_consent_gcm_partitioned_sync") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Gatekeeper = typeof CookieConsentPolicyGatekeeper === "function"
+            ? CookieConsentPolicyGatekeeper
+            : exports.CookieConsentPolicyGatekeeper;
+
+          const gk = new Gatekeeper([
+            { name: "__Host-session", category: "strictly_necessary" },
+            { name: "_ga_metrics", category: "analytics" },
+            { name: "_ad_pixel", category: "marketing" },
+          ]);
+
+          const res = gk.reconcileCookies({
+            existingBrowserCookieNames: ["__Host-session", "_ga_metrics", "_ad_pixel"],
+            outgoingCandidateCookies: [
+              { name: "__Host-session", value: "s_1", maxAgeSec: 3600 },
+              { name: "_ad_pixel", value: "p_1", maxAgeSec: 86400 },
+            ],
+            consent: { functional: true, analytics: false, marketing: false },
+          });
+
+          return {
+            consentAndEvictionOk:
+              res.allowedSetCookieHeaders.length === 1 &&
+              res.blockedCookieNames.includes("_ad_pixel") &&
+              res.evictionSetCookieHeaders.length === 2 &&
+              res.evictionSetCookieHeaders.every((h) => h.includes("Max-Age=0")),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Cookie Consent Gatekeeping & Revoked Category Eviction",
+        passed: Boolean(res?.consentAndEvictionOk),
+        detail: "Permits __Host-session, blocks unconsented _ad_pixel, and evicts _ga_metrics and _ad_pixel with Max-Age=0",
       });
     } else {
       // General syntax evaluation
