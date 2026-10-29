@@ -16,8 +16,10 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (52 tasks across 15 categories & 6 tracks)
+  curriculum.js   Agentic Curriculum refactoring challenges (60 tasks across 17 categories & 7 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
+  seo.js          1st-party Schema.org JSON-LD @graph builder & HTML5 / Technical SEO auditor
+  ts_ecosystem.js TypeScript framework catalog, cross-framework migration matrix & package manager registry
   evaluator.js    Isolated execution sandbox with Bun.Transpiler TypeScript support, AST checks, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
   store.js        Multi-board task store, atomic JSON writes, corrupt-file quarantine
@@ -154,6 +156,18 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 51. **Cross-Package-Manager Lockfile Supply-Chain Auditor (`npm`, `pnpm`, `yarn`, `bun`, `deno`)**: Detect `@corp/*` dependency confusion scope leaks, untrusted tarball hosts, weak/missing `sha512-` SRI digests, and unapproved install scripts.
 52. **Content-Addressable Monorepo Task Orchestrator (`Turborepo` / `Nx` / `bun --filter` / `pnpm -r`)**: Concurrent topological wave scheduler with cycle detection, upstream dependency hash propagation, and `CACHE_HIT` artifact replay.
 
+### WHATWG HTML Living Standard Architecture (`html-architecture` — 4 Tasks)
+53. **WHATWG Speculation Rules API (`<script type="speculationrules">`)**: Document-scoped `prerender`/`prefetch` rules with `where.and`/`not` route & selector exclusions (`/logout`, `/api/*`, `[data-no-prerender]`) and `Save-Data` / `slow-2g` suppression.
+54. **SSR Declarative Shadow DOM (`<template shadowrootmode="open">`)**: Streaming SSR Declarative Shadow DOM with `shadowrootdelegatesfocus`, `shadowrootclonable`, named `<slot>` fallbacks, and idempotent `host.shadowRoot` client hydration.
+55. **Native `<dialog closedby="any">`, Popover API, Invoker Commands & `inert`**: Declarative `commandfor` / `command="show-modal"` / `command="close"`, `popover="auto"`, `<search>` landmark, and background `inert` state.
+56. **Hero LCP & CLS `<picture>` Art Direction & `fetchpriority="high"`**: Progressive `image/avif` and `image/webp` `<source>` sets, explicit `width`/`height` dimensions, `loading="eager"`, `fetchpriority="high"`, and `<link rel="preload" as="image" imagesrcset>`.
+
+### Technical SEO, JSON-LD `@graph`, Structured Data & Schema.org (`seo-structured-data` — 4 Tasks)
+57. **Connected Schema.org JSON-LD `@graph` Builder**: Cross-linked `Organization`, `WebSite`, `BreadcrumbList`, `WebPage`, and `TechArticle` entities using stable `@id` URIs (`#organization`, `#website`, `#webpage`, `#article`, `#breadcrumb`) and XSS-safe unicode escaping (`\u003c/script\u003e`).
+58. **Rich-Result Schema.org `Product`, `Offer`, `MerchantReturnPolicy` & `AggregateRating`**: Validates GTIN-13, ISO-4217 currency, `https://schema.org/InStock` full enum URIs, `MerchantReturnPolicy`, `OfferShippingDetails`, and rating bounds.
+59. **Technical SEO `<head>` Compiler (Canonical, `hreflang`, Robots & OpenGraph)**: Strips `utm_*`/`fbclid`/`gclid` tracking params, normalizes HTTPS canonical URLs, emits localized `hreflang` clusters with `x-default`, `max-image-preview:large`, and escaped OpenGraph tags.
+60. **Automated HTML5 Landmark, Heading Outline & Schema.org Microdata Linter**: Audits single `<h1>`, sequential heading hierarchy, `<main>` landmark, `<time datetime>` ISO-8601 format, and `itemscope`/`itemtype="https://schema.org/..."`/`itemprop` integrity.
+
 ---
 
 ## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
@@ -171,9 +185,11 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
+- `GET /api/seo/json-ld` & `POST /api/seo/audit` — Generates connected Schema.org JSON-LD `@graph` structured data and audits raw HTML for HTML5 landmarks, heading outline, OpenGraph, Canonical, and JSON-LD `@graph` validity.
+- `GET /api/curriculum/ecosystem` — Returns the TypeScript Framework Ecosystem catalog, cross-framework migration pathways, and multi-runtime package manager specs (`npm`, `pnpm`, `yarn-berry`, `bun`, `deno`, `jsr`).
 - `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 52 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 60 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
