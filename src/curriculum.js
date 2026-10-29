@@ -3814,6 +3814,467 @@ export async function POST_RevalidateRouteHandler(
       "Implements a Web-Standard Request -> Response POST Route Handler for on-demand tag revalidation",
     ],
   },
+
+  /* ── 10. Package Managers & Multi-Runtime TS Ecosystem (npm, pnpm, Yarn Berry, Bun, Deno, JSR) ── */
+  {
+    id: "task_pkg_npm_to_pnpm_bun_workspace_migration",
+    title: "Migrate Legacy npm/Yarn Classic Monorepo to Strict pnpm & Bun Workspaces with workspace:*, catalog: & Phantom Dependency Detection",
+    category: "package-managers",
+    difficulty: "intermediate",
+    tags: ["typescript", "package-managers", "pnpm", "bun", "npm", "yarn", "workspaces", "monorepo"],
+    instructions:
+      "A legacy npm / Yarn v1 flat node_modules monorepo relies on accidental hoisting (importing undeclared transitive packages) and duplicates third-party semver ranges across 15 workspace packages. Build a TypeScript workspace migrator that detects phantom dependencies (imports missing from a package's own dependencies/peerDependencies), rewrites internal cross-package semver ranges to workspace:^ protocol, extracts shared external dependencies into a centralized pnpm/Bun catalog:, and pins packageManager for Corepack/CI reproducibility.",
+    starterCode: `// Legacy Flat Hoisted Monorepo Manifest without Phantom Check or Catalog Protocol
+export function migrateWorkspaceManifests(rootPkg: any, memberPkgs: any[]) {
+  // Leaves undeclared phantom imports broken under strict pnpm/bun isolated node_modules!
+  return { rootPkg, memberPkgs };
+}`,
+    solutionCode: `// TypeScript Monorepo Migrator for Strict pnpm & Bun Workspaces (workspace:^, catalog:, Phantom Guard)
+export interface PackageManifest {
+  readonly name: string;
+  readonly version: string;
+  readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
+  readonly peerDependencies?: Record<string, string>;
+  readonly importedSpecifiers?: readonly string[];
+}
+
+export interface MigratedMonorepoResult {
+  readonly packageManager: string;
+  readonly workspaces: readonly string[];
+  readonly catalog: Record<string, string>;
+  readonly migratedMembers: {
+    readonly name: string;
+    readonly dependencies: Record<string, string>;
+    readonly phantomDependenciesAdded: readonly string[];
+  }[];
+}
+
+function extractPackageName(specifier: string): string {
+  if (specifier.startsWith("@")) {
+    const parts = specifier.split("/");
+    return parts.slice(0, 2).join("/");
+  }
+  return specifier.split("/")[0];
+}
+
+export function migrateToStrictPnpmBunWorkspaces(opts: {
+  readonly targetManager: "pnpm@10.6.0" | "bun@1.4.2" | "yarn@4.6.0";
+  readonly workspaceGlobs: readonly string[];
+  readonly members: readonly PackageManifest[];
+  readonly transitiveHoistedVersions: Record<string, string>;
+}): MigratedMonorepoResult {
+  const internalNames = new Set(opts.members.map((m) => m.name));
+  const externalUsageCount = new Map<string, { count: number; version: string }>();
+
+  for (const member of opts.members) {
+    const deps = { ...(member.dependencies ?? {}), ...(member.devDependencies ?? {}) };
+    for (const [depName, ver] of Object.entries(deps)) {
+      if (!internalNames.has(depName)) {
+        const prev = externalUsageCount.get(depName);
+        externalUsageCount.set(depName, { count: (prev?.count ?? 0) + 1, version: ver });
+      }
+    }
+  }
+
+  const catalog: Record<string, string> = {};
+  for (const [depName, info] of externalUsageCount.entries()) {
+    if (info.count >= 2) {
+      catalog[depName] = info.version;
+    }
+  }
+
+  const migratedMembers = opts.members.map((member) => {
+    const nextDeps: Record<string, string> = { ...(member.dependencies ?? {}) };
+    const peers = member.peerDependencies ?? {};
+    const phantomAdded: string[] = [];
+
+    for (const rawSpec of member.importedSpecifiers ?? []) {
+      if (rawSpec.startsWith(".") || rawSpec.startsWith("node:") || rawSpec.startsWith("bun:")) continue;
+      const pkgName = extractPackageName(rawSpec);
+      if (!(pkgName in nextDeps) && !(pkgName in peers)) {
+        const resolvedVer = opts.transitiveHoistedVersions[pkgName] ?? "^1.0.0";
+        nextDeps[pkgName] = resolvedVer;
+        phantomAdded.push(pkgName);
+      }
+    }
+
+    for (const depName of Object.keys(nextDeps)) {
+      if (internalNames.has(depName)) {
+        nextDeps[depName] = "workspace:^";
+      } else if (depName in catalog) {
+        nextDeps[depName] = "catalog:";
+      }
+    }
+
+    return {
+      name: member.name,
+      dependencies: nextDeps,
+      phantomDependenciesAdded: phantomAdded,
+    };
+  });
+
+  return {
+    packageManager: opts.targetManager,
+    workspaces: [...opts.workspaceGlobs],
+    catalog,
+    migratedMembers,
+  };
+}`,
+    criteria: [
+      "Detects undeclared phantom dependencies from bare specifier imports and promotes them into explicit dependencies",
+      "Rewrites internal monorepo sibling dependencies to the workspace:^ protocol",
+      "Deduplicates shared third-party versions into a root catalog: map and pins the packageManager field",
+    ],
+  },
+  {
+    id: "task_pkg_dual_cjs_esm_exports_jsr_deno",
+    title: "Refactor Broken Node CJS/ESM Package Manifest to Conditional exports Map, Bundler Resolution & Deno/JSR Compatibility",
+    category: "package-managers",
+    difficulty: "advanced",
+    tags: ["typescript", "package-managers", "exports-map", "esm-cjs", "deno", "jsr", "bun", "node"],
+    instructions:
+      "A shared TypeScript SDK ships a legacy main/module package.json that triggers the Dual-Package Hazard in Node.js (loading both CJS and ESM instances simultaneously), places the types condition last (breaking TypeScript moduleResolution: 'nodenext' and 'bundler'), and lacks a JSR/Deno jsr.json manifest. Build a TypeScript package normalizer that generates condition-ordered exports (types first, then bun/deno/import/require), blocks unexported internal deep imports, and synthesizes a valid Deno/JSR configuration.",
+    starterCode: `// Broken Dual-Package Manifest (types after default & no subpath encapsulation)
+export const legacyPackageJson = {
+  name: "@acme/sdk",
+  version: "2.1.0",
+  main: "./dist/index.cjs",
+  module: "./dist/index.mjs",
+  types: "./dist/index.d.ts",
+  exports: {
+    ".": {
+      default: "./dist/index.mjs",
+      require: "./dist/index.cjs",
+      types: "./dist/index.d.ts" // Invalid: types must precede import/require/default!
+    }
+  }
+};`,
+    solutionCode: `// Multi-Runtime Conditional Exports Builder & Deno/JSR Manifest Generator
+export interface EntryPointConfig {
+  readonly subpath: "." | \`./\${string}\`;
+  readonly sourceTs: \`./src/\${string}.ts\`;
+  readonly esmPath: \`./dist/\${string}.mjs\`;
+  readonly cjsPath: \`./dist/\${string}.cjs\`;
+  readonly dtsEsPath: \`./dist/\${string}.d.mts\`;
+  readonly dtsCjsPath: \`./dist/\${string}.d.cts\`;
+}
+
+export interface ConditionalExportTarget {
+  readonly bun: string;
+  readonly deno: string;
+  readonly import: { readonly types: string; readonly default: string };
+  readonly require: { readonly types: string; readonly default: string };
+}
+
+export function buildMultiRuntimePackageArtifacts(opts: {
+  readonly name: \`@\${string}/\${string}\`;
+  readonly version: string;
+  readonly entries: readonly EntryPointConfig[];
+}) {
+  const exportsMap: Record<string, ConditionalExportTarget | string> = {};
+  const jsrExports: Record<string, string> = {};
+
+  for (const entry of opts.entries) {
+    // types MUST come first inside import/require conditions for TypeScript nodenext/bundler resolution
+    exportsMap[entry.subpath] = {
+      bun: entry.sourceTs,
+      deno: entry.sourceTs,
+      import: {
+        types: entry.dtsEsPath,
+        default: entry.esmPath,
+      },
+      require: {
+        types: entry.dtsCjsPath,
+        default: entry.cjsPath,
+      },
+    };
+    jsrExports[entry.subpath] = entry.sourceTs;
+  }
+
+  exportsMap["./package.json"] = "./package.json";
+
+  return {
+    packageJson: {
+      name: opts.name,
+      version: opts.version,
+      type: "module" as const,
+      sideEffects: false,
+      exports: exportsMap,
+    },
+    jsrJson: {
+      name: opts.name,
+      version: opts.version,
+      exports: jsrExports,
+    },
+    validateConditionOrder(subpath: string): { valid: boolean; importKeys: string[]; requireKeys: string[] } {
+      const target = exportsMap[subpath];
+      if (!target || typeof target === "string") {
+        return { valid: false, importKeys: [], requireKeys: [] };
+      }
+      const importKeys = Object.keys(target.import);
+      const requireKeys = Object.keys(target.require);
+      const valid =
+        importKeys[0] === "types" &&
+        importKeys[1] === "default" &&
+        requireKeys[0] === "types" &&
+        requireKeys[1] === "default";
+      return { valid, importKeys, requireKeys };
+    },
+  };
+}`,
+    criteria: [
+      "Places the types condition before default inside split import (.d.mts/.mjs) and require (.d.cts/.cjs) blocks",
+      "Provides native TypeScript source conditions for bun and deno runtimes alongside compiled Node.js artifacts",
+      "Synthesizes a synchronized jsr.json manifest for Deno and JSR registry publishing",
+    ],
+  },
+  {
+    id: "task_pkg_lockfile_supply_chain_auditor",
+    title: "Build Cross-Package-Manager Lockfile Security & Integrity Auditor (npm, pnpm, Yarn Berry, Bun & Deno)",
+    category: "package-managers",
+    difficulty: "advanced",
+    tags: ["typescript", "package-managers", "lockfile", "supply-chain-security", "npm", "pnpm", "bun", "deno", "yarn"],
+    instructions:
+      "Enterprise CI pipelines ingest heterogeneous lockfiles across teams (package-lock.json, pnpm-lock.yaml, yarn.lock, bun.lock, deno.lock) without verifying cryptographic SHA-512 SRI integrity hashes, internal scope registry pinning (dependency confusion on @corp/*), or dangerous lifecycle scripts. Build a unified TypeScript lockfile security auditor that normalizes lockfile entries across all 5 package managers and flags supply-chain policy violations.",
+    starterCode: `// Unchecked Lockfile Loader Vulnerable to Dependency Confusion & Missing SRI Hashes
+export function auditLockfileEntries(entries: any[]) {
+  return { passed: true, violations: [] };
+}`,
+    solutionCode: `// Cross-Package-Manager Lockfile Supply-Chain & SRI Integrity Auditor
+export type PackageManagerKind = "npm" | "pnpm" | "yarn-berry" | "bun" | "deno";
+
+export interface NormalizedLockPackage {
+  readonly name: string;
+  readonly version: string;
+  readonly resolvedUrl: string;
+  readonly integrity?: string;
+  readonly hasInstallScripts?: boolean;
+  readonly manager: PackageManagerKind;
+}
+
+export interface LockfileAuditPolicy {
+  readonly internalScopes: readonly \`@\${string}/\`[];
+  readonly internalRegistryHost: string;
+  readonly trustedPublicHosts: readonly string[];
+  readonly allowInstallScriptsPackages: readonly string[];
+}
+
+export interface LockfileViolation {
+  readonly package: string;
+  readonly manager: PackageManagerKind;
+  readonly code:
+    | "DEPENDENCY_CONFUSION_SCOPE_LEAK"
+    | "UNTRUSTED_TARBALL_HOST"
+    | "WEAK_OR_MISSING_SRI_INTEGRITY"
+    | "UNAUTHORIZED_LIFECYCLE_SCRIPT";
+  readonly detail: string;
+}
+
+export function auditCrossManagerLockfile(
+  packages: readonly NormalizedLockPackage[],
+  policy: LockfileAuditPolicy,
+): { readonly passed: boolean; readonly violations: readonly LockfileViolation[] } {
+  const violations: LockfileViolation[] = [];
+
+  for (const pkg of packages) {
+    const id = \`\${pkg.name}@\${pkg.version}\`;
+    let host = "";
+    let protocol = "";
+    try {
+      const parsed = new URL(pkg.resolvedUrl);
+      host = parsed.hostname;
+      protocol = parsed.protocol;
+    } catch {
+      protocol = "invalid:";
+    }
+
+    // 1. Dependency Confusion check: internal @scope/* must resolve ONLY from internalRegistryHost
+    const isInternal = policy.internalScopes.some((scope) => pkg.name.startsWith(scope));
+    if (isInternal && host !== policy.internalRegistryHost) {
+      violations.push({
+        package: id,
+        manager: pkg.manager,
+        code: "DEPENDENCY_CONFUSION_SCOPE_LEAK",
+        detail: \`Internal package \${id} resolved from untrusted host '\${host}' instead of '\${policy.internalRegistryHost}'\`,
+      });
+    }
+
+    // 2. Protocol & registry host allowlist check
+    const allowedHosts = new Set([policy.internalRegistryHost, ...policy.trustedPublicHosts]);
+    if (protocol !== "https:" || !allowedHosts.has(host)) {
+      violations.push({
+        package: id,
+        manager: pkg.manager,
+        code: "UNTRUSTED_TARBALL_HOST",
+        detail: \`Package \${id} uses untrusted URL '\${pkg.resolvedUrl}'\`,
+      });
+    }
+
+    // 3. Cryptographic SHA-512 SRI integrity check
+    if (!pkg.integrity || !/^sha512-[A-Za-z0-9+/=]{20,}$/.test(pkg.integrity)) {
+      violations.push({
+        package: id,
+        manager: pkg.manager,
+        code: "WEAK_OR_MISSING_SRI_INTEGRITY",
+        detail: \`Package \${id} is missing a strong sha512- Subresource Integrity digest\`,
+      });
+    }
+
+    // 4. Lifecycle install script check (preinstall / install / postinstall)
+    if (pkg.hasInstallScripts && !policy.allowInstallScriptsPackages.includes(pkg.name)) {
+      violations.push({
+        package: id,
+        manager: pkg.manager,
+        code: "UNAUTHORIZED_LIFECYCLE_SCRIPT",
+        detail: \`Package \${id} declares lifecycle install scripts not on the allowlist\`,
+      });
+    }
+  }
+
+  return {
+    passed: violations.length === 0,
+    violations,
+  };
+}`,
+    criteria: [
+      "Detects Dependency Confusion attacks when internal @scope/* packages resolve from public registries",
+      "Enforces HTTPS registry host allowlists and strong sha512- Subresource Integrity (SRI) digests across npm, pnpm, Yarn, Bun, and Deno lockfiles",
+      "Blocks unauthorized preinstall/postinstall lifecycle scripts unless explicitly allowlisted",
+    ],
+  },
+  {
+    id: "task_pkg_monorepo_task_graph_cache_runner",
+    title: "Implement Content-Addressable Monorepo Task Orchestrator (Turborepo / Nx / bun --filter / pnpm -r) with Topological Cache",
+    category: "package-managers",
+    difficulty: "advanced",
+    tags: ["typescript", "package-managers", "monorepo", "turborepo", "nx", "bun", "pnpm", "topological-cache"],
+    instructions:
+      "A polyglot TypeScript monorepo rebuilds every workspace package from scratch on CI without caching or respecting topological dependency waves. Build a content-addressable monorepo task runner that computes deterministic composite cache hashes (combining package source hash, runtime engine fingerprint, and upstream dependency hashes), executes independent packages concurrently by topological wave, and replays cached build artifacts on cache hits.",
+    starterCode: `// Naive Sequential Uncached Monorepo Build Runner
+export async function runMonorepoBuilds(packages: any[]) {
+  for (const pkg of packages) {
+    await pkg.build();
+  }
+}`,
+    solutionCode: `// Content-Addressable Topological Monorepo Task Orchestrator with Upstream Hash Propagation
+export interface WorkspaceNode {
+  readonly name: string;
+  readonly localSourceHash: string;
+  readonly internalDeps: readonly string[];
+  readonly runTask: () => Promise<string>;
+}
+
+export interface TaskExecutionRecord {
+  readonly name: string;
+  readonly wave: number;
+  readonly cacheKey: string;
+  readonly status: "CACHE_HIT" | "EXECUTED";
+  readonly artifact: string;
+}
+
+function fnv1aHex(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+export class MonorepoTaskOrchestrator {
+  #remoteCache = new Map<string, string>();
+
+  async executeGraph(
+    nodes: readonly WorkspaceNode[],
+    runtimeEnvFingerprint: string,
+  ): Promise<{ readonly waves: string[][]; readonly records: Record<string, TaskExecutionRecord> }> {
+    const nodeMap = new Map<string, WorkspaceNode>(nodes.map((n) => [n.name, n]));
+    const inDegree = new Map<string, number>();
+    const dependents = new Map<string, string[]>();
+
+    for (const node of nodes) {
+      inDegree.set(node.name, node.internalDeps.length);
+      for (const dep of node.internalDeps) {
+        if (!nodeMap.has(dep)) throw new Error(\`Unknown workspace dependency '\${dep}'\`);
+        const list = dependents.get(dep) ?? [];
+        list.push(node.name);
+        dependents.set(dep, list);
+      }
+    }
+
+    const completedHashes = new Map<string, string>();
+    const records: Record<string, TaskExecutionRecord> = {};
+    const waves: string[][] = [];
+    let processed = 0;
+
+    while (processed < nodes.length) {
+      const ready = nodes
+        .filter((n) => inDegree.get(n.name) === 0 && !completedHashes.has(n.name))
+        .map((n) => n.name)
+        .sort();
+
+      if (ready.length === 0) {
+        throw new Error("Cyclic workspace dependency graph detected");
+      }
+
+      const waveIdx = waves.length;
+      waves.push(ready);
+
+      await Promise.all(
+        ready.map(async (pkgName) => {
+          const node = nodeMap.get(pkgName)!;
+          const depHashSignature = [...node.internalDeps]
+            .sort()
+            .map((d) => \`\${d}:\${completedHashes.get(d)}\`)
+            .join("|");
+
+          const cacheKey = fnv1aHex(
+            \`\${runtimeEnvFingerprint}::\${node.name}::\${node.localSourceHash}::[\${depHashSignature}]\`,
+          );
+
+          if (this.#remoteCache.has(cacheKey)) {
+            const cachedArtifact = this.#remoteCache.get(cacheKey)!;
+            completedHashes.set(pkgName, cacheKey);
+            records[pkgName] = {
+              name: pkgName,
+              wave: waveIdx,
+              cacheKey,
+              status: "CACHE_HIT",
+              artifact: cachedArtifact,
+            };
+          } else {
+            const artifact = await node.runTask();
+            this.#remoteCache.set(cacheKey, artifact);
+            completedHashes.set(pkgName, cacheKey);
+            records[pkgName] = {
+              name: pkgName,
+              wave: waveIdx,
+              cacheKey,
+              status: "EXECUTED",
+              artifact,
+            };
+          }
+        }),
+      );
+
+      for (const pkgName of ready) {
+        processed++;
+        for (const child of dependents.get(pkgName) ?? []) {
+          inDegree.set(child, (inDegree.get(child) ?? 1) - 1);
+        }
+      }
+    }
+
+    return { waves, records };
+  }
+}`,
+    criteria: [
+      "Schedules workspace package builds in concurrent topological waves and rejects cyclic dependency graphs",
+      "Propagates upstream dependency cache keys into downstream package cache keys so leaf changes invalidate dependents",
+      "Replays artifacts from the content-addressable cache on CACHE_HIT without re-invoking runTask()",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

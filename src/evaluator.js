@@ -679,6 +679,69 @@ export class Evaluator {
         passed: code.includes("Request") && code.includes("Response") && code.includes("evictedCount"),
         detail: "Exposes Web-Standard POST Route Handler that invalidates tagged cache entries on demand",
       });
+    } else if (id === "task_pkg_npm_to_pnpm_bun_workspace_migration") {
+      results.push({
+        name: "Workspace Protocol (workspace:^) & Shared Catalog Extraction",
+        passed:
+          code.includes("workspace:^") &&
+          code.includes("catalog:") &&
+          code.includes("packageManager"),
+        detail: "Rewrites sibling dependencies to workspace:^, extracts shared versions to catalog:, and pins packageManager",
+      });
+      results.push({
+        name: "Strict Phantom Dependency Detection",
+        passed: code.includes("phantomDependenciesAdded") && code.includes("importedSpecifiers"),
+        detail: "Detects undeclared bare specifier imports that break under strict pnpm/Bun isolated node_modules",
+      });
+    } else if (id === "task_pkg_dual_cjs_esm_exports_jsr_deno") {
+      results.push({
+        name: "Condition-Ordered Dual ESM/CJS Exports Map",
+        passed:
+          code.includes(".d.mts") &&
+          code.includes(".d.cts") &&
+          code.includes("bun:") &&
+          code.includes("deno:"),
+        detail: "Orders types first in import/require blocks and exposes bun/deno native TS conditions",
+      });
+      results.push({
+        name: "Deno / JSR Registry Manifest Generation",
+        passed: code.includes("jsrJson") && code.includes("sideEffects: false"),
+        detail: "Generates synchronized jsr.json and tree-shakeable package.json exports",
+      });
+    } else if (id === "task_pkg_lockfile_supply_chain_auditor") {
+      results.push({
+        name: "Dependency Confusion & Registry Host Pinning",
+        passed:
+          code.includes("DEPENDENCY_CONFUSION_SCOPE_LEAK") &&
+          code.includes("internalScopes") &&
+          code.includes("UNTRUSTED_TARBALL_HOST"),
+        detail: "Detects internal @scope/* packages resolving from public registries or untrusted hosts",
+      });
+      results.push({
+        name: "SHA-512 SRI Digest & Lifecycle Script Guard",
+        passed:
+          code.includes("sha512-") &&
+          code.includes("WEAK_OR_MISSING_SRI_INTEGRITY") &&
+          code.includes("UNAUTHORIZED_LIFECYCLE_SCRIPT"),
+        detail: "Verifies sha512- integrity hashes and blocks unapproved install scripts across lockfiles",
+      });
+    } else if (id === "task_pkg_monorepo_task_graph_cache_runner") {
+      results.push({
+        name: "Topological Workspace Wave Scheduler & Cycle Detection",
+        passed:
+          code.includes("inDegree") &&
+          code.includes("Promise.all") &&
+          code.includes("Cyclic"),
+        detail: "Schedules workspace builds in concurrent topological waves and guards against cycles",
+      });
+      results.push({
+        name: "Content-Addressable Upstream Hash Propagation",
+        passed:
+          code.includes("CACHE_HIT") &&
+          code.includes("depHashSignature") &&
+          code.includes("localSourceHash"),
+        detail: "Propagates upstream dependency hashes into downstream cache keys and replays CACHE_HIT artifacts",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -2251,6 +2314,200 @@ export class Evaluator {
         name: "Parallel RSC Tagged Caching & Selective revalidateTag() Execution",
         passed: Boolean(res?.hitOk && res?.selectiveRevalidateOk),
         detail: "Serves cached RSC payloads on HIT and selectively evicts tagged entries via POST Route Handler",
+      });
+    } else if (taskId === "task_pkg_npm_to_pnpm_bun_workspace_migration") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const migrate = typeof migrateToStrictPnpmBunWorkspaces === "function"
+            ? migrateToStrictPnpmBunWorkspaces
+            : exports.migrateToStrictPnpmBunWorkspaces;
+
+          const out = migrate({
+            targetManager: "bun@1.4.2",
+            workspaceGlobs: ["packages/*", "apps/*"],
+            transitiveHoistedVersions: { "zod": "^3.24.0" },
+            members: [
+              {
+                name: "@acme/core",
+                version: "1.0.0",
+                dependencies: { typescript: "^5.7.0" },
+                importedSpecifiers: ["node:crypto"],
+              },
+              {
+                name: "@acme/web",
+                version: "1.0.0",
+                dependencies: { "@acme/core": "^1.0.0", typescript: "^5.7.0" },
+                importedSpecifiers: ["@acme/core", "zod/v4"],
+              },
+            ],
+          });
+
+          const webPkg = out.migratedMembers.find((m) => m.name === "@acme/web");
+          return {
+            workspaceProtoOk: webPkg.dependencies["@acme/core"] === "workspace:^",
+            catalogOk: out.catalog.typescript === "^5.7.0" && webPkg.dependencies.typescript === "catalog:",
+            phantomDetected: webPkg.phantomDependenciesAdded.includes("zod") && webPkg.dependencies.zod === "^3.24.0",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Monorepo workspace:^, catalog: & Phantom Dependency Migration",
+        passed: Boolean(res?.workspaceProtoOk && res?.catalogOk && res?.phantomDetected),
+        detail: "Promotes phantom imports, rewrites sibling deps to workspace:^, and extracts shared catalog: versions",
+      });
+    } else if (taskId === "task_pkg_dual_cjs_esm_exports_jsr_deno") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const build = typeof buildMultiRuntimePackageArtifacts === "function"
+            ? buildMultiRuntimePackageArtifacts
+            : exports.buildMultiRuntimePackageArtifacts;
+
+          const artifacts = build({
+            name: "@acme/crypto-sdk",
+            version: "3.0.0",
+            entries: [
+              {
+                subpath: ".",
+                sourceTs: "./src/index.ts",
+                esmPath: "./dist/index.mjs",
+                cjsPath: "./dist/index.cjs",
+                dtsEsPath: "./dist/index.d.mts",
+                dtsCjsPath: "./dist/index.d.cts",
+              },
+            ],
+          });
+
+          const orderCheck = artifacts.validateConditionOrder(".");
+          const rootExport = artifacts.packageJson.exports["."];
+          return {
+            typesFirstOk: orderCheck.valid === true,
+            multiRuntimeOk: rootExport.bun === "./src/index.ts" && rootExport.deno === "./src/index.ts",
+            jsrOk: artifacts.jsrJson.name === "@acme/crypto-sdk" && artifacts.jsrJson.exports["."] === "./src/index.ts",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Multi-Runtime Exports Condition Order & JSR Manifest Verification",
+        passed: Boolean(res?.typesFirstOk && res?.multiRuntimeOk && res?.jsrOk),
+        detail: "Verifies types-first condition ordering for Node ESM/CJS alongside Bun, Deno, and JSR manifests",
+      });
+    } else if (taskId === "task_pkg_lockfile_supply_chain_auditor") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const audit = typeof auditCrossManagerLockfile === "function"
+            ? auditCrossManagerLockfile
+            : exports.auditCrossManagerLockfile;
+
+          const policy = {
+            internalScopes: ["@corp/"],
+            internalRegistryHost: "npm.corp.internal",
+            trustedPublicHosts: ["registry.npmjs.org", "jsr.io"],
+            allowInstallScriptsPackages: ["esbuild"],
+          };
+
+          const cleanReport = audit(
+            [
+              {
+                name: "@corp/auth",
+                version: "1.2.0",
+                resolvedUrl: "https://npm.corp.internal/@corp/auth/-/auth-1.2.0.tgz",
+                integrity: "sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+                hasInstallScripts: false,
+                manager: "pnpm",
+              },
+            ],
+            policy,
+          );
+
+          const badReport = audit(
+            [
+              {
+                name: "@corp/auth",
+                version: "9.9.9",
+                resolvedUrl: "https://registry.npmjs.org/@corp/auth/-/auth-9.9.9.tgz",
+                integrity: "sha1-weak",
+                hasInstallScripts: true,
+                manager: "npm",
+              },
+            ],
+            policy,
+          );
+
+          const codes = badReport.violations.map((v) => v.code);
+          return {
+            cleanPassed: cleanReport.passed === true,
+            confusionCaught: codes.includes("DEPENDENCY_CONFUSION_SCOPE_LEAK"),
+            sriCaught: codes.includes("WEAK_OR_MISSING_SRI_INTEGRITY"),
+            scriptCaught: codes.includes("UNAUTHORIZED_LIFECYCLE_SCRIPT"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Cross-Manager Lockfile Supply-Chain Policy Enforcement",
+        passed: Boolean(res?.cleanPassed && res?.confusionCaught && res?.sriCaught && res?.scriptCaught),
+        detail: "Catches @corp/* dependency confusion, weak SRI digests, and unauthorized install scripts",
+      });
+    } else if (taskId === "task_pkg_monorepo_task_graph_cache_runner") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Orchestrator = typeof MonorepoTaskOrchestrator === "function"
+            ? MonorepoTaskOrchestrator
+            : exports.MonorepoTaskOrchestrator;
+
+          const orch = new Orchestrator();
+          let buildsRun = 0;
+
+          const makeNodes = (coreHash) => [
+            {
+              name: "@repo/core",
+              localSourceHash: coreHash,
+              internalDeps: [],
+              runTask: async () => { buildsRun++; return "dist:core:" + coreHash; },
+            },
+            {
+              name: "@repo/ui",
+              localSourceHash: "ui_v1",
+              internalDeps: ["@repo/core"],
+              runTask: async () => { buildsRun++; return "dist:ui"; },
+            },
+            {
+              name: "@repo/app",
+              localSourceHash: "app_v1",
+              internalDeps: ["@repo/core", "@repo/ui"],
+              runTask: async () => { buildsRun++; return "dist:app"; },
+            },
+          ];
+
+          const run1 = await orch.executeGraph(makeNodes("core_v1"), "bun-1.4.2");
+          const run2Cached = await orch.executeGraph(makeNodes("core_v1"), "bun-1.4.2");
+          // Changing @repo/core source hash must invalidate @repo/ui and @repo/app downstream!
+          const run3Invalidated = await orch.executeGraph(makeNodes("core_v2"), "bun-1.4.2");
+
+          return {
+            wavesOk: run1.waves.length === 3 && run1.waves[0][0] === "@repo/core" && run1.waves[2][0] === "@repo/app",
+            cacheHitOk:
+              run2Cached.records["@repo/core"].status === "CACHE_HIT" &&
+              run2Cached.records["@repo/app"].status === "CACHE_HIT",
+            upstreamInvalidationOk:
+              run3Invalidated.records["@repo/core"].status === "EXECUTED" &&
+              run3Invalidated.records["@repo/ui"].status === "EXECUTED" &&
+              run3Invalidated.records["@repo/app"].status === "EXECUTED" &&
+              buildsRun === 6,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Topological Monorepo Wave Execution & Upstream Cache Invalidation",
+        passed: Boolean(res?.wavesOk && res?.cacheHitOk && res?.upstreamInvalidationOk),
+        detail: "Executes topological waves, replays CACHE_HITs, and invalidates downstream dependents when core hash changes",
       });
     } else {
       // General syntax evaluation

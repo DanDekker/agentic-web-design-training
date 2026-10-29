@@ -231,9 +231,25 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
+  test("evaluates multi-runtime & package manager ecosystem tasks (npm/pnpm/Yarn/Bun/Deno/JSR) in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_pkg_npm_to_pnpm_bun_workspace_migration",
+      "task_pkg_dual_cjs_esm_exports_jsr_deno",
+      "task_pkg_lockfile_supply_chain_auditor",
+      "task_pkg_monorepo_task_graph_cache_runner",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBeGreaterThanOrEqual(40);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(52);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);

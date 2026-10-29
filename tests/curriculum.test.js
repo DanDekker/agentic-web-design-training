@@ -279,6 +279,23 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies multi-runtime & package manager ecosystem tasks (npm/pnpm/Yarn/Bun/Deno/JSR)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=package-managers");
+    const { tasks: pkgTasks } = await tasksRes.json();
+    expect(pkgTasks.length).toBe(4);
+
+    for (const pkgTask of pkgTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: pkgTask.id,
+        code: pkgTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
   test("validates normalized curriculum schema, categories, and domain tracks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
