@@ -7,6 +7,7 @@ import {
 } from "./curriculum.js";
 import { Evaluator } from "./evaluator.js";
 import { BenchmarkSuite } from "./benchmark.js";
+import { getTypeScriptEcosystemOverview } from "./ts_ecosystem.js";
 import { ChatEngine } from "./chat.js";
 
 class HttpError extends Error {
@@ -402,6 +403,9 @@ const benchmarkSuite = new BenchmarkSuite();
         const body = await readJson(req);
         const results = await benchmarkSuite.runFullBenchmark({ category: body?.category || null });
         return json(results);
+      }
+      if (pathname === "/api/curriculum/ecosystem" && req.method === "GET") {
+        return json(getTypeScriptEcosystemOverview());
       }
       if (pathname === "/api/curriculum/tasks") {
         const category = searchParams.get("category");
