@@ -121,4 +121,19 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       expect(result.score).toBe(100);
     }
   });
+
+  test("evaluates deep web-auth tasks (DPoP, WebAuthn Passkey, Refresh Token Rotation) in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_auth_dpop_token_binding",
+      "task_auth_webauthn_passkey",
+      "task_auth_refresh_rotation_reuse",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
 });

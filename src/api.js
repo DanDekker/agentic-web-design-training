@@ -502,6 +502,18 @@ const benchmarkSuite = new BenchmarkSuite();
           const hasBatch = cleanSubmitted.includes("queueMicrotask") && !cleanSubmitted.includes("OFFSET");
           if (hasBatch) passedCriteria.push("Uses microtask batching and keyset pagination");
           else failedCriteria.push("Missing queueMicrotask batching or still uses OFFSET pagination");
+        } else if (taskId === "task_auth_dpop_token_binding") {
+          const hasDpop = cleanSubmitted.includes("dpop+jwt") && cleanSubmitted.includes("htm") && cleanSubmitted.includes("htu") && cleanSubmitted.includes("jti");
+          if (hasDpop) passedCriteria.push("Verifies RFC 9449 DPoP proof claims, thumbprint binding, and JTI replay guard");
+          else failedCriteria.push("Missing DPoP header/claim checks (dpop+jwt, htm, htu, jti)");
+        } else if (taskId === "task_auth_webauthn_passkey") {
+          const hasWebAuthn = cleanSubmitted.includes("webauthn.get") && cleanSubmitted.includes("signCount") && cleanSubmitted.includes("0x01");
+          if (hasWebAuthn) passedCriteria.push("Validates WebAuthn clientDataJSON, binary authenticator flags, and signCount clone detection");
+          else failedCriteria.push("Missing WebAuthn clientDataJSON, UP/UV flags, or signCount check");
+        } else if (taskId === "task_auth_refresh_rotation_reuse") {
+          const hasRotation = cleanSubmitted.includes("familyId") && cleanSubmitted.includes("used") && cleanSubmitted.includes("revokeFamily");
+          if (hasRotation) passedCriteria.push("Rotates one-time refresh tokens and revokes entire family on token reuse");
+          else failedCriteria.push("Missing refresh token family tracking or reuse revocation");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");

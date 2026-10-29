@@ -234,6 +234,39 @@ export class Evaluator {
         passed: !code.includes("OFFSET") && (code.includes("created_at") || code.includes("cursor")),
         detail: "Eliminates linear OFFSET scans in favor of keyset cursor pagination",
       });
+    } else if (id === "task_auth_dpop_token_binding") {
+      results.push({
+        name: "DPoP Header & Claim Validation",
+        passed: code.includes("dpop+jwt") && code.includes("htm") && code.includes("htu") && code.includes("ath"),
+        detail: "Verifies dpop+jwt typ header, HTTP method/URI binding, and access token hash",
+      });
+      results.push({
+        name: "JTI Replay & JWK Thumbprint Binding",
+        passed: code.includes("jti") && (code.includes("replayCache") || code.includes("Set")) && code.includes("jwk"),
+        detail: "Binds proof to public JWK thumbprint and prevents JTI token replay",
+      });
+    } else if (id === "task_auth_webauthn_passkey") {
+      results.push({
+        name: "WebAuthn ClientData & Binary Flags",
+        passed: code.includes("webauthn.get") && code.includes("0x01") && code.includes("0x04"),
+        detail: "Validates webauthn.get challenge/origin and UP/UV authenticator flags",
+      });
+      results.push({
+        name: "Big-Endian SignCount Clone Detection",
+        passed: (code.includes("DataView") || code.includes("getUint32")) && code.includes("signCount"),
+        detail: "Parses uint32 signCount and rejects cloned authenticators on counter regression",
+      });
+    } else if (id === "task_auth_refresh_rotation_reuse") {
+      results.push({
+        name: "One-Time Refresh Rotation",
+        passed: code.includes("used") && code.includes("familyId") && code.includes("rotate"),
+        detail: "Tracks single-use state per refresh token within a token family",
+      });
+      results.push({
+        name: "Compromised Family Revocation",
+        passed: code.includes("revokeFamily") || (code.includes("revoked") && code.includes("familyId")),
+        detail: "Revokes the entire token family immediately when a rotated token is replayed",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -429,6 +462,139 @@ export class Evaluator {
         name: "DataLoader Single-Tick Batch Coalescing",
         passed: Boolean(res?.batchCalls === 1 && res?.uniqueCount === 2 && res?.matched),
         detail: "Coalesces 3 concurrent lookups (with duplicate key) into 1 batch query of 2 unique keys",
+      });
+    } else if (taskId === "task_auth_dpop_token_binding") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const fn = typeof verifyDpopProof === "function" ? verifyDpopProof : exports.verifyDpopProof;
+          const replayCache = new Set();
+          const jwk = { kty: "EC", crv: "P-256", x: "x_val", y: "y_val" };
+          const hashFn = (s) => "h_" + s;
+          const expectedJkt = hashFn(JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y }));
+          const proof = {
+            header: { typ: "dpop+jwt", alg: "ES256", jwk },
+            payload: {
+              jti: "nonce_1",
+              htm: "POST",
+              htu: "https://api.example.com/v1/transfer",
+              iat: 1700000000,
+              ath: hashFn("at_secret_1"),
+            },
+            signatureValid: true,
+          };
+          const valid = fn({
+            dpopProof: proof,
+            accessToken: "at_secret_1",
+            expectedJkt,
+            httpMethod: "POST",
+            httpUrl: "https://api.example.com/v1/transfer?foo=bar#frag",
+            replayCache,
+            nowSec: 1700000010,
+            hashFn,
+          });
+          let replayBlocked = false;
+          try {
+            fn({
+              dpopProof: proof,
+              accessToken: "at_secret_1",
+              expectedJkt,
+              httpMethod: "POST",
+              httpUrl: "https://api.example.com/v1/transfer",
+              replayCache,
+              nowSec: 1700000012,
+              hashFn,
+            });
+          } catch {
+            replayBlocked = true;
+          }
+          return { bound: valid?.bound, replayBlocked };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "DPoP Proof Binding & Replay Rejection",
+        passed: Boolean(res?.bound === true && res?.replayBlocked === true),
+        detail: "Accepts valid sender-constrained DPoP proof and blocks JTI replay",
+      });
+    } else if (taskId === "task_auth_webauthn_passkey") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const fn = typeof verifyPasskeyAssertion === "function" ? verifyPasskeyAssertion : exports.verifyPasskeyAssertion;
+          const rpHash = new Uint8Array(32).fill(7);
+          const authData = new Uint8Array(37);
+          authData.set(rpHash, 0);
+          authData[32] = 0x01 | 0x04; // UP + UV
+          new DataView(authData.buffer).setUint32(33, 15, false); // signCount = 15
+
+          const ok = fn({
+            clientDataJSON: JSON.stringify({
+              type: "webauthn.get",
+              challenge: "chal_xyz",
+              origin: "https://login.example.com",
+            }),
+            authenticatorData: authData,
+            signatureValid: true,
+            expectedChallenge: "chal_xyz",
+            expectedOrigin: "https://login.example.com",
+            expectedRpIdHash: rpHash,
+            storedCredential: { userId: "usr_1", signCount: 10 },
+          });
+
+          let cloneDetected = false;
+          try {
+            fn({
+              clientDataJSON: JSON.stringify({
+                type: "webauthn.get",
+                challenge: "chal_xyz",
+                origin: "https://login.example.com",
+              }),
+              authenticatorData: authData,
+              signatureValid: true,
+              expectedChallenge: "chal_xyz",
+              expectedOrigin: "https://login.example.com",
+              expectedRpIdHash: rpHash,
+              storedCredential: { userId: "usr_1", signCount: 15 }, // Equal/higher stored signCount -> clone!
+            });
+          } catch {
+            cloneDetected = true;
+          }
+          return { verified: ok?.verified, newSignCount: ok?.newSignCount, cloneDetected };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "WebAuthn Assertion & Clone Detection",
+        passed: Boolean(res?.verified && res?.newSignCount === 15 && res?.cloneDetected),
+        detail: "Verifies binary authenticatorData flags/counter and catches cloned authenticators",
+      });
+    } else if (taskId === "task_auth_refresh_rotation_reuse") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Store = typeof RefreshTokenRotationStore === "function" ? RefreshTokenRotationStore : exports.RefreshTokenRotationStore;
+          const store = new Store();
+          const t1 = store.issueInitialFamily("usr_99");
+          const t2 = store.rotate(t1.refreshToken);
+          const t2ActiveBefore = store.isTokenActive(t2.refreshToken);
+
+          let theftDetected = false;
+          try {
+            // Attacker replays already-rotated t1
+            store.rotate(t1.refreshToken);
+          } catch {
+            theftDetected = true;
+          }
+          const t2ActiveAfterReplay = store.isTokenActive(t2.refreshToken);
+          return { t2ActiveBefore, theftDetected, t2ActiveAfterReplay };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Refresh Rotation & Family Breach Revocation",
+        passed: Boolean(res?.t2ActiveBefore === true && res?.theftDetected === true && res?.t2ActiveAfterReplay === false),
+        detail: "Rotates refresh tokens and revokes active family descendants when a prior token is replayed",
       });
     } else {
       // General syntax evaluation

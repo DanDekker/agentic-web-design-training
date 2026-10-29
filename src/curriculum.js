@@ -645,4 +645,280 @@ export async function fetchFeedKeyset(db, userLoader, { cursorCreatedAt = null, 
       "Replaces linear OFFSET scan with indexed keyset cursor pagination",
     ],
   },
+  {
+    id: "task_auth_dpop_token_binding",
+    title: "OAuth 2.0 DPoP (RFC 9449) Sender-Constrained Proof-of-Possession Verifier",
+    category: "web-auth",
+    difficulty: "advanced",
+    tags: ["web-auth", "oauth2", "dpop", "rfc9449", "jwt", "token-binding", "replay-defense"],
+    instructions:
+      "Standard Bearer tokens can be replayed from any host if leaked via logs or XSS. Refactor the bearer validator into an RFC 9449 DPoP proof verifier that validates the dpop+jwt header, HTTP method (htm), normalized target URI without query/fragment (htu), access token hash (ath), JWK thumbprint binding (cnf.jkt), timestamp freshness (iat), and jti replay prevention.",
+    starterCode: `// Vulnerable Bearer-Only Check (Susceptible to Token Replay)
+function authenticateApiRequest(req, tokenRecord) {
+  const auth = req.headers.get("authorization") || "";
+  if (!auth.startsWith("Bearer ")) throw new Error("Missing token");
+  const token = auth.slice(7);
+  if (token !== tokenRecord.accessToken) throw new Error("Invalid token");
+  return { sub: tokenRecord.sub };
+}`,
+    solutionCode: `// RFC 9449 OAuth 2.0 DPoP Proof-of-Possession Verifier with JTI Replay Cache
+export function verifyDpopProof({
+  dpopProof,
+  accessToken,
+  expectedJkt,
+  httpMethod,
+  httpUrl,
+  replayCache,
+  nowSec = Math.floor(Date.now() / 1000),
+  maxSkewSec = 60,
+  hashFn,
+}) {
+  if (!dpopProof || typeof dpopProof !== "object") {
+    throw new Error("Missing DPoP proof");
+  }
+  const { header, payload, signatureValid } = dpopProof;
+  if (!signatureValid) {
+    throw new Error("Invalid DPoP cryptographic signature");
+  }
+  if (!header || header.typ !== "dpop+jwt" || !header.jwk || header.jwk.d) {
+    throw new Error("Invalid DPoP header: must be typ dpop+jwt with public JWK only");
+  }
+  if (!payload || !payload.jti || !payload.htm || !payload.htu || typeof payload.iat !== "number") {
+    throw new Error("Missing required DPoP claims (jti, htm, htu, iat)");
+  }
+
+  if (String(payload.htm).toUpperCase() !== String(httpMethod).toUpperCase()) {
+    throw new Error("DPoP htm claim does not match HTTP method");
+  }
+
+  const parsedUrl = new URL(httpUrl);
+  const normalizedHtu = \`\${parsedUrl.origin}\${parsedUrl.pathname}\`;
+  if (payload.htu !== normalizedHtu) {
+    throw new Error("DPoP htu claim does not match normalized request URI");
+  }
+
+  if (Math.abs(nowSec - payload.iat) > maxSkewSec) {
+    throw new Error("DPoP proof iat outside acceptable clock skew window");
+  }
+
+  const computeHash = hashFn || ((input) => \`sha256_\${input}\`);
+  if (accessToken) {
+    const expectedAth = computeHash(accessToken);
+    if (payload.ath !== expectedAth) {
+      throw new Error("DPoP ath claim does not match bound access token hash");
+    }
+  }
+
+  const canonicalJwk = JSON.stringify({
+    crv: header.jwk.crv,
+    kty: header.jwk.kty,
+    x: header.jwk.x,
+    y: header.jwk.y,
+  });
+  const computedJkt = computeHash(canonicalJwk);
+  if (expectedJkt && computedJkt !== expectedJkt) {
+    throw new Error("DPoP JWK thumbprint does not match cnf.jkt token binding");
+  }
+
+  const replayKey = \`\${computedJkt}:\${payload.jti}\`;
+  if (replayCache.has(replayKey)) {
+    throw new Error("DPoP replay detected: jti already consumed");
+  }
+  replayCache.add(replayKey);
+
+  return {
+    bound: true,
+    jkt: computedJkt,
+    jti: payload.jti,
+    htm: payload.htm,
+    htu: normalizedHtu,
+  };
+}`,
+    criteria: [
+      "Validates typ === 'dpop+jwt' header, public JWK presence, and rejects private key material",
+      "Enforces exact HTTP method (htm) and query/fragment-stripped URI (htu) matching",
+      "Verifies access token hash (ath), cnf.jkt thumbprint binding, iat freshness, and jti replay cache",
+    ],
+  },
+  {
+    id: "task_auth_webauthn_passkey",
+    title: "WebAuthn / FIDO2 Passkey Assertion & Clone Detection Verifier",
+    category: "web-auth",
+    difficulty: "advanced",
+    tags: ["web-auth", "webauthn", "fido2", "passkeys", "cryptography", "clone-detection"],
+    instructions:
+      "A passkey login endpoint blindly trusts assertion responses without verifying clientDataJSON challenge/origin, parsing binary authenticatorData flags (User Present & User Verified), or checking signCount regressions that indicate a cloned hardware/software authenticator. Implement a strict FIDO2 WebAuthn assertion verifier.",
+    starterCode: `// Insecure WebAuthn Handler (Skips Binary AuthenticatorData & SignCount Checks)
+function verifyPasskeyLogin(assertion, storedCredential) {
+  if (assertion.credentialId !== storedCredential.id) {
+    throw new Error("Unknown credential");
+  }
+  // Missing clientDataJSON origin/challenge check, UP/UV flag check, and signCount clone check!
+  return { verified: true, userId: storedCredential.userId };
+}`,
+    solutionCode: `// FIDO2 / WebAuthn Passkey Assertion Verifier with Binary AuthData Parsing & Clone Detection
+export function verifyPasskeyAssertion({
+  clientDataJSON,
+  authenticatorData,
+  signatureValid = true,
+  expectedChallenge,
+  expectedOrigin,
+  expectedRpIdHash,
+  requireUserVerification = true,
+  storedCredential,
+}) {
+  const clientData = typeof clientDataJSON === "string" ? JSON.parse(clientDataJSON) : clientDataJSON;
+  if (!clientData || clientData.type !== "webauthn.get") {
+    throw new Error("Invalid clientData.type: expected webauthn.get");
+  }
+  if (clientData.challenge !== expectedChallenge) {
+    throw new Error("WebAuthn challenge mismatch");
+  }
+  if (clientData.origin !== expectedOrigin) {
+    throw new Error("WebAuthn origin mismatch");
+  }
+
+  if (!(authenticatorData instanceof Uint8Array) || authenticatorData.byteLength < 37) {
+    throw new Error("Malformed authenticatorData buffer (must be >= 37 bytes)");
+  }
+
+  const rpIdHash = authenticatorData.subarray(0, 32);
+  if (expectedRpIdHash instanceof Uint8Array) {
+    if (rpIdHash.byteLength !== expectedRpIdHash.byteLength) throw new Error("RP ID hash length mismatch");
+    let diff = 0;
+    for (let i = 0; i < 32; i++) diff |= rpIdHash[i] ^ expectedRpIdHash[i];
+    if (diff !== 0) throw new Error("RP ID hash mismatch");
+  }
+
+  const flags = authenticatorData[32];
+  const userPresent = (flags & 0x01) !== 0; // Bit 0: UP
+  const userVerified = (flags & 0x04) !== 0; // Bit 2: UV
+
+  if (!userPresent) {
+    throw new Error("WebAuthn User Present (UP) flag not set");
+  }
+  if (requireUserVerification && !userVerified) {
+    throw new Error("WebAuthn User Verification (UV) flag required but not set");
+  }
+
+  const view = new DataView(authenticatorData.buffer, authenticatorData.byteOffset, authenticatorData.byteLength);
+  const signCount = view.getUint32(33, false); // Big-endian uint32 at offset 33
+
+  if ((signCount > 0 || storedCredential.signCount > 0) && signCount <= storedCredential.signCount) {
+    throw new Error("ClonedAuthenticatorError: signCount regression detected");
+  }
+
+  if (!signatureValid) {
+    throw new Error("Invalid WebAuthn assertion signature");
+  }
+
+  return {
+    verified: true,
+    userId: storedCredential.userId,
+    newSignCount: signCount,
+    userPresent,
+    userVerified,
+  };
+}`,
+    criteria: [
+      "Validates clientDataJSON type ('webauthn.get'), challenge, and exact origin",
+      "Parses binary authenticatorData to verify RP ID hash, UP (0x01), and UV (0x04) bit flags",
+      "Extracts big-endian uint32 signCount and rejects regressed or stagnant counters as cloned authenticators",
+    ],
+  },
+  {
+    id: "task_auth_refresh_rotation_reuse",
+    title: "Zero-Trust Refresh Token Rotation with Reuse Detection & Family Revocation",
+    category: "web-auth",
+    difficulty: "intermediate",
+    tags: ["web-auth", "oauth2", "refresh-token-rotation", "reuse-detection", "zero-trust"],
+    instructions:
+      "A session service reuses the same static refresh token across renewals, allowing an attacker who steals a refresh token to mint access tokens indefinitely alongside the legitimate user. Implement one-time refresh token rotation grouped by token familyId, where replaying any previously rotated token immediately revokes the entire token family.",
+    starterCode: `// Vulnerable Static Refresh Token (No Rotation or Theft Detection)
+class TokenStore {
+  constructor() { this.tokens = new Map(); }
+  issue(userId) {
+    const rt = "rt_" + Math.random().toString(36).slice(2);
+    this.tokens.set(rt, { userId });
+    return { refreshToken: rt, accessToken: "at_" + Date.now() };
+  }
+  refresh(rt) {
+    const rec = this.tokens.get(rt);
+    if (!rec) throw new Error("Invalid token");
+    // Returns a new access token but leaves rt reusable forever!
+    return { refreshToken: rt, accessToken: "at_" + Date.now() };
+  }
+}`,
+    solutionCode: `// One-Time Refresh Token Rotation with Family-Wide Compromise Revocation
+export class RefreshTokenRotationStore {
+  #records = new Map(); // tokenId -> { tokenId, familyId, userId, used, revoked, parentId, expiresAt }
+  #seq = 0;
+
+  issueInitialFamily(userId, ttlMs = 86400000) {
+    const familyId = \`fam_\${++this.#seq}\`;
+    return this.#mintToken({ familyId, userId, parentId: null, ttlMs });
+  }
+
+  rotate(refreshToken, ttlMs = 86400000) {
+    const record = this.#records.get(refreshToken);
+    if (!record) {
+      throw new Error("Invalid refresh token");
+    }
+
+    if (record.used) {
+      // Reuse of an already-rotated token signals credential theft: revoke entire family!
+      this.revokeFamily(record.familyId);
+      throw new Error("RefreshTokenReuseError: token family revoked due to suspected theft");
+    }
+
+    if (record.revoked || Date.now() > record.expiresAt) {
+      throw new Error("Refresh token is expired or revoked");
+    }
+
+    record.used = true;
+    return this.#mintToken({
+      familyId: record.familyId,
+      userId: record.userId,
+      parentId: record.tokenId,
+      ttlMs,
+    });
+  }
+
+  revokeFamily(familyId) {
+    let revokedCount = 0;
+    for (const rec of this.#records.values()) {
+      if (rec.familyId === familyId && !rec.revoked) {
+        rec.revoked = true;
+        revokedCount++;
+      }
+    }
+    return revokedCount;
+  }
+
+  isTokenActive(refreshToken) {
+    const rec = this.#records.get(refreshToken);
+    return Boolean(rec && !rec.used && !rec.revoked && Date.now() <= rec.expiresAt);
+  }
+
+  #mintToken({ familyId, userId, parentId, ttlMs }) {
+    const tokenId = \`rt_\${familyId}_\${++this.#seq}\`;
+    const accessToken = \`at_\${familyId}_\${this.#seq}\`;
+    this.#records.set(tokenId, {
+      tokenId,
+      familyId,
+      userId,
+      parentId,
+      used: false,
+      revoked: false,
+      expiresAt: Date.now() + ttlMs,
+    });
+    return { refreshToken: tokenId, accessToken, familyId };
+  }
+}`,
+    criteria: [
+      "Marks every refresh token as single-use upon rotation and issues a successor within the same familyId",
+      "Detects replay of any previously rotated token (record.used === true)",
+      "Immediately revokes all descendant and sibling tokens in the compromised familyId upon reuse",
+    ],
+  },
 ];

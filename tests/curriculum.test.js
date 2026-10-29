@@ -132,4 +132,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
       expect(body.score).toBe(100);
     }
   });
+
+  test("verifies deep web-auth curriculum tasks (DPoP, WebAuthn, Refresh Rotation)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks");
+    const { tasks } = await tasksRes.json();
+    const authTasks = tasks.filter((t) => t.category === "web-auth");
+    expect(authTasks.length).toBeGreaterThanOrEqual(3);
+
+    for (const authTask of authTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: authTask.id,
+        code: authTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
 });
