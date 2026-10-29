@@ -16,11 +16,12 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (94 tasks across 24 categories & 10 tracks)
+  curriculum.js   Agentic Curriculum refactoring challenges (106 tasks across 27 categories & 11 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
   seo.js          1st-party Schema.org JSON-LD @graph builder & HTML5 / Technical SEO auditor
   commerce.js     1st-party WebShopStore (Guest-to-Account Cart Merge, Checkout Promotion, Immutable Order Snapshots, Stripe/Polar.sh Webhooks & Ledger)
   web_traffic.js  1st-party Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Storage & HTTP Traffic (RFC 9111/IETF RateLimit/W3C traceparent/RFC 9218) engine
+  design_system.js 1st-party Proprietary UI Design System, W3C DTCG 2025.10 Token Compiler & Perceptual OKLCH / APCA Contrast Engine
   ts_ecosystem.js TypeScript framework catalog, cross-framework migration matrix & package manager registry
   evaluator.js    Isolated execution sandbox with Bun.Transpiler TypeScript support, AST checks, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
@@ -218,6 +219,24 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 93. **Multi-Tier Token-Bucket Rate Limiter Emitting IETF `RateLimit-*` & `Retry-After` Headers**: Continuous time-based token refill, route-specific cost weights, and standard `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `RateLimit-Policy`, and `Retry-After` headers.
 94. **W3C Trace Context (`traceparent`) Propagator, `Server-Timing` Compiler & RFC 9218 HTTP `Priority` (`u=0..7, i`) Scheduler**: Validates incoming W3C `traceparent` headers, mints child span IDs, orders requests by RFC 9218 urgency/incremental directives, and formats `Server-Timing` headers.
 
+### Proprietary Design Systems & W3C DTCG 2025.10 Tokens (`proprietary-design-systems` — 4 Tasks)
+95. **W3C Design Tokens (`DTCG 2025.10`) Compiler with `{group.token}` Alias Resolution & Cycle Detection**: Inherits group-level `$type` down nested DTCG trees, resolves chained `{group.token}` references, throws `CircularTokenAliasError` on cycles, and emits sorted `--group-token` CSS Custom Properties.
+96. **Perceptual `OKLCH` & `Display P3` Color Scale Synthesizer with Automated APCA ($L_c$) & WCAG 2.2 Contrast Enforcement**: Synthesizes an 11-step (`50..950`) perceptual `OKLCH` ramp with polar chroma tapering, calculates polarity-aware APCA $L_c$ and WCAG 2.2 contrast, and automatically adjusts foreground lightness to meet target $L_c$ thresholds.
+97. **Utopia Fluid Typography (`clamp()` Slope-Intercept Math), 4px/8px Spatial Rhythm Validator & Bento Grid Packer**: Computes exact fluid `clamp(minRem, interceptRem + slopeVw, maxRem)` expressions across viewport bounds, flags off-grid spacing values, and verifies hole-free Bento rectangle packing.
+98. **Proprietary Surface Elevation, Glassmorphic Specular Hairline & Critical-Damped Spring Physics Synthesizer**: Computes physical damping ratio $\zeta = \frac{c}{2\sqrt{km}}$, samples damped harmonic oscillator curves into CSS `linear(...)`, layers key + ambient shadows with a `1px` `oklch` inner specular highlight, and provides `prefers-reduced-motion` fallbacks.
+
+### UI/UX Interaction Craft, Anchor Positioning & View Transitions (`ui-ux-interaction` — 4 Tasks)
+99. **Linear-Style Command-First Keyboard Chord Engine (`G then T`) & WAI-ARIA Roving `tabindex` Navigator**: Maintains exactly one `tabIndex=0` item across composite lists while skipping disabled items on Arrow wrap-around, resolves two-key sequential chords within a timeout window, and suppresses chords inside editable inputs.
+100. **CSS Anchor Positioning (`anchor-name`, `position-anchor`, `@position-try-fallbacks`) & Viewport Collision Flip Solver**: Emits declarative CSS Anchor Positioning rules and flips floating popovers across block (`bottom` -> `top`) and inline (`span-right` -> `span-left`) axes when overflowing viewport edges.
+101. **View Transitions API (`document.startViewTransition`) Shared-Element Morph Coordinator**: Prevents `InvalidStateError` aborts by stripping `view-transition-name` from hidden and duplicate visible nodes, and bypasses morphing immediately when `prefers-reduced-motion` is active.
+102. **Zero-CLS Skeleton-to-Content UI Transition Controller**: Suppresses skeleton flashes when responses arrive within the initial grace delay (`120ms`), enforces a minimum dwell duration (`300ms`) once shown, and reserves intrinsic `aspect-ratio` / `min-block-size` dimensions for `0.000` CLS.
+
+### Advanced Web Components, Shadow DOM & `ElementInternals` (`web-components` — 4 Tasks)
+103. **Form-Associated Custom Element (`static formAssociated = true`) with `ElementInternals` & `CustomStateSet` (`:state()`)**: Synchronizes form values and constraint validity (`valueMissing`) with parent `<form>` elements, manages `:state(checked)` / `:state(invalid)` / `:state(disabled)`, and implements `formResetCallback` / `formStateRestoreCallback`.
+104. **Constructable Stylesheets (`adoptedStyleSheets`) Shared Pool & Loop-Safe Reactive Attribute/Property Bridge**: Deduplicates normalized `CSSStyleSheet` instances across component instances and prevents infinite `attributeChangedCallback` <-> property setter recursion.
+105. **Encapsulated Shadow DOM Named `<slot>` Projection, Fallback Resolver & `::part()` Surface Whitelist**: Distributes light-DOM children into named and default slots, renders fallback content when slots are empty, and audits external `::part(...)` selectors against whitelisted parts.
+106. **O(log N) Prefix-Sum Binary Search Virtualized Shadow DOM List with `ResizeObserver` Dynamic Row Heights**: Maintains cumulative row height prefix sums, finds the first visible variable-height row in $O(\log N)$ via binary search, applies overscan buffering, and preserves exact `totalScrollHeightPx`.
+
 ---
 
 ## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
@@ -235,6 +254,7 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
+- `GET /api/design/overview`, `POST /api/design/tokens/compile` & `POST /api/design/oklch/contrast` — Compiles W3C DTCG `2025.10` design tokens with `$type` inheritance and cycle-safe alias resolution, and evaluates/remediates perceptual `OKLCH` / `APCA Lc` / `WCAG 2.2` contrast.
 - `GET /api/traffic/overview`, `POST /api/traffic/cookies/audit` & `POST /api/traffic/cache-trace/simulate` — Audits RFC 6265bis `__Host-` / CHIPS `Partitioned` / key-rotated signed cookies and simulates RFC 9111 HTTP caching (`stale-while-revalidate`, `Vary`, `ETag` 304), IETF `RateLimit` headers, RFC 9218 `Priority`, W3C `traceparent`, and `Server-Timing`.
 - `GET /api/commerce/shop/state`, `POST /api/commerce/shop/cart/items`, `POST /api/commerce/shop/account`, `POST /api/commerce/shop/checkout`, `POST /api/commerce/shop/orders/lifecycle` & `POST /api/commerce/shop/catalog-mutate` — Full normalized Web Shop engine handling guest carts, account creation + cart merge, atomic checkout-to-order promotion (`INV-2026-XXXXX`), immutable order snapshot isolation, split-shipment delivery, RMA returns, and store-wide data integrity verification.
 - `GET /api/commerce/catalog`, `POST /api/commerce/checkout/quote`, `POST /api/commerce/webhooks/verify` & `POST /api/commerce/ledger/split` — Exposes Stripe & Polar.sh payment architecture specs, computes integer minor-unit cart quotes with Largest-Remainder discount proration and EU VAT / US Nexus taxes, verifies Stripe (`Stripe-Signature`) and Polar.sh Standard Webhooks (`webhook-signature`), and computes double-entry Connect ledger splits.
@@ -242,7 +262,7 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - `GET /api/curriculum/ecosystem` — Returns the TypeScript Framework Ecosystem catalog, cross-framework migration pathways, and multi-runtime package manager specs (`npm`, `pnpm`, `yarn-berry`, `bun`, `deno`, `jsr`).
 - `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 94 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 106 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
@@ -261,6 +281,7 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 | `C` | Open Two-User Real-Time Chat, Debugger & P99 Benchmark |
 | `S` | Open Web Shop Storefront, Checkout & Order History Inspector |
 | `W` | Open Web Cookies, Client Data & HTTP Traffic Inspector |
+| `D` | Open Proprietary Design System, OKLCH Tokens & Web Components Studio |
 | `T` | Toggle Light / Dark Monochrome Theme |
 | `1` / `2` / `3` / `4` | Filter: All / Active / Done / Refactoring |
 | `Delete` | Remove task |
