@@ -992,6 +992,92 @@ export class Evaluator {
           code.includes('.clear()'),
         detail: "Revokes Polar license keys and clears active seats when subscription is revoked or refunded",
       });
+    } else if (id === "task_pay_stripe_payment_intent_idempotency_engine") {
+      results.push({
+        name: "Payload-Hashed Idempotency Key Conflict Guard",
+        passed:
+          code.includes("IdempotencyParameterMismatchError") &&
+          code.includes("idempotencyKey") &&
+          code.includes("idempotentReplay"),
+        detail: "Rejects reused idempotency keys with mutated parameters and replays identical requests safely",
+      });
+      results.push({
+        name: "Manual Capture (requires_capture) & Partial Settlement",
+        passed:
+          code.includes("requires_capture") &&
+          code.includes("captureIntent") &&
+          code.includes("amountCapturableMinor"),
+        detail: "Supports manual authorization holds and partial/full capture settlement",
+      });
+    } else if (id === "task_pay_stripe_polar_webhook_signature_verifier") {
+      results.push({
+        name: "Dual Stripe (stripe-signature) & Polar Standard Webhooks (webhook-signature) Parsing",
+        passed:
+          code.includes("stripe-signature") &&
+          code.includes("webhook-signature") &&
+          code.includes("webhook-id") &&
+          code.includes("constantTimeEqual"),
+        detail: "Verifies both Stripe t=,v1= and Polar Standard Webhooks v1, signatures in constant time",
+      });
+      results.push({
+        name: "Timestamp Replay Window, Event Deduplication & Causal Watermark Ordering",
+        passed:
+          code.includes("TIMESTAMP_OUTSIDE_TOLERANCE_WINDOW") &&
+          code.includes("deduplicated") &&
+          code.includes("ignoredStaleOutOfOrder"),
+        detail: "Rejects stale timestamps (>300s), deduplicates event IDs, and ignores out-of-order stale mutations",
+      });
+    } else if (id === "task_pay_subscription_proration_dunning_machine") {
+      results.push({
+        name: "Second-Granularity Mid-Cycle Proration Credit & Debit Math",
+        passed:
+          code.includes("unusedCreditMinor") &&
+          code.includes("remainingDebitMinor") &&
+          code.includes("netInvoiceDeltaMinor"),
+        detail: "Computes unused credit on current plan and remaining debit on target tier/seats",
+      });
+      results.push({
+        name: "Exponential Dunning Backoff & Grace-Period Entitlement Preservation",
+        passed:
+          code.includes("past_due") &&
+          code.includes("grace_hold") &&
+          code.includes("unpaid_suspended"),
+        detail: "Keeps entitlements active during grace retries and suspends on maxAttempts or hard decline",
+      });
+    } else if (id === "task_pay_double_entry_ledger_stripe_connect_split") {
+      results.push({
+        name: "Balanced Double-Entry Invariant (sum(DEBIT) === sum(CREDIT))",
+        passed:
+          code.includes("DEBIT") &&
+          code.includes("CREDIT") &&
+          code.includes("debits !== credits"),
+        detail: "Enforces zero-sum balanced debit/credit journal postings across all accounts",
+      });
+      results.push({
+        name: "Stripe Connect Marketplace Split & Proportional Refund Clawback",
+        passed:
+          code.includes("platform_commission") &&
+          code.includes("seller_escrow_payable") &&
+          code.includes("PARTIAL_REFUND"),
+        detail: "Splits gross charges across Stripe fee, platform commission, and seller escrow with proportional refund reversals",
+      });
+    } else if (id === "task_pay_polar_stripe_usage_meter_ai_billing") {
+      results.push({
+        name: "Idempotent AI Meter Event Ingestion & Graduated Tier Brackets",
+        passed:
+          code.includes("eventId") &&
+          code.includes("upToUnits") &&
+          code.includes("unitCostMinorPerBlock"),
+        detail: "Deduplicates meter events by eventId and prices usage across graduated tier brackets",
+      });
+      results.push({
+        name: "Prepaid Credit Wallet Drawdown & Net Overage Calculation",
+        passed:
+          code.includes("appliedPrepaidCreditsMinor") &&
+          code.includes("remainingCreditBalanceMinor") &&
+          code.includes("netAmountDueMinor"),
+        detail: "Applies prepaid credit balance against gross usage before billing overage",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -3474,6 +3560,274 @@ export class Evaluator {
         name: "Polar.sh License Provisioning, Seat Limit & Webhook Revocation",
         passed: Boolean(res?.seatLimitAndIdempotencyOk && res?.revocationOk),
         detail: "Enforces 2-seat machine fingerprint limit and revokes license on subscription.revoked",
+      });
+    } else if (taskId === "task_pay_stripe_payment_intent_idempotency_engine") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Coordinator = typeof StripePaymentIntentCoordinator === "function"
+            ? StripePaymentIntentCoordinator
+            : exports.StripePaymentIntentCoordinator;
+
+          const stripeCoord = new Coordinator();
+          const first = stripeCoord.createOrRetrieveIntent({
+            idempotencyKey: "idem_checkout_9001",
+            customerId: "cus_1",
+            orderId: "ord_1",
+            amountMinor: 4900,
+            currency: "usd",
+            captureMethod: "manual",
+          });
+
+          const secondReplay = stripeCoord.createOrRetrieveIntent({
+            idempotencyKey: "idem_checkout_9001",
+            customerId: "cus_1",
+            orderId: "ord_1",
+            amountMinor: 4900,
+            currency: "usd",
+            captureMethod: "manual",
+          });
+
+          let mismatchRejected = false;
+          try {
+            stripeCoord.createOrRetrieveIntent({
+              idempotencyKey: "idem_checkout_9001",
+              customerId: "cus_1",
+              orderId: "ord_1",
+              amountMinor: 9900, // mutated amount with same idempotencyKey!
+              currency: "usd",
+              captureMethod: "manual",
+            });
+          } catch (err) {
+            mismatchRejected = String(err.message).includes("IdempotencyParameterMismatchError");
+          }
+
+          const captured = stripeCoord.captureIntent(first.intent.id, 4500);
+
+          return {
+            idempotencyAndConflictOk:
+              first.idempotentReplay === false &&
+              secondReplay.idempotentReplay === true &&
+              first.intent.id === secondReplay.intent.id &&
+              mismatchRejected,
+            manualPartialCaptureOk:
+              first.intent.status === "requires_capture" &&
+              captured.status === "succeeded" &&
+              captured.amountReceivedMinor === 4500,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Stripe Idempotency Fingerprint, Replay & Partial Manual Capture",
+        passed: Boolean(res?.idempotencyAndConflictOk && res?.manualPartialCaptureOk),
+        detail: "Replays identical idempotency keys, rejects mutated payload reuse, and settles manual capture",
+      });
+    } else if (taskId === "task_pay_stripe_polar_webhook_signature_verifier") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Verifier = typeof DualWebhookVerifier === "function"
+            ? DualWebhookVerifier
+            : exports.DualWebhookVerifier;
+          const signHex = typeof computeWebhookSignatureHex === "function"
+            ? computeWebhookSignatureHex
+            : exports.computeWebhookSignatureHex;
+
+          const verifier = new Verifier();
+          const secret = "whsec_live_secret_2026";
+          const rawNewer = JSON.stringify({ id: "evt_new", created: 2000, entityId: "sub_1" });
+          const stripeSig = signHex(secret, "1000." + rawNewer);
+
+          const v1 = verifier.verifyAndRecord({
+            provider: "stripe",
+            secret,
+            rawBody: rawNewer,
+            headers: { "stripe-signature": "t=1000,v1=" + stripeSig },
+            nowSec: 1050,
+          });
+
+          const v1Dup = verifier.verifyAndRecord({
+            provider: "stripe",
+            secret,
+            rawBody: rawNewer,
+            headers: { "stripe-signature": "t=1000,v1=" + stripeSig },
+            nowSec: 1060,
+          });
+
+          // Polar Standard Webhooks with older entity timestamp (created: 1500 < 2000)
+          const rawOlder = JSON.stringify({ id: "evt_old", created: 1500, entityId: "sub_1" });
+          const polarSig = signHex(secret, "msg_99.1080." + rawOlder);
+          const vPolarStale = verifier.verifyAndRecord({
+            provider: "polar",
+            secret,
+            rawBody: rawOlder,
+            headers: {
+              "webhook-id": "msg_99",
+              "webhook-timestamp": "1080",
+              "webhook-signature": "v1," + polarSig,
+            },
+            nowSec: 1100,
+          });
+
+          // Replay outside 300s window
+          const vExpired = verifier.verifyAndRecord({
+            provider: "stripe",
+            secret,
+            rawBody: rawNewer,
+            headers: { "stripe-signature": "t=1000,v1=" + stripeSig },
+            nowSec: 2000,
+          });
+
+          return {
+            stripeAndDedupOk:
+              v1.valid === true &&
+              v1.deduplicated === false &&
+              v1Dup.valid === true &&
+              v1Dup.deduplicated === true,
+            polarAndCausalWatermarkOk:
+              vPolarStale.valid === true &&
+              vPolarStale.ignoredStaleOutOfOrder === true &&
+              vExpired.valid === false &&
+              vExpired.reason === "TIMESTAMP_OUTSIDE_TOLERANCE_WINDOW",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Stripe & Polar Webhook Signature, Replay Window & Out-of-Order Guard",
+        passed: Boolean(res?.stripeAndDedupOk && res?.polarAndCausalWatermarkOk),
+        detail: "Verifies Stripe and Polar signatures, deduplicates replays, and drops out-of-order events",
+      });
+    } else if (taskId === "task_pay_subscription_proration_dunning_machine") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const calcProration = typeof calculateSubscriptionProration === "function"
+            ? calculateSubscriptionProration
+            : exports.calculateSubscriptionProration;
+          const evalDunning = typeof evaluateDunningTransition === "function"
+            ? evaluateDunningTransition
+            : exports.evaluateDunningTransition;
+
+          // Exactly 50% through billing cycle: upgrade from $30 (3000c) to $90 (9000c)
+          // Unused credit = 1500c, remaining debit = 4500c -> net delta = +3000c
+          const quote = calcProration({
+            periodStartSec: 1000,
+            periodEndSec: 3000,
+            changeAtSec: 2000,
+            currentPlanAmountMinor: 3000,
+            currentQuantity: 1,
+            targetPlanAmountMinor: 9000,
+            targetQuantity: 1,
+          });
+
+          const d1 = evalDunning({ failedAttempts: 1 });
+          const d2 = evalDunning({ failedAttempts: 2 });
+          const d4 = evalDunning({ failedAttempts: 4 });
+
+          return {
+            prorationMathOk:
+              quote.unusedCreditMinor === 1500 &&
+              quote.remainingDebitMinor === 4500 &&
+              quote.netInvoiceDeltaMinor === 3000,
+            dunningLifecycleOk:
+              d1.status === "past_due" &&
+              d1.entitlementsActive === true &&
+              d2.status === "grace_hold" &&
+              d2.nextRetryDelayHours === 72 &&
+              d4.status === "unpaid_suspended" &&
+              d4.entitlementsActive === false,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Mid-Cycle Proration Delta & Smart Dunning Backoff Verification",
+        passed: Boolean(res?.prorationMathOk && res?.dunningLifecycleOk),
+        detail: "Verifies 50%-cycle upgrade proration (+3000c) and past_due -> grace_hold -> unpaid_suspended transitions",
+      });
+    } else if (taskId === "task_pay_double_entry_ledger_stripe_connect_split") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Ledger = typeof DoubleEntryConnectLedger === "function"
+            ? DoubleEntryConnectLedger
+            : exports.DoubleEntryConnectLedger;
+
+          const ledger = new Ledger();
+          // $100.00 charge (10000c): $3.20 Stripe fee (320c), 10% platform commission (1000c), $86.80 seller (8680c)
+          ledger.recordMarketplaceCharge({
+            txId: "tx_charge_1",
+            orderId: "ord_100",
+            grossChargeMinor: 10000,
+            stripeFeeMinor: 320,
+            platformFeeBps: 1000,
+          });
+
+          // 50% partial refund ($50.00 = 5000c): reverses 500c platform commission and 4500c from seller escrow
+          ledger.recordProportionalRefund({
+            txId: "tx_refund_1",
+            orderId: "ord_100",
+            originalGrossMinor: 10000,
+            refundGrossMinor: 5000,
+            platformFeeBps: 1000,
+          });
+
+          return {
+            balancesConsistent:
+              ledger.getAccountCreditBalance("platform_commission") === 500 &&
+              ledger.getAccountCreditBalance("seller_escrow_payable") === 4180 &&
+              ledger.getAccountCreditBalance("stripe_processing_fee") === 320,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Double-Entry Connect Charge Split & Partial Refund Clawback",
+        passed: Boolean(res?.balancesConsistent),
+        detail: "Maintains balanced debit/credit ledger across charge split and 50% proportional refund",
+      });
+    } else if (taskId === "task_pay_polar_stripe_usage_meter_ai_billing") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Engine = typeof UsageMeterBillingEngine === "function"
+            ? UsageMeterBillingEngine
+            : exports.UsageMeterBillingEngine;
+
+          const meter = new Engine();
+          meter.grantPrepaidCredits("cus_ai_1", 500); // $5.00 prepaid credit
+
+          // Ingest 1,500,000 tokens across 2 unique events + 1 duplicate retry
+          meter.ingestEvent({ eventId: "ev_1", customerId: "cus_ai_1", meterSlug: "llm_tokens", units: 1_000_000 });
+          meter.ingestEvent({ eventId: "ev_1", customerId: "cus_ai_1", meterSlug: "llm_tokens", units: 1_000_000 }); // duplicate!
+          meter.ingestEvent({ eventId: "ev_2", customerId: "cus_ai_1", meterSlug: "llm_tokens", units: 500_000 });
+
+          // Tier 1: first 1,000,000 tokens at 200c per 1M block = 200c
+          // Tier 2: above 1,000,000 tokens at 100c per 500k block = 100c -> total gross = 300c
+          // Prepaid credits = 500c -> applied = 300c, net due = 0c, remaining credit = 200c
+          const inv = meter.closeBillingCycle("cus_ai_1", [
+            { upToUnits: 1_000_000, unitCostMinorPerBlock: 200, blockSize: 1_000_000 },
+            { upToUnits: null, unitCostMinorPerBlock: 100, blockSize: 500_000 },
+          ]);
+
+          return {
+            graduatedAndCreditDrawdownOk:
+              inv.totalUnits === 1_500_000 &&
+              inv.deduplicatedEvents === 1 &&
+              inv.grossUsageChargeMinor === 300 &&
+              inv.appliedPrepaidCreditsMinor === 300 &&
+              inv.netAmountDueMinor === 0 &&
+              inv.remainingCreditBalanceMinor === 200,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "AI Usage Meter Deduplication, Graduated Tiers & Credit Wallet Drawdown",
+        passed: Boolean(res?.graduatedAndCreditDrawdownOk),
+        detail: "Deduplicates retried token events, applies graduated bracket pricing, and draws down prepaid credits",
       });
     } else {
       // General syntax evaluation

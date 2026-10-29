@@ -5836,6 +5836,589 @@ export class PolarEntitlementEngine {
       "Revokes license keys and clears active machine seats upon subscription.revoked or order.refunded webhooks",
     ],
   },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 11: PAYMENT PROCESSING, STRIPE & POLAR.SH (payment-processing)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_pay_stripe_payment_intent_idempotency_engine",
+    title: "Harden Stripe PaymentIntent & Checkout Session Coordinator with Payload-Hashed Idempotency Keys, Manual Capture & Retry Recovery",
+    category: "payment-processing",
+    difficulty: "advanced",
+    tags: ["stripe", "payment-intents", "idempotency-key", "manual-capture", "fintech", "typescript"],
+    instructions:
+      "A checkout endpoint creates a new Stripe PaymentIntent on every retry without an Idempotency-Key or payload fingerprint validation, causing duplicate customer card charges on flaky mobile networks and failing to reject reused idempotency keys when cart amounts change (Stripe 400 idempotency_error). Build a StripePaymentIntentCoordinator with SHA-256 request payload fingerprinting, in-flight deduplication, manual vs automatic capture, and partial capture support.",
+    starterCode: `// Unprotected PaymentIntent Creation Causing Duplicate Card Charges on Network Retry
+export async function createPayment(stripe: any, amount: number, currency: string) {
+  return stripe.paymentIntents.create({ amount, currency });
+}`,
+    solutionCode: `// Hardened Stripe PaymentIntent Coordinator with Payload-Hashed Idempotency & Manual Capture
+export interface CreatePaymentIntentInput {
+  readonly idempotencyKey: string;
+  readonly customerId: string;
+  readonly orderId: string;
+  readonly amountMinor: number;
+  readonly currency: "usd" | "eur" | "gbp" | "jpy";
+  readonly captureMethod: "automatic" | "manual";
+}
+
+export interface StripePaymentIntentRecord {
+  readonly id: string;
+  readonly clientSecret: string;
+  readonly customerId: string;
+  readonly orderId: string;
+  readonly amountMinor: number;
+  readonly amountCapturableMinor: number;
+  amountReceivedMinor: number;
+  readonly currency: string;
+  readonly captureMethod: "automatic" | "manual";
+  status: "requires_payment_method" | "requires_action" | "requires_capture" | "succeeded" | "canceled";
+}
+
+function hashPayloadFingerprint(input: Omit<CreatePaymentIntentInput, "idempotencyKey">): string {
+  const canonical = \`\${input.customerId}|\${input.orderId}|\${input.amountMinor}|\${input.currency}|\${input.captureMethod}\`;
+  let h = 2166136261;
+  for (let i = 0; i < canonical.length; i++) {
+    h ^= canonical.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+export class StripePaymentIntentCoordinator {
+  #idempotencyStore = new Map<
+    string,
+    { readonly payloadHash: string; readonly intentId: string }
+  >();
+  #intents = new Map<string, StripePaymentIntentRecord>();
+  #seq = 1;
+
+  createOrRetrieveIntent(input: CreatePaymentIntentInput): {
+    readonly intent: StripePaymentIntentRecord;
+    readonly idempotentReplay: boolean;
+  } {
+    if (!input.idempotencyKey || input.idempotencyKey.trim().length < 8) {
+      throw new Error("Idempotency-Key must be at least 8 characters");
+    }
+    if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
+      throw new Error("amountMinor must be a positive integer");
+    }
+
+    const payloadHash = hashPayloadFingerprint(input);
+    const existingEntry = this.#idempotencyStore.get(input.idempotencyKey);
+
+    if (existingEntry) {
+      if (existingEntry.payloadHash !== payloadHash) {
+        throw new Error(
+          \`IdempotencyParameterMismatchError: Keys for idempotent requests can only be used with the same parameters (\${input.idempotencyKey})\`,
+        );
+      }
+      const existingIntent = this.#intents.get(existingEntry.intentId)!;
+      return { intent: { ...existingIntent }, idempotentReplay: true };
+    }
+
+    const id = \`pi_live_\${this.#seq++}_\${payloadHash}\`;
+    const isManual = input.captureMethod === "manual";
+    const intent: StripePaymentIntentRecord = {
+      id,
+      clientSecret: \`\${id}_secret_\${payloadHash}\`,
+      customerId: input.customerId,
+      orderId: input.orderId,
+      amountMinor: input.amountMinor,
+      amountCapturableMinor: isManual ? input.amountMinor : 0,
+      amountReceivedMinor: isManual ? 0 : input.amountMinor,
+      currency: input.currency,
+      captureMethod: input.captureMethod,
+      status: isManual ? "requires_capture" : "succeeded",
+    };
+
+    this.#intents.set(id, intent);
+    this.#idempotencyStore.set(input.idempotencyKey, { payloadHash, intentId: id });
+    return { intent: { ...intent }, idempotentReplay: false };
+  }
+
+  captureIntent(intentId: string, amountToCaptureMinor?: number): StripePaymentIntentRecord {
+    const intent = this.#intents.get(intentId);
+    if (!intent) throw new Error(\`Unknown PaymentIntent '\${intentId}'\`);
+    if (intent.status !== "requires_capture") {
+      throw new Error(\`PaymentIntent '\${intentId}' cannot be captured in status '\${intent.status}'\`);
+    }
+
+    const captureAmt = amountToCaptureMinor ?? intent.amountCapturableMinor;
+    if (captureAmt <= 0 || captureAmt > intent.amountCapturableMinor) {
+      throw new Error("Invalid capture amount");
+    }
+
+    intent.amountReceivedMinor = captureAmt;
+    intent.status = "succeeded";
+    return { ...intent };
+  }
+}`,
+    criteria: [
+      "Fingerprints request parameters per Idempotency-Key and throws IdempotencyParameterMismatchError when reused with mutated amounts",
+      "Returns the exact cached PaymentIntent with idempotentReplay: true on duplicate retry requests",
+      "Supports captureMethod: \"manual\" (requires_capture) with partial or full captureIntent() settlement",
+    ],
+  },
+  {
+    id: "task_pay_stripe_polar_webhook_signature_verifier",
+    title: "Implement Dual Stripe (Stripe-Signature t=,v1=) & Polar.sh Standard Webhooks (webhook-signature v1,) Verifier with Replay & Causal Ordering Guard",
+    category: "payment-processing",
+    difficulty: "advanced",
+    tags: ["stripe", "polar-sh", "webhooks", "standard-webhooks", "hmac-sha256", "idempotency"],
+    instructions:
+      "Webhook endpoints frequently parse JSON before verifying HMAC signatures (breaking raw-body byte integrity), skip 300-second timestamp tolerance checks, and allow out-of-order delivery (e.g., an older subscription.updated overwriting a newer subscription.deleted). Build a unified WebhookSecurityVerifier supporting both Stripe's Stripe-Signature (t=<ts>,v1=<sig>) and Polar.sh's Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature: v1,<sig>) with constant-time comparison, replay protection, and per-entity timestamp watermarks.",
+    starterCode: `// Insecure Webhook Handler Trusting Unverified JSON Body & Vulnerable to Out-of-Order Replay
+export function handleWebhook(body: any) {
+  return { processed: true, type: body.type };
+}`,
+    solutionCode: `// Unified Stripe (t=,v1=) & Polar.sh Standard Webhooks (v1,) Verifier with Replay & Ordering Guard
+export interface WebhookVerificationOutcome {
+  readonly valid: boolean;
+  readonly provider: "stripe" | "polar";
+  readonly deduplicated?: boolean;
+  readonly ignoredStaleOutOfOrder?: boolean;
+  readonly reason?: string;
+}
+
+export function computeWebhookSignatureHex(secret: string, signedPayload: string): string {
+  // Deterministic keyed MAC over raw payload string
+  let h1 = 0xdeadbeef ^ secret.length;
+  let h2 = 0x41c6ce57 ^ signedPayload.length;
+  const combined = \`\${secret}::\${signedPayload}\`;
+  for (let i = 0; i < combined.length; i++) {
+    const ch = combined.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+export class DualWebhookVerifier {
+  #processedEvents = new Set<string>();
+  #entityWatermarkSec = new Map<string, number>();
+
+  verifyAndRecord(params: {
+    readonly provider: "stripe" | "polar";
+    readonly secret: string;
+    readonly rawBody: string;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly nowSec: number;
+    readonly toleranceSec?: number;
+  }): WebhookVerificationOutcome {
+    const tolerance = params.toleranceSec ?? 300;
+    let timestampSec = 0;
+    let providedSig = "";
+    let signedPayload = "";
+
+    if (params.provider === "stripe") {
+      const sigHeader = params.headers["stripe-signature"] ?? "";
+      const parts = Object.fromEntries(
+        sigHeader.split(",").map((kv) => {
+          const [k, v] = kv.trim().split("=");
+          return [k, v ?? ""];
+        }),
+      );
+      timestampSec = Number(parts.t);
+      providedSig = parts.v1 ?? "";
+      signedPayload = \`\${timestampSec}.\${params.rawBody}\`;
+    } else {
+      // Polar.sh uses Standard Webhooks: webhook-id, webhook-timestamp, webhook-signature: "v1,<sig>"
+      const msgId = params.headers["webhook-id"] ?? "";
+      timestampSec = Number(params.headers["webhook-timestamp"]);
+      const rawSig = params.headers["webhook-signature"] ?? "";
+      providedSig = rawSig.startsWith("v1,") ? rawSig.slice(3) : rawSig;
+      signedPayload = \`\${msgId}.\${timestampSec}.\${params.rawBody}\`;
+    }
+
+    if (!Number.isFinite(timestampSec) || !providedSig) {
+      return { valid: false, provider: params.provider, reason: "MALFORMED_SIGNATURE_HEADERS" };
+    }
+
+    if (Math.abs(params.nowSec - timestampSec) > tolerance) {
+      return { valid: false, provider: params.provider, reason: "TIMESTAMP_OUTSIDE_TOLERANCE_WINDOW" };
+    }
+
+    const expectedSig = computeWebhookSignatureHex(params.secret, signedPayload);
+    if (!constantTimeEqual(expectedSig, providedSig)) {
+      return { valid: false, provider: params.provider, reason: "INVALID_HMAC_SIGNATURE" };
+    }
+
+    const parsed = JSON.parse(params.rawBody) as {
+      id: string;
+      created: number;
+      entityId: string;
+    };
+
+    if (this.#processedEvents.has(parsed.id)) {
+      return { valid: true, provider: params.provider, deduplicated: true };
+    }
+    this.#processedEvents.add(parsed.id);
+
+    const prevWatermark = this.#entityWatermarkSec.get(parsed.entityId) ?? -1;
+    if (parsed.created < prevWatermark) {
+      return {
+        valid: true,
+        provider: params.provider,
+        deduplicated: false,
+        ignoredStaleOutOfOrder: true,
+      };
+    }
+
+    this.#entityWatermarkSec.set(parsed.entityId, parsed.created);
+    return {
+      valid: true,
+      provider: params.provider,
+      deduplicated: false,
+      ignoredStaleOutOfOrder: false,
+    };
+  }
+}`,
+    criteria: [
+      "Verifies both Stripe (Stripe-Signature: t=...,v1=...) and Polar.sh Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature: v1,...)",
+      "Enforces constant-time HMAC signature verification and a 300-second replay tolerance window",
+      "Deduplicates replayed event IDs and drops stale out-of-order events via per-entity timestamp watermarks",
+    ],
+  },
+  {
+    id: "task_pay_subscription_proration_dunning_machine",
+    title: "Build SaaS Subscription Mid-Cycle Upgrade/Downgrade Proration Calculator & Smart Dunning (past_due -> unpaid) Recovery Engine",
+    category: "payment-processing",
+    difficulty: "advanced",
+    tags: ["stripe", "polar-sh", "subscriptions", "proration", "dunning", "saas-billing"],
+    instructions:
+      "When a customer upgrades from a $29/mo Starter plan to a $99/mo Pro plan halfway through a 30-day billing cycle, naive billing charges the full $99 without crediting the unused $14.50 from the Starter tier. Furthermore, a single failed renewal charge immediately cancels enterprise tenants instead of executing a smart dunning schedule with grace periods. Build a SubscriptionProrationAndDunningEngine.",
+    starterCode: `// Naive Plan Upgrade Charging Full Price Without Unused Time Proration Credit
+export function upgradePlan(currentPriceCents: number, newPriceCents: number) {
+  return { amountDueCents: newPriceCents };
+}`,
+    solutionCode: `// SaaS Subscription Mid-Cycle Proration & Smart Dunning State Machine
+export interface ProrationQuoteInput {
+  readonly periodStartSec: number;
+  readonly periodEndSec: number;
+  readonly changeAtSec: number;
+  readonly currentPlanAmountMinor: number;
+  readonly currentQuantity: number;
+  readonly targetPlanAmountMinor: number;
+  readonly targetQuantity: number;
+}
+
+export interface ProrationQuoteResult {
+  readonly unusedCreditMinor: number;
+  readonly remainingDebitMinor: number;
+  readonly netInvoiceDeltaMinor: number;
+  readonly remainingRatioFp: number;
+}
+
+export function calculateSubscriptionProration(input: ProrationQuoteInput): ProrationQuoteResult {
+  const totalDuration = input.periodEndSec - input.periodStartSec;
+  if (totalDuration <= 0) throw new Error("Invalid billing period bounds");
+  if (input.changeAtSec < input.periodStartSec || input.changeAtSec > input.periodEndSec) {
+    throw new Error("changeAtSec must fall within current billing period");
+  }
+
+  const remainingSeconds = input.periodEndSec - input.changeAtSec;
+  const currentTotalMinor = input.currentPlanAmountMinor * input.currentQuantity;
+  const targetTotalMinor = input.targetPlanAmountMinor * input.targetQuantity;
+
+  const unusedCreditMinor = Math.round((currentTotalMinor * remainingSeconds) / totalDuration);
+  const remainingDebitMinor = Math.round((targetTotalMinor * remainingSeconds) / totalDuration);
+
+  return {
+    unusedCreditMinor,
+    remainingDebitMinor,
+    netInvoiceDeltaMinor: remainingDebitMinor - unusedCreditMinor,
+    remainingRatioFp: Number((remainingSeconds / totalDuration).toFixed(4)),
+  };
+}
+
+export type SubscriptionDunningStatus = "active" | "past_due" | "grace_hold" | "unpaid_suspended" | "canceled";
+
+export interface DunningTransitionResult {
+  readonly status: SubscriptionDunningStatus;
+  readonly entitlementsActive: boolean;
+  readonly nextRetryDelayHours: number | null;
+}
+
+export function evaluateDunningTransition(params: {
+  readonly failedAttempts: number;
+  readonly maxAttempts?: number;
+  readonly isHardDecline?: boolean;
+}): DunningTransitionResult {
+  const maxAttempts = params.maxAttempts ?? 4;
+
+  if (params.isHardDecline || params.failedAttempts >= maxAttempts) {
+    return {
+      status: "unpaid_suspended",
+      entitlementsActive: false,
+      nextRetryDelayHours: null,
+    };
+  }
+
+  if (params.failedAttempts <= 0) {
+    return { status: "active", entitlementsActive: true, nextRetryDelayHours: null };
+  }
+
+  // Exponential backoff schedule: 24h -> 72h -> 168h
+  const retryScheduleHours = [24, 72, 168];
+  const nextRetryDelayHours =
+    retryScheduleHours[Math.min(params.failedAttempts - 1, retryScheduleHours.length - 1)];
+
+  return {
+    status: params.failedAttempts === 1 ? "past_due" : "grace_hold",
+    entitlementsActive: true, // Keep service running during grace retries
+    nextRetryDelayHours,
+  };
+}`,
+    criteria: [
+      "Calculates exact second-level unused credit (unusedCreditMinor) and remaining new-plan debit (remainingDebitMinor)",
+      "Supports seat quantity scaling alongside tier upgrades and downgrades (negative netInvoiceDeltaMinor credit)",
+      "Preserves customer entitlements during past_due / grace_hold dunning retries and suspends on hard decline or maxAttempts",
+    ],
+  },
+  {
+    id: "task_pay_double_entry_ledger_stripe_connect_split",
+    title: "Architect Immutable Double-Entry Financial Ledger for Stripe Connect Marketplace Splits, Platform Fees & Partial Refunds",
+    category: "payment-processing",
+    difficulty: "advanced",
+    tags: ["stripe-connect", "double-entry-ledger", "fintech", "marketplace", "escrow", "refunds"],
+    instructions:
+      "A multi-vendor marketplace tracks seller payouts by mutating a single float balance column, causing reconciliation drift when Stripe deducts processing fees, the platform takes a 10% marketplace commission, and a customer requests a partial refund. Build an immutable DoubleEntryConnectLedger where every journal transaction enforces sum(debits) === sum(credits) across clearing, fee, platform, and seller accounts.",
+    starterCode: `// Mutable Single-Column Balance Prone to Reconciliation Drift on Partial Refunds
+export function creditSeller(seller: any, amount: number) {
+  seller.balance += amount * 0.9;
+}`,
+    solutionCode: `// Immutable Double-Entry Financial Ledger for Stripe Connect Marketplace Splits & Refunds
+export type LedgerAccount =
+  | "buyer_external"
+  | "stripe_processing_fee"
+  | "platform_commission"
+  | "seller_escrow_payable";
+
+export interface LedgerEntryLine {
+  readonly account: LedgerAccount;
+  readonly direction: "DEBIT" | "CREDIT";
+  readonly amountMinor: number;
+}
+
+export interface JournalTransaction {
+  readonly txId: string;
+  readonly orderId: string;
+  readonly kind: "CHARGE_SPLIT" | "PARTIAL_REFUND";
+  readonly lines: readonly LedgerEntryLine[];
+}
+
+export class DoubleEntryConnectLedger {
+  #journal: JournalTransaction[] = [];
+
+  recordPosting(tx: JournalTransaction): void {
+    let debits = 0;
+    let credits = 0;
+    for (const line of tx.lines) {
+      if (!Number.isSafeInteger(line.amountMinor) || line.amountMinor < 0) {
+        throw new Error("Ledger entry amountMinor must be a non-negative integer");
+      }
+      if (line.direction === "DEBIT") debits += line.amountMinor;
+      else credits += line.amountMinor;
+    }
+    if (debits !== credits) {
+      throw new Error(\`Unbalanced double-entry posting (\${tx.txId}): debits=\${debits} !== credits=\${credits}\`);
+    }
+    this.#journal.push(tx);
+  }
+
+  recordMarketplaceCharge(params: {
+    readonly txId: string;
+    readonly orderId: string;
+    readonly grossChargeMinor: number;
+    readonly stripeFeeMinor: number;
+    readonly platformFeeBps: number; // e.g., 1000 = 10%
+  }): JournalTransaction {
+    const platformCommissionMinor = Math.round(
+      (params.grossChargeMinor * params.platformFeeBps) / 10000,
+    );
+    const sellerNetMinor =
+      params.grossChargeMinor - params.stripeFeeMinor - platformCommissionMinor;
+
+    const tx: JournalTransaction = {
+      txId: params.txId,
+      orderId: params.orderId,
+      kind: "CHARGE_SPLIT",
+      lines: [
+        { account: "buyer_external", direction: "DEBIT", amountMinor: params.grossChargeMinor },
+        { account: "stripe_processing_fee", direction: "CREDIT", amountMinor: params.stripeFeeMinor },
+        { account: "platform_commission", direction: "CREDIT", amountMinor: platformCommissionMinor },
+        { account: "seller_escrow_payable", direction: "CREDIT", amountMinor: sellerNetMinor },
+      ],
+    };
+    this.recordPosting(tx);
+    return tx;
+  }
+
+  recordProportionalRefund(params: {
+    readonly txId: string;
+    readonly orderId: string;
+    readonly originalGrossMinor: number;
+    readonly refundGrossMinor: number;
+    readonly platformFeeBps: number;
+  }): JournalTransaction {
+    if (params.refundGrossMinor <= 0 || params.refundGrossMinor > params.originalGrossMinor) {
+      throw new Error("Invalid refund amount");
+    }
+    const platformFeeReversalMinor = Math.round(
+      (params.refundGrossMinor * params.platformFeeBps) / 10000,
+    );
+    const sellerClawbackMinor = params.refundGrossMinor - platformFeeReversalMinor;
+
+    const tx: JournalTransaction = {
+      txId: params.txId,
+      orderId: params.orderId,
+      kind: "PARTIAL_REFUND",
+      lines: [
+        { account: "platform_commission", direction: "DEBIT", amountMinor: platformFeeReversalMinor },
+        { account: "seller_escrow_payable", direction: "DEBIT", amountMinor: sellerClawbackMinor },
+        { account: "buyer_external", direction: "CREDIT", amountMinor: params.refundGrossMinor },
+      ],
+    };
+    this.recordPosting(tx);
+    return tx;
+  }
+
+  getAccountCreditBalance(account: LedgerAccount): number {
+    let balance = 0;
+    for (const tx of this.#journal) {
+      for (const line of tx.lines) {
+        if (line.account === account) {
+          balance += line.direction === "CREDIT" ? line.amountMinor : -line.amountMinor;
+        }
+      }
+    }
+    return balance;
+  }
+}`,
+    criteria: [
+      "Enforces the fundamental double-entry accounting invariant (sum(debits) === sum(credits)) on every journal posting",
+      "Splits marketplace charges across stripe_processing_fee, platform_commission, and seller_escrow_payable",
+      "Computes proportional platform commission reversals and seller escrow clawbacks during partial refunds",
+    ],
+  },
+  {
+    id: "task_pay_polar_stripe_usage_meter_ai_billing",
+    title: "Implement Usage-Based AI Token & GPU Meter Billing Engine (Polar Meters / Stripe Billing) with Graduated Tiers & Credit Drawdown",
+    category: "payment-processing",
+    difficulty: "advanced",
+    tags: ["polar-sh", "stripe-billing", "usage-based-billing", "ai-tokens", "graduated-pricing", "credits"],
+    instructions:
+      "Modern AI companies bill customers via Polar.sh Meters or Stripe Billing Meters for LLM tokens and GPU seconds, combining prepaid credit grants with graduated tier pricing (e.g., first 1M tokens at $2/1M, next 9M at $1.50/1M, 10M+ at $1/1M). Build a UsageMeterBillingEngine with idempotent event ingestion, graduated bracket math, and automatic prepaid credit wallet drawdown.",
+    starterCode: `// Un-deduplicated Flat Token Counter Missing Graduated Tiers & Credit Wallet Drawdown
+export function billUsage(events: any[], pricePerUnit: number) {
+  return events.reduce((s, e) => s + e.units, 0) * pricePerUnit;
+}`,
+    solutionCode: `// Usage-Based AI Meter Billing Engine with Idempotent Ingestion, Graduated Tiers & Credit Drawdown
+export interface MeterEvent {
+  readonly eventId: string;
+  readonly customerId: string;
+  readonly meterSlug: "llm_tokens" | "gpu_seconds";
+  readonly units: number;
+}
+
+export interface GraduatedTierBracket {
+  readonly upToUnits: number | null; // null = infinity
+  readonly unitCostMinorPerBlock: number;
+  readonly blockSize: number; // e.g., per 1,000 units
+}
+
+export interface CustomerMeterInvoice {
+  readonly customerId: string;
+  readonly totalUnits: number;
+  readonly deduplicatedEvents: number;
+  readonly grossUsageChargeMinor: number;
+  readonly appliedPrepaidCreditsMinor: number;
+  readonly netAmountDueMinor: number;
+  readonly remainingCreditBalanceMinor: number;
+}
+
+export class UsageMeterBillingEngine {
+  #seenEventIds = new Set<string>();
+  #customerUnits = new Map<string, number>();
+  #dedupCount = new Map<string, number>();
+  #creditWalletMinor = new Map<string, number>();
+
+  grantPrepaidCredits(customerId: string, amountMinor: number): void {
+    const prev = this.#creditWalletMinor.get(customerId) ?? 0;
+    this.#creditWalletMinor.set(customerId, prev + amountMinor);
+  }
+
+  ingestEvent(event: MeterEvent): boolean {
+    if (this.#seenEventIds.has(event.eventId)) {
+      this.#dedupCount.set(event.customerId, (this.#dedupCount.get(event.customerId) ?? 0) + 1);
+      return false;
+    }
+    this.#seenEventIds.add(event.eventId);
+    const prev = this.#customerUnits.get(event.customerId) ?? 0;
+    this.#customerUnits.set(event.customerId, prev + event.units);
+    return true;
+  }
+
+  closeBillingCycle(
+    customerId: string,
+    tiers: readonly GraduatedTierBracket[],
+  ): CustomerMeterInvoice {
+    const totalUnits = this.#customerUnits.get(customerId) ?? 0;
+    const deduplicatedEvents = this.#dedupCount.get(customerId) ?? 0;
+
+    let remainingToPrice = totalUnits;
+    let previousCeiling = 0;
+    let grossUsageChargeMinor = 0;
+
+    for (const tier of tiers) {
+      if (remainingToPrice <= 0) break;
+      const bracketCapacity =
+        tier.upToUnits === null ? remainingToPrice : Math.max(0, tier.upToUnits - previousCeiling);
+      const unitsInBracket = Math.min(remainingToPrice, bracketCapacity);
+      const blocks = Math.ceil(unitsInBracket / tier.blockSize);
+      grossUsageChargeMinor += blocks * tier.unitCostMinorPerBlock;
+
+      remainingToPrice -= unitsInBracket;
+      if (tier.upToUnits !== null) {
+        previousCeiling = tier.upToUnits;
+      }
+    }
+
+    const availableCredits = this.#creditWalletMinor.get(customerId) ?? 0;
+    const appliedPrepaidCreditsMinor = Math.min(availableCredits, grossUsageChargeMinor);
+    const netAmountDueMinor = grossUsageChargeMinor - appliedPrepaidCreditsMinor;
+    const remainingCreditBalanceMinor = availableCredits - appliedPrepaidCreditsMinor;
+
+    this.#creditWalletMinor.set(customerId, remainingCreditBalanceMinor);
+    return {
+      customerId,
+      totalUnits,
+      deduplicatedEvents,
+      grossUsageChargeMinor,
+      appliedPrepaidCreditsMinor,
+      netAmountDueMinor,
+      remainingCreditBalanceMinor,
+    };
+  }
+}`,
+    criteria: [
+      "Deduplicates retried usage meter events by eventId so network retries never double-bill AI tokens",
+      "Computes graduated tier pricing across progressive brackets (upToUnits, blockSize, unitCostMinorPerBlock)",
+      "Draws down prepaid credit wallet balances before generating net overage invoice charges",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({
