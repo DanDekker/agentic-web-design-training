@@ -16,9 +16,9 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (36 tasks across 12 categories)
+  curriculum.js   Agentic Curriculum refactoring challenges (52 tasks across 15 categories & 6 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
-  evaluator.js    Isolated execution sandbox with AST checks, assertion runners, and telemetry scoring
+  evaluator.js    Isolated execution sandbox with Bun.Transpiler TypeScript support, AST checks, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
   store.js        Multi-board task store, atomic JSON writes, corrupt-file quarantine
   api.js          Pure Request → Response route handlers
@@ -130,6 +130,30 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 35. **Pure Chat Protocol State Machine**: Refactor tangled imperative socket/DOM callbacks into a deterministic reducer (`chatProtocolReducer`) emitting `{ state, effects }`.
 36. **O(1) Circular Ring Buffer & P99 Fanout Benchmark**: Replace $O(N^2)$ array spread copies with modular ring-buffer slot indexing, single-encode SSE wire frames, and P50/P99 latency benchmarking.
 
+### Advanced Modern CSS Architecture (`css` — 5 Tasks)
+37. **Container Size/Style Queries & Subgrid**: Intrinsic `container-type: inline-size`, `@container` size and `style(--featured: true)` queries, and `grid-template-rows: subgrid` alignment.
+38. **Cascade Layers (`@layer`), `@property` & Relative `oklch()` Tokens**: Deterministic `@layer reset, tokens, base, components, utilities;`, typed `@property` descriptors, `light-dark()`, and `oklch(from var(--brand) ...)` relative color derivation.
+39. **Scroll-Driven Animations & View Transitions**: Compositor-driven `animation-timeline: scroll()` and `view()` with `animation-range`, `::view-transition-old/new(root)`, and `@media (prefers-reduced-motion: reduce)`.
+40. **CSS Anchor Positioning & Relational `:has()`**: Native `anchor-name`, `position-anchor`, `anchor()`, `position-try-fallbacks`, `@position-try`, and `:has([popover]:popover-open)` parent styling.
+
+### Fortune 500 TypeScript Frameworks (`ts-frameworks` — 4 Tasks)
+41. **React 19 / Next.js App Router Server Actions**: Strict TypeScript discriminated union `ActionResult<T>`, `useOptimistic`-compatible rollback reducer (`OPTIMISTIC_ADD`, `COMMIT_SUCCESS`, `ROLLBACK_FAILURE`), and validated `createSafeServerAction`.
+42. **Angular Enterprise Signals & `switchMap` Store**: Reactive `signal<T>()`, lazy memoized `computed<T>()` with automatic dependency tracking, and cancelable `createSwitchMapLoader` with `AbortController`.
+43. **NestJS IoC Container, RBAC Guard & Audit Interceptor**: Token-based `NestContainer` singleton/factory DI, `CanActivate` role guard, and around-advice `NestInterceptor` (`CallHandler`).
+44. **tRPC + Zod Generic Procedure Builder**: Fluent generic `ProcedureBuilder<TContext, TInput>` with context-narrowing `.use()` middleware, `.input()` runtime schema validation, `TRPCError`, and `createCaller`.
+
+### Cross-Framework TypeScript Migrations (`framework-migration` — 4 Tasks)
+45. **Express.js → Hono / Fastify Web-Standard Edge Router**: Migrate legacy `req`/`res` callback mutation to Web-Standard Fetch `Request`/`Response`, typed `EdgeContext<TVariables>`, `:param` extraction, and async onion middleware.
+46. **React Hooks → Svelte 5 Runes (`$state`/`$derived`/`$effect`) & Vue 3 Reactivity**: Eliminate manual dependency arrays and stale closures using auto-tracking fine-grained reactive primitives and deterministic effect cleanup.
+47. **Redux Thunks → TanStack Query SWR Cache Engine**: Canonical `QueryKey` hashing, concurrent in-flight Promise deduplication, `staleTimeMs` SWR caching, prefix `invalidateQueries`, and optimistic mutation rollback.
+48. **Next.js Pages Router (`getServerSideProps`) → App Router Parallel RSC & `revalidateTag`**: Parallel Server Component tagged caching (`fetchWithTags`) and Web-Standard `POST` Route Handler cache eviction.
+
+### Multi-Runtime & Package Manager Ecosystem (`package-managers` — 4 Tasks)
+49. **npm / Yarn Classic → Strict `pnpm` & `bun` Workspaces**: Detect undeclared phantom dependencies in hoisted `node_modules`, rewrite sibling versions to `workspace:^`, extract shared versions to `catalog:`, and pin `packageManager`.
+50. **Dual CJS/ESM Conditional `exports` Map & Deno/JSR (`jsr.json`)**: Order `types` first inside `import` (`.d.mts`/`.mjs`) and `require` (`.d.cts`/`.cjs`) blocks alongside native `bun`/`deno` TypeScript conditions and `jsr.json`.
+51. **Cross-Package-Manager Lockfile Supply-Chain Auditor (`npm`, `pnpm`, `yarn`, `bun`, `deno`)**: Detect `@corp/*` dependency confusion scope leaks, untrusted tarball hosts, weak/missing `sha512-` SRI digests, and unapproved install scripts.
+52. **Content-Addressable Monorepo Task Orchestrator (`Turborepo` / `Nx` / `bun --filter` / `pnpm -r`)**: Concurrent topological wave scheduler with cycle detection, upstream dependency hash propagation, and `CACHE_HIT` artifact replay.
+
 ---
 
 ## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
@@ -147,9 +171,9 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
-- `GET /api/curriculum/tasks?category=...&difficulty=...` — Filters curriculum challenges by domain category or difficulty.
-- `POST /api/curriculum/evaluate` — Evaluates candidate refactorings with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 36 curriculum tasks (or a filtered category) in automated batch mode.
+- `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
+- `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 52 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
