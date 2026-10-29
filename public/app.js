@@ -28,6 +28,7 @@ const el = {
   btnBenchmarkPortal: document.querySelector("#btn-benchmark-portal"),
   btnChatPortal: document.querySelector("#btn-chat-portal"),
   btnShopPortal: document.querySelector("#btn-shop-portal"),
+  btnTrafficPortal: document.querySelector("#btn-traffic-portal"),
 
   // Modals
   refactorModal: document.querySelector("#refactor-modal"),
@@ -107,6 +108,17 @@ const el = {
   shopStatOrders: document.querySelector("#shop-stat-orders"),
   shopStatIntegrity: document.querySelector("#shop-stat-integrity"),
 
+  // Traffic modal
+  trafficModal: document.querySelector("#traffic-modal"),
+  btnCloseTraffic: document.querySelector("#btn-close-traffic"),
+  btnTrafficAuditCookie: document.querySelector("#btn-traffic-audit-cookie"),
+  btnTrafficSimCache: document.querySelector("#btn-traffic-sim-cache"),
+  trafficSimOutput: document.querySelector("#traffic-sim-output"),
+  trafficStatCookieScore: document.querySelector("#traffic-stat-cookie-score"),
+  trafficStatCache: document.querySelector("#traffic-stat-cache"),
+  trafficStatPriority: document.querySelector("#traffic-stat-priority"),
+  trafficStatRatelimit: document.querySelector("#traffic-stat-ratelimit"),
+
   // Command palette
   palette: document.querySelector("#palette"),
   paletteInput: document.querySelector("#palette-input"),
@@ -169,7 +181,7 @@ const isTyping = (node) =>
   !!node &&
   (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT" || node.isContentEditable);
 
-const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.shopModal, el.palette].filter(Boolean);
+const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.shopModal, el.trafficModal, el.palette].filter(Boolean);
 
 function openDialog(dialog) {
   if (dialog && !dialog.open) dialog.showModal();
@@ -929,7 +941,7 @@ async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 82;
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 94;
   } catch (err) {
     toast(err.message);
   }
@@ -1235,6 +1247,68 @@ async function verifyShopIntegrityUI() {
   );
 }
 
+/* ── Web Cookies, Client Data & HTTP Traffic Inspector Modal ── */
+
+function openTrafficModal() {
+  openDialog(el.trafficModal);
+}
+
+function closeTrafficModal() {
+  closeDialog(el.trafficModal);
+}
+
+async function runTrafficCookieAuditUI() {
+  try {
+    const audit = await api("POST", "/api/traffic/cookies/audit", {
+      name: "__Host-loom_session",
+      value: "sess_dbsc_bound_2026",
+      path: "/",
+      secure: true,
+      httpOnly: true,
+      sameSite: "None",
+      partitioned: true,
+      maxAgeSec: 99999999,
+      signingSecret: "loom_keyring_secret_2026",
+      kid: "k_2026_01",
+    });
+    if (el.trafficStatCookieScore) el.trafficStatCookieScore.textContent = `${audit.score}%`;
+    if (el.trafficSimOutput) {
+      el.trafficSimOutput.hidden = false;
+      el.trafficSimOutput.textContent = JSON.stringify(audit, null, 2);
+    }
+    toast(`Cookie audited: ${audit.cookieName} (${audit.score}% score)`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function runTrafficCacheTraceSimUI() {
+  try {
+    const sim = await api("POST", "/api/traffic/cache-trace/simulate", {
+      url: "/api/curriculum/tasks",
+      requestHeaders: {
+        "accept-encoding": "br",
+        "accept-language": "en-us",
+        priority: "u=1, i",
+        traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+      },
+      nowSec: 1090,
+    });
+    if (el.trafficStatCache) el.trafficStatCache.textContent = sim.cacheStatus;
+    if (el.trafficStatPriority) el.trafficStatPriority.textContent = `u=${sim.priority?.urgency ?? 3}`;
+    if (el.trafficStatRatelimit) {
+      el.trafficStatRatelimit.textContent = `${sim.rateLimit?.remaining ?? 0}/60`;
+    }
+    if (el.trafficSimOutput) {
+      el.trafficSimOutput.hidden = false;
+      el.trafficSimOutput.textContent = JSON.stringify(sim, null, 2);
+    }
+    toast(`HTTP Traffic simulated: ${sim.cacheStatus} (${sim.httpStatus})`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 /* ── Command Palette ─────────────────────────────────────── */
 
 const commands = [
@@ -1244,6 +1318,7 @@ const commands = [
   { label: "Agentic 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
   { label: "Web Shop Storefront, Checkout & Order History", hint: "S", run: openShopModal },
+  { label: "Web Cookies, Client Data & HTTP Traffic Inspector", hint: "W", run: openTrafficModal },
   { label: "OAuth 2.0 Applications & Simulator", hint: "O", run: openOAuthModal },
   { label: "Switch to Today board", hint: "", run: () => switchBoard("board_today") },
   { label: "Switch to Agentic Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
@@ -1314,6 +1389,7 @@ function runCommand(command) {
   closeBenchmarkModal();
   closeChatModal();
   closeShopModal();
+  closeTrafficModal();
   command.run();
 }
 
@@ -1456,6 +1532,12 @@ el.btnCloseShop?.addEventListener("click", closeShopModal);
 el.btnShopSimulateFlow?.addEventListener("click", simulateShopEndToEndFlow);
 el.btnShopVerifyIntegrity?.addEventListener("click", verifyShopIntegrityUI);
 
+// Traffic Modal Wiring
+el.btnTrafficPortal?.addEventListener("click", openTrafficModal);
+el.btnCloseTraffic?.addEventListener("click", closeTrafficModal);
+el.btnTrafficAuditCookie?.addEventListener("click", runTrafficCookieAuditUI);
+el.btnTrafficSimCache?.addEventListener("click", runTrafficCacheTraceSimUI);
+
 // Command palette wiring
 el.palette?.addEventListener("mousedown", (event) => {
   if (event.target === el.palette) closePalette();
@@ -1556,6 +1638,11 @@ document.addEventListener("keydown", (event) => {
     case "S":
       event.preventDefault();
       openShopModal();
+      break;
+    case "w":
+    case "W":
+      event.preventDefault();
+      openTrafficModal();
       break;
     case "1":
       setFilter("all");

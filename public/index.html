@@ -10,7 +10,7 @@
     <link rel="canonical" href="http://localhost:3000/" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Loom — Agentic Curriculum &amp; Monochrome Task Suite" />
-    <meta property="og:description" content="82-task AI model training curriculum across 21 categories and 9 tracks." />
+    <meta property="og:description" content="94-task AI model training curriculum across 24 categories and 10 tracks." />
     <meta property="og:url" content="http://localhost:3000/" />
     <script type="application/ld+json">
       {
@@ -128,6 +128,11 @@
           <button type="button" class="btn-subtle" id="btn-shop-portal" title="Web Shop Storefront, Checkout & Order History (S)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             <span>Shop</span>
+          </button>
+
+          <button type="button" class="btn-subtle" id="btn-traffic-portal" title="Web Cookies, Client Data & HTTP Traffic Inspector (W)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-1 17.93A8 8 0 0 1 4.07 13H11zm0-6.93H4.07A8 8 0 0 1 11 4.07zm2 6.93V13h6.93A8 8 0 0 1 13 19.93zM13 11V4.07A8 8 0 0 1 19.93 11z"/></svg>
+            <span>Traffic</span>
           </button>
 
           <button type="button" class="user-pill" id="user-pill" aria-label="Account menu">
@@ -410,12 +415,12 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Executes automated sandboxed verification across all 82 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations, Package Managers, HTML Living Standard, Technical SEO / Schema.org JSON-LD, E-Commerce Checkouts, Stripe / Polar.sh Payment Processing &amp; Web Shop Storefront / Order Lifecycle Architecture), computing telemetry, assertion scores, and execution durations.
+            Executes automated sandboxed verification across all 94 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations, Package Managers, HTML Living Standard, Technical SEO / Schema.org JSON-LD, E-Commerce Checkouts, Stripe / Polar.sh Payment Processing, Web Shop Storefront / Order Lifecycle Architecture &amp; Deep Web Cookies / Client Storage / HTTP Traffic Engineering), computing telemetry, assertion scores, and execution durations.
           </p>
 
           <div class="telemetry-grid" id="benchmark-stats-grid">
             <div class="stat-card">
-              <div class="stat-value" id="bench-total-tasks">82</div>
+              <div class="stat-value" id="bench-total-tasks">94</div>
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
@@ -424,7 +429,7 @@
             </div>
             <div class="stat-card">
               <div class="stat-value" id="bench-avg-score">—</div>
-              <div class="stat-label">Average Score</div>
+              <div class="stat-label\">Average Score</div>
             </div>
             <div class="stat-card">
               <div class="stat-value" id="bench-avg-duration">—</div>
@@ -434,7 +439,7 @@
 
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:1rem 0 1.2rem;">
             <select id="bench-category-filter" class="chat-sender-select" aria-label="Filter benchmark category">
-              <option value="">All 21 Categories (82 Tasks)</option>
+              <option value="">All 24 Categories (94 Tasks)</option>
               <option value="css">css (5)</option>
               <option value="html-architecture">html-architecture (5)</option>
               <option value="seo-structured-data">seo-structured-data (5)</option>
@@ -442,6 +447,9 @@
               <option value="payment-processing">payment-processing (5)</option>
               <option value="storefront-ui">storefront-ui (5)</option>
               <option value="order-lifecycle-data">order-lifecycle-data (5)</option>
+              <option value="web-cookies">web-cookies (4)</option>
+              <option value="web-storage-data">web-storage-data (4)</option>
+              <option value="web-traffic">web-traffic (4)</option>
               <option value="database">database (4)</option>
               <option value="web-auth">web-auth (4)</option>
               <option value="web-fingerprinting">web-fingerprinting (4)</option>
@@ -578,6 +586,51 @@
           </div>
 
           <div id="shop-sim-output" class="sim-output" hidden></div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Native HTML5 <dialog>: Web Cookies, Client Data & HTTP Traffic Inspector -->
+    <dialog class="native-modal" id="traffic-modal" aria-labelledby="traffic-title">
+      <div class="modal-card benchmark-card" role="document">
+        <header class="modal-header">
+          <div>
+            <span class="badge">RFC 6265bis · CHIPS · DBSC · RFC 9111</span>
+            <h2 class="modal-title" id="traffic-title">Web Cookies, Client Data &amp; HTTP Traffic</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-traffic" aria-label="Close dialog">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="benchmark-desc">
+            Inspects and simulates RFC 6265bis <code>__Host-</code> / CHIPS <code>Partitioned</code> / W3C DBSC cookies, IndexedDB &amp; OPFS client storage, RFC 9111 HTTP caching (<code>stale-while-revalidate</code>, <code>Vary</code>, <code>ETag</code> 304), IETF <code>RateLimit</code> headers, and W3C <code>traceparent</code> propagation.
+          </p>
+
+          <div class="telemetry-grid" id="traffic-telemetry-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="traffic-stat-cookie-score">100%</div>
+              <div class="stat-label">Cookie Security Score</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="traffic-stat-cache">HIT_FRESH</div>
+              <div class="stat-label">RFC 9111 Cache</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="traffic-stat-priority">u=1</div>
+              <div class="stat-label">RFC 9218 Priority</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="traffic-stat-ratelimit">59/60</div>
+              <div class="stat-label">IETF RateLimit</div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.9rem 0;">
+            <button type="button" class="btn-primary" id="btn-traffic-audit-cookie">Audit Hardened __Host- + CHIPS Cookie</button>
+            <button type="button" class="btn-secondary" id="btn-traffic-sim-cache">Simulate RFC 9111 SWR + W3C traceparent</button>
+          </div>
+
+          <div id="traffic-sim-output" class="sim-output" hidden></div>
         </div>
       </div>
     </dialog>
