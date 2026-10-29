@@ -16,9 +16,10 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (62 tasks across 17 categories & 7 tracks)
+  curriculum.js   Agentic Curriculum refactoring challenges (72 tasks across 19 categories & 8 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
   seo.js          1st-party Schema.org JSON-LD @graph builder & HTML5 / Technical SEO auditor
+  commerce.js     1st-party E-Commerce checkout quote engine, EU VAT/US Nexus tax & Stripe/Polar.sh webhook verifier
   ts_ecosystem.js TypeScript framework catalog, cross-framework migration matrix & package manager registry
   evaluator.js    Isolated execution sandbox with Bun.Transpiler TypeScript support, AST checks, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
@@ -170,6 +171,20 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 61. **Automated HTML5 Landmark, Heading Outline & Schema.org Microdata Linter**: Audits single `<h1>`, sequential heading hierarchy, `<main>` landmark, `<time datetime>` ISO-8601 format, and `itemscope`/`itemtype="https://schema.org/..."`/`itemprop` integrity.
 62. **Schema.org `Dataset`, WebSite `SearchAction` & `FAQPage` Multi-Entity Graph**: Connects `Dataset` (`DataDownload`, `encodingFormat`, `license`), `WebSite` `potentialAction` (`SearchAction` with `{search_term_string}`), `Organization` `sameAs`, and `FAQPage` `Question`/`Answer` nodes.
 
+### E-Commerce & Checkout Engineering (`ecommerce-checkout` — 5 Tasks)
+63. **Integer Minor-Unit (`Dinero` Pattern) Multi-Currency Cart & Hamilton's Largest-Remainder Proration**: Eliminates IEEE-754 float drift, handles 0-decimal (`JPY`, `KRW`) vs 2-decimal (`USD`, `EUR`, `GBP`) currencies, and splits cart-level discounts across line items without losing rounding pennies.
+64. **Atomic Inventory Reservation Hold Engine with TTL Lease Expiry & Flash-Sale Oversell Guard**: Subtracts active TTL-bound reservation holds from physical stock, reclaims expired leases automatically, and commits stock atomically on payment capture.
+65. **Global Cross-Border Tax, EU VAT Reverse-Charge (`B2B` VIES) & US Economic Nexus Calculator**: Applies `0%` VAT with `reverseCharge: true` and statutory Article 196 invoice notices for valid cross-border EU B2B VAT IDs, destination OSS VAT for EU B2C, and `$100,000` / `200`-transaction US state economic nexus thresholds.
+66. **Multi-Step Checkout & 3-D Secure (`requires_action`) Saga Coordinator**: Transitions deterministically through `INVENTORY_RESERVED` -> `PROMO_LOCKED` -> `AWAITING_3DS_ACTION` -> `FULFILLED` and executes LIFO reverse-order compensation (`cancelPaymentIntent` -> `unlockPromoCoupon` -> `releaseInventory`) on failure.
+67. **Polar.sh Merchant-of-Record (`@polar-sh/sdk`) Digital Entitlement, License Key & Device Seat Engine**: Provisions scoped `POLAR-PRO-*` license keys, enforces `maxActivations` per machine fingerprint with idempotent re-activation, and revokes seats on `subscription.revoked` or `order.refunded`.
+
+### Payment Processing, Stripe & Polar.sh (`payment-processing` — 5 Tasks)
+68. **Stripe `PaymentIntent` & `Checkout.Session` Idempotency Coordinator**: Hashes request parameters per `Idempotency-Key` (throwing `IdempotencyParameterMismatchError` on mutated payload reuse), replays cached intents on retry, and supports `capture_method: "manual"` partial/full settlement.
+69. **Dual Stripe (`Stripe-Signature` `t=,v1=`) & Polar.sh Standard Webhooks (`webhook-signature` `v1,`) HMAC Verifier**: Raw-body constant-time signature verification, 300-second replay window tolerance, event ID deduplication, and per-entity timestamp watermarks to drop stale out-of-order webhooks.
+70. **SaaS Subscription Mid-Cycle Upgrade/Downgrade Proration & Smart Dunning State Machine**: Computes second-granularity unused credit and remaining new-plan debit (`netInvoiceDeltaMinor`), plus exponential dunning retries (`past_due` -> `grace_hold` -> `unpaid_suspended`) that preserve entitlements during grace periods.
+71. **Immutable Double-Entry Financial Ledger for Stripe Connect Marketplace Splits & Partial Refunds**: Enforces `sum(DEBIT) === sum(CREDIT)` across `buyer_external`, `stripe_processing_fee`, `platform_commission`, and `seller_escrow_payable` with proportional fee clawbacks on partial refunds.
+72. **Usage-Based AI Token & GPU Meter Billing Engine (Polar Meters / Stripe Billing)**: Idempotent `eventId` meter ingestion, graduated tier bracket pricing (`upToUnits`, `blockSize`, `unitCostMinorPerBlock`), and automatic prepaid credit wallet drawdown.
+
 ---
 
 ## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
@@ -187,11 +202,12 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
+- `GET /api/commerce/catalog`, `POST /api/commerce/checkout/quote` & `POST /api/commerce/webhooks/verify` — Exposes Stripe & Polar.sh payment architecture specs, computes integer minor-unit cart quotes with Largest-Remainder discount proration and EU VAT / US Nexus taxes, and verifies Stripe (`Stripe-Signature`) and Polar.sh Standard Webhooks (`webhook-signature`).
 - `GET /api/seo/json-ld` & `POST /api/seo/audit` — Generates connected Schema.org JSON-LD `@graph` structured data and audits raw HTML for HTML5 landmarks, heading outline, OpenGraph, Canonical, and JSON-LD `@graph` validity.
 - `GET /api/curriculum/ecosystem` — Returns the TypeScript Framework Ecosystem catalog, cross-framework migration pathways, and multi-runtime package manager specs (`npm`, `pnpm`, `yarn-berry`, `bun`, `deno`, `jsr`).
 - `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 62 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 72 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
