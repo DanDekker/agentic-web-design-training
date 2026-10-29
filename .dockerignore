@@ -1,0 +1,12 @@
+.git/
+.github/
+.env
+.env.*
+.DS_Store
+.orka/
+assets/
+data/
+node_modules/
+tests/
+README.md
+*.tmp

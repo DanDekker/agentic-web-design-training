@@ -4,7 +4,9 @@
 
 <p><strong>Web development challenges. One local workspace for testing solutions.</strong></p>
 
-<p><a href="#technology-map">Technologies</a> · <a href="#get-started">Get started</a> · <a href="#the-curriculum">Curriculum</a> · <a href="#how-evaluation-works">Evaluation</a> · <a href="#project-layout">Project layout</a></p>
+<p><a href="https://github.com/DanDekker/webdev-gauntlet/actions/workflows/ci.yml"><img src="https://github.com/DanDekker/webdev-gauntlet/actions/workflows/ci.yml/badge.svg" alt="CI status"></a></p>
+
+<p><a href="#technology-map">Technologies</a> · <a href="#get-started">Get started</a> · <a href="#the-curriculum">Curriculum</a> · <a href="#how-evaluation-works">Evaluation</a> · <a href="#ci-and-container-releases">CI &amp; releases</a></p>
 
 </div>
 
@@ -138,8 +140,25 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | [`src/store.js`](src/store.js) | JSON-backed task boards and persistence |
 | [`public/`](public/) | Browser interface and web components |
 | [`tests/`](tests/) | Bun tests for the curriculum and application modules |
+| [`.github/workflows/`](.github/workflows/) | CI checks and tagged container publishing |
+| [`Dockerfile`](Dockerfile) | Bun runtime image for local use and releases |
 
 The server stores local state in `data/`, which is ignored by Git. Set `PORT` to change the HTTP port or `GUANTLET_WEB_DATA_DIR` to move the data directory.
+
+## CI and container releases
+
+GitHub Actions runs the Bun test suite on Linux and macOS for pushes and pull requests. It also builds the container and checks that the HTTP server responds. [Dependabot](.github/dependabot.yml) proposes updates for workflow actions and the Bun base image.
+
+Version tags such as `v1.0.0` trigger a tested container build published to `ghcr.io/dandekker/webdev-gauntlet:1.0.0`. The workflow also tags the latest stable release as `latest`. No image is published from pull requests.
+
+To run the container locally:
+
+```bash
+docker build -t webdev-gauntlet .
+docker run --rm -p 127.0.0.1:3000:3000 -v webdev-gauntlet-data:/data webdev-gauntlet
+```
+
+The volume keeps local board and account data between runs. Keep the evaluator on a trusted local machine; it executes submitted code in a VM context.
 
 ## Scope
 
