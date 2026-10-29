@@ -1,5 +1,5 @@
 /**
- * Agentic Curriculum 1M Tasks — Code Evaluator & Execution Sandbox.
+ * Web development curriculum evaluator & execution sandbox.
  * Provides isolated evaluation, assertion checking, and telemetry metrics for agent-submitted refactorings.
  */
 
@@ -1656,6 +1656,102 @@ export class Evaluator {
           code.includes("totalScrollHeightPx"),
         detail: "Renders overscan-buffered viewport slice and preserves totalScrollHeightPx",
       });
+    } else if (id === "task_webworker_transferable_offload") {
+      results.push({
+        name: "Transferable ArrayBuffer Ownership",
+        passed: code.includes("transfer:") && code.includes(".buffer"),
+        detail: "Publishes each chunk's ArrayBuffer with an explicit transfer list",
+      });
+      results.push({
+        name: "Zero-Copy postMessage Transfer",
+        passed: code.includes("postMessage") && code.includes("chunk.transfer"),
+        detail: "Hands buffer ownership to the worker instead of structured-cloning the payload",
+      });
+      results.push({
+        name: "Deterministic Partial-Sum Merge",
+        passed: code.includes("mergeChunkSums") && code.includes("reduce"),
+        detail: "Combines per-worker partial sums with a deterministic reduce",
+      });
+    } else if (id === "task_webworker_shared_atomics_counter") {
+      results.push({
+        name: "SharedArrayBuffer Backed Counter",
+        passed: code.includes("SharedArrayBuffer") && code.includes("BYTES_PER_ELEMENT"),
+        detail: "Allocates shared counter state in a sized SharedArrayBuffer",
+      });
+      results.push({
+        name: "Atomic Add and Load",
+        passed: code.includes("Atomics.add") && code.includes("Atomics.load"),
+        detail: "Uses Atomics for every read-modify-write and read",
+      });
+      results.push({
+        name: "compareExchange Exclusive Claim",
+        passed: code.includes("Atomics.compareExchange"),
+        detail: "Grants a slot only while the counter still holds the expected value",
+      });
+    } else if (id === "task_webworker_pool_lifecycle") {
+      results.push({
+        name: "Bounded Reusable Worker Pool",
+        passed: code.includes("class WorkerPool") && code.includes("#idle"),
+        detail: "Keeps a fixed set of idle workers for reuse",
+      });
+      results.push({
+        name: "Concurrency Cap and Queue",
+        passed: code.includes("#active") && code.includes("#queue"),
+        detail: "Tracks in-flight jobs and queues overflow beyond the pool size",
+      });
+      results.push({
+        name: "Graceful Drain and Terminate",
+        passed: code.includes("terminate()") && code.includes("async close()"),
+        detail: "Waits for in-flight jobs then terminates every worker once",
+      });
+    } else if (id === "task_webstreams_json_frame_decoder") {
+      results.push({
+        name: "TransformStream Frame Emission",
+        passed: code.includes("TransformStream") && code.includes("controller.enqueue"),
+        detail: "Emits each parsed frame through a TransformStream controller",
+      });
+      results.push({
+        name: "Streaming TextDecoder Reassembly",
+        passed: code.includes("decode(chunk") && code.includes("stream: true"),
+        detail: "Decodes multibyte characters incrementally across chunk boundaries",
+      });
+      results.push({
+        name: "Trailing Frame Flush",
+        passed: code.includes("flush(") && code.includes("pending"),
+        detail: "Flushes an unterminated trailing frame instead of dropping it",
+      });
+    } else if (id === "task_webstreams_sse_reconnect_parser") {
+      results.push({
+        name: "Buffered Frame Reassembly",
+        passed: code.includes("buffer +=") && code.includes("indexOf"),
+        detail: "Accumulates partial frames until the double-newline boundary arrives",
+      });
+      results.push({
+        name: "Last-Event-ID Resume State",
+        passed: code.includes("lastEventId") && code.includes("retryMs"),
+        detail: "Tracks the last event id and retry hint for reconnects",
+      });
+      results.push({
+        name: "Comment and Multi-line Data Handling",
+        passed: code.includes('startsWith(":")') && code.includes('"data"'),
+        detail: "Skips comment lines and joins repeated data fields with newlines",
+      });
+    } else if (id === "task_webstreams_streaming_checksum") {
+      results.push({
+        name: "Incremental Chunk Folding",
+        passed: code.includes("update(") && code.includes("TextEncoder"),
+        detail: "Folds each chunk into the running digest as bytes arrive",
+      });
+      results.push({
+        name: "Constant Memory Digest",
+        passed: !code.includes(".join(") && code.includes("digest()"),
+        detail: "Never joins the payload, so peak memory stays at one chunk",
+      });
+      results.push({
+        name: "32-bit FNV Fold",
+        passed: code.includes("Math.imul") && code.includes(">>> 0"),
+        detail: "Keeps the rolling hash in unsigned 32-bit space",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -1718,6 +1814,19 @@ export class Evaluator {
       Int32Array,
       Float32Array,
       Float64Array,
+      Int8Array,
+      Int16Array,
+      Uint16Array,
+      Uint32Array,
+      BigInt64Array,
+      BigUint64Array,
+      SharedArrayBuffer,
+      Atomics,
+      ReadableStream,
+      WritableStream,
+      TransformStream,
+      MessageChannel,
+      structuredClone,
       ArrayBuffer,
       DataView,
       Map,
@@ -5930,6 +6039,166 @@ export class Evaluator {
         name: "O(log N) Prefix-Sum Virtualized Viewport & Spacer Conservation",
         passed: Boolean(res?.virtualListOk),
         detail: "Updates measured row height, slices overscan window in O(log N), and preserves 40,060px scroll height",
+      });
+    } else if (taskId === "task_webworker_transferable_offload") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const values = new Float64Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+          const plan = planTransferableChunks(values, 3);
+          const sent = [];
+          const fakeWorker = { postMessage: (msg, transfer) => sent.push({ msg, transfer }) };
+          const dispatched = dispatchChunks(fakeWorker, plan);
+          const lengths = plan.map((chunk) => chunk.length).join(",");
+          const offsets = plan.map((chunk) => chunk.offset).join(",");
+          const noCopy = sent.length === 3 && sent.every(
+            (entry) => Array.isArray(entry.transfer) && entry.transfer.length === 1 && entry.transfer[0] === entry.msg.buffer,
+          );
+          const total = mergeChunkSums(plan.map((chunk) => {
+            let sum = 0;
+            for (const value of new Float64Array(chunk.buffer)) sum += value;
+            return sum;
+          }));
+          return {
+            offloadOk:
+              dispatched === 3 && lengths === "4,4,2" && offsets === "0,4,8" && noCopy && total === 55,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Transferable Chunk Plan & Partial-Sum Merge",
+        passed: Boolean(res?.offloadOk),
+        detail: "Balances 10 samples over 3 workers, transfers each buffer, and merges to 55",
+      });
+    } else if (taskId === "task_webworker_shared_atomics_counter") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const counter = createSharedCounter(1);
+          bumpCounter(counter.view, 3);
+          bumpCounter(counter.view, 4);
+          const total = readCounter(counter.view);
+          const firstClaim = claimExclusiveSlot(counter.view, 7, 10);
+          const secondClaim = claimExclusiveSlot(counter.view, 7, 11);
+          return {
+            atomicsOk:
+              counter.sab instanceof SharedArrayBuffer &&
+              total === 7 &&
+              firstClaim === true &&
+              secondClaim === false &&
+              readCounter(counter.view) === 10,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Atomic Counter & compareExchange Guard",
+        passed: Boolean(res?.atomicsOk),
+        detail: "Accumulates 7 atomically, then allows exactly one compareExchange claim",
+      });
+    } else if (taskId === "task_webworker_pool_lifecycle") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          let terminated = 0;
+          let concurrent = 0;
+          let peak = 0;
+          const spawn = () => ({
+            run: (task) => new Promise((resolve) => {
+              concurrent += 1;
+              peak = Math.max(peak, concurrent);
+              setTimeout(() => {
+                concurrent -= 1;
+                resolve(task * 2);
+              }, 5);
+            }),
+            terminate: () => { terminated += 1; },
+          });
+          const pool = new WorkerPool(2, spawn);
+          const results = await Promise.all([1, 2, 3, 4, 5].map((task) => pool.submit(task)));
+          const closed = await pool.close();
+          return {
+            poolOk:
+              results.join(",") === "2,4,6,8,10" &&
+              peak <= 2 &&
+              terminated === 2 &&
+              closed.terminated === 2,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "Pool Concurrency Cap & Graceful Drain",
+        passed: Boolean(res?.poolOk),
+        detail: "Runs 5 jobs on 2 workers in order, caps concurrency at 2, terminates both once",
+      });
+    } else if (taskId === "task_webstreams_json_frame_decoder") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const encoder = new TextEncoder();
+          const frames = ['{"seq":1}\\n{"seq":', '2}\\n{"seq":3}'];
+          const source = new ReadableStream({
+            start(controller) {
+              for (const frame of frames) controller.enqueue(encoder.encode(frame));
+              controller.close();
+            },
+          });
+          const seen = [];
+          const sink = new WritableStream({ write(frame) { seen.push(frame.seq); } });
+          await source.pipeThrough(createJsonFrameDecoder()).pipeTo(sink);
+          return { frameOk: seen.join(",") === "1,2,3" };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "Cross-Chunk NDJSON Decode",
+        passed: Boolean(res?.frameOk),
+        detail: "Decodes three frames even though one is split across chunk boundaries",
+      });
+    } else if (taskId === "task_webstreams_sse_reconnect_parser") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const parser = createSseParser();
+          const first = parser.push("id: 7\\ndata: hel");
+          const second = parser.push("lo\\n\\n: keep-alive\\n\\nevent: tick\\ndata: x\\ndata: y\\n\\n");
+          return {
+            sseOk:
+              first.length === 0 &&
+              second.length === 2 &&
+              second[0].id === "7" &&
+              second[0].data === "hello" &&
+              second[1].event === "tick" &&
+              second[1].data === "x\\ny" &&
+              parser.lastEventId === "7",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Buffered SSE Frame & Last-Event-ID Resume",
+        passed: Boolean(res?.sseOk),
+        detail: "Reassembles a split frame, skips keep-alive comments, and records the last event id",
+      });
+    } else if (taskId === "task_webstreams_streaming_checksum") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const split = checksumStream(["hello", " ", "world"]);
+          const single = checksumStream(["hello world"]);
+          const incremental = createChecksum().update("hello").update(" world").digest();
+          return {
+            digestOk: split === single && incremental === single && /^[0-9a-f]{8}$/.test(single),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Chunk-Boundary Independent Digest",
+        passed: Boolean(res?.digestOk),
+        detail: "Produces the same 8-character digest for split, whole and incremental input",
       });
     } else {
       // General syntax evaluation

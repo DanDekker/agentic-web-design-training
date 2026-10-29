@@ -1,6 +1,6 @@
 /**
- * Web development curriculum: 106 exercises across 27 categories and 11 tracks.
- * Framework challenge code is imported from standalone TypeScript files.
+ * Web development curriculum: 112 exercises across 29 categories and 12 tracks.
+ * Framework and browser-platform challenge code is imported from standalone files.
  */
 
 import reactNextStarter from "../exercises/frameworks/ts_react_nextjs_server_actions/starter.ts" with { type: "text" };
@@ -19,6 +19,18 @@ import reduxTanstackStarter from "../exercises/frameworks/migrate_redux_thunks_t
 import reduxTanstackSolution from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/solution.ts" with { type: "text" };
 import nextAppRouterStarter from "../exercises/frameworks/migrate_nextjs_pages_to_app_router_rsc/starter.ts" with { type: "text" };
 import nextAppRouterSolution from "../exercises/frameworks/migrate_nextjs_pages_to_app_router_rsc/solution.ts" with { type: "text" };
+import workerTransferStarter from "../exercises/platform/web_workers/transferable_offload/starter.js" with { type: "text" };
+import workerTransferSolution from "../exercises/platform/web_workers/transferable_offload/solution.js" with { type: "text" };
+import workerAtomicsStarter from "../exercises/platform/web_workers/shared_atomics_counter/starter.js" with { type: "text" };
+import workerAtomicsSolution from "../exercises/platform/web_workers/shared_atomics_counter/solution.js" with { type: "text" };
+import workerPoolStarter from "../exercises/platform/web_workers/pool_lifecycle/starter.js" with { type: "text" };
+import workerPoolSolution from "../exercises/platform/web_workers/pool_lifecycle/solution.js" with { type: "text" };
+import streamFramesStarter from "../exercises/platform/web_streams/json_frame_decoder/starter.js" with { type: "text" };
+import streamFramesSolution from "../exercises/platform/web_streams/json_frame_decoder/solution.js" with { type: "text" };
+import streamSseStarter from "../exercises/platform/web_streams/sse_reconnect_parser/starter.js" with { type: "text" };
+import streamSseSolution from "../exercises/platform/web_streams/sse_reconnect_parser/solution.js" with { type: "text" };
+import streamChecksumStarter from "../exercises/platform/web_streams/streaming_checksum/starter.js" with { type: "text" };
+import streamChecksumSolution from "../exercises/platform/web_streams/streaming_checksum/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -78,6 +90,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Proprietary UI Design Systems (W3C DTCG 2025.10 / OKLCH), Interaction Craft & Web Components",
     categories: ["proprietary-design-systems", "ui-ux-interaction", "web-components"],
   },
+  "browser-platform": {
+    id: "browser-platform",
+    name: "Browser Platform Primitives: Web Workers, Shared Memory & Streams",
+    categories: ["web-workers", "web-streams"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -108,6 +125,8 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "proprietary-design-systems": "design-systems-web-components",
   "ui-ux-interaction": "design-systems-web-components",
   "web-components": "design-systems-web-components",
+  "web-workers": "browser-platform",
+  "web-streams": "browser-platform",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -9794,6 +9813,102 @@ export class VirtualizedShadowListEngine {
       "Maintains cumulative row height prefix sums and supports dynamic ResizeObserver row height updates",
       "Locates the first visible row in O(log N) time using binary search over prefix offsets",
       "Applies overscan buffering and computes exact topSpacerPx and bottomSpacerPx so totalScrollHeightPx is preserved",
+    ],
+  },
+  {
+    id: "task_webworker_transferable_offload",
+    title: "Offload a Chunked Reduction to Workers with Transferable ArrayBuffers",
+    category: "web-workers",
+    difficulty: "advanced",
+    tags: ["workers", "transferable", "arraybuffer", "off-main-thread", "performance"],
+    instructions:
+      "An analytics widget reduces ten million Float64 samples on the main thread and posts the whole payload to a worker, so every dispatch pays a full structured-clone copy. Split the workload into balanced chunks, hand each worker ownership of its slice through the postMessage transfer list, and merge the partial sums back into the same total.",
+    starterCode: workerTransferStarter,
+    solutionCode: workerTransferSolution,
+    criteria: [
+      "Plans balanced typed-array chunks without copying the whole payload into every dispatch",
+      "Passes each ArrayBuffer through the postMessage transfer list so ownership moves with zero copy",
+      "Merges per-worker partial sums into the same total as the single-threaded reduction",
+    ],
+  },
+  {
+    id: "task_webworker_shared_atomics_counter",
+    title: "Race-Free Shared Counter with SharedArrayBuffer and Atomics",
+    category: "web-workers",
+    difficulty: "advanced",
+    tags: ["workers", "sharedarraybuffer", "atomics", "concurrency", "race-condition"],
+    instructions:
+      "Several workers increment a shared request counter at the same time. The current read-modify-write on a plain object loses increments under contention. Back the counter with a SharedArrayBuffer, use Atomics for the increment and read paths, and provide a compareExchange guard so only one worker can claim a slot for an expected value.",
+    starterCode: workerAtomicsStarter,
+    solutionCode: workerAtomicsSolution,
+    criteria: [
+      "Allocates counter state in a SharedArrayBuffer viewed through a typed Int32Array",
+      "Uses Atomics.add and Atomics.load so increments are never lost between workers",
+      "Guards exclusive claims with Atomics.compareExchange against an expected value",
+    ],
+  },
+  {
+    id: "task_webworker_pool_lifecycle",
+    title: "Bounded Worker Pool with Queue, Concurrency Cap and Graceful Drain",
+    category: "web-workers",
+    difficulty: "advanced",
+    tags: ["workers", "pool", "concurrency", "lifecycle", "queue"],
+    instructions:
+      "A batch importer spawns one worker per job, exhausting memory when ten thousand jobs arrive at once and leaving orphaned workers behind. Build a bounded pool that reuses idle workers, queues overflow work, caps concurrent jobs at the pool size, preserves result order, and terminates every worker on close().",
+    starterCode: workerPoolStarter,
+    solutionCode: workerPoolSolution,
+    criteria: [
+      "Reuses a fixed set of spawned workers instead of creating one per job",
+      "Queues overflow jobs and never exceeds the configured concurrency cap",
+      "Drains in-flight work and terminates every worker exactly once on close()",
+    ],
+  },
+  {
+    id: "task_webstreams_json_frame_decoder",
+    title: "Streaming NDJSON Frame Decoder with Backpressure-Safe TransformStream",
+    category: "web-streams",
+    difficulty: "advanced",
+    tags: ["streams", "transformstream", "ndjson", "backpressure", "parsing"],
+    instructions:
+      "A log viewer awaits the socket to close before parsing newline-delimited JSON, so a multi-gigabyte export buffers entirely in memory before the first row renders. Implement a TransformStream that decodes chunks as they arrive, reassembles frames split across chunk boundaries, and flushes a trailing frame that never received its newline.",
+    starterCode: streamFramesStarter,
+    solutionCode: streamFramesSolution,
+    criteria: [
+      "Emits each NDJSON frame through controller.enqueue as soon as its newline arrives",
+      "Reassembles frames split across chunk boundaries with a streaming TextDecoder",
+      "Flushes a trailing un-terminated frame instead of dropping it",
+    ],
+  },
+  {
+    id: "task_webstreams_sse_reconnect_parser",
+    title: "Resumable Server-Sent Events Parser with Last-Event-ID Tracking",
+    category: "web-streams",
+    difficulty: "advanced",
+    tags: ["streams", "sse", "reconnect", "last-event-id", "protocol"],
+    instructions:
+      "The live-feed client splits every network chunk on double newlines, so frames straddling a chunk boundary disappear and a reconnect replays the entire history. Build a stateful SSE parser that buffers partial frames, tolerates comment/keep-alive lines, joins multi-line data fields, and tracks lastEventId plus retry so the next connection can resume from Last-Event-ID.",
+    starterCode: streamSseStarter,
+    solutionCode: streamSseSolution,
+    criteria: [
+      "Buffers partial frames across chunk boundaries instead of splitting each chunk in isolation",
+      "Skips comment and keep-alive lines and joins multiple data fields with newlines",
+      "Tracks lastEventId and retry so the next connection resumes from Last-Event-ID",
+    ],
+  },
+  {
+    id: "task_webstreams_streaming_checksum",
+    title: "Constant-Memory Streaming Checksum for Download Integrity",
+    category: "web-streams",
+    difficulty: "intermediate",
+    tags: ["streams", "checksum", "integrity", "memory", "fnv1a"],
+    instructions:
+      "A download verifier joins every chunk into one string before hashing, doubling peak memory on large assets. Replace it with an incremental checksum that folds bytes as they arrive, yields identical digests regardless of how the stream is chunked, and never holds more than the current chunk.",
+    starterCode: streamChecksumStarter,
+    solutionCode: streamChecksumSolution,
+    criteria: [
+      "Folds each incoming chunk into the running digest without joining the payload",
+      "Produces byte-identical digests for any chunk boundary split of the same content",
+      "Keeps memory proportional to one chunk through an incremental update()/digest() state",
     ],
   },
 ];
