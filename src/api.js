@@ -1,5 +1,10 @@
 import { ValidationError } from "./store.js";
-import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
+import {
+  REFACTORING_CURRICULUM_TASKS,
+  CURRICULUM_CATEGORIES,
+  CURRICULUM_TRACKS,
+  CURRICULUM_DIFFICULTIES,
+} from "./curriculum.js";
 import { Evaluator } from "./evaluator.js";
 import { BenchmarkSuite } from "./benchmark.js";
 import { ChatEngine } from "./chat.js";
@@ -401,10 +406,17 @@ const benchmarkSuite = new BenchmarkSuite();
       if (pathname === "/api/curriculum/tasks") {
         const category = searchParams.get("category");
         const difficulty = searchParams.get("difficulty");
+        const track = searchParams.get("track");
         let tasks = REFACTORING_CURRICULUM_TASKS;
         if (category) tasks = tasks.filter((t) => t.category === category);
         if (difficulty) tasks = tasks.filter((t) => t.difficulty === difficulty);
-        return json({ tasks });
+        if (track) tasks = tasks.filter((t) => t.track === track);
+        return json({
+          tasks,
+          categories: CURRICULUM_CATEGORIES,
+          tracks: CURRICULUM_TRACKS,
+          difficulties: CURRICULUM_DIFFICULTIES,
+        });
       }
 
       if (pathname === "/api/curriculum/seed" && req.method === "POST") {
@@ -421,195 +433,7 @@ const benchmarkSuite = new BenchmarkSuite();
         const cleanSubmitted = String(code || "").trim();
         if (!cleanSubmitted) throw new ValidationError("Submitted code cannot be empty.");
 
-        // Rule verifier: test structural rules against the submitted refactoring
-        const passedCriteria = [];
-        const failedCriteria = [];
-
-        if (taskId === "task_refactor_async_pipeline") {
-          const usesAsync = cleanSubmitted.includes("async ");
-          const usesAwait = cleanSubmitted.includes("await ");
-          const noPyramid = !cleanSubmitted.includes("function(err, user)");
-          const usesPromiseAll = cleanSubmitted.includes("Promise.all");
-
-          if (usesAsync && usesAwait) passedCriteria.push("Uses idiomatic async/await syntax");
-          else failedCriteria.push("Missing async/await keywords");
-
-          if (noPyramid) passedCriteria.push("Eliminates nested callback pyramid");
-          else failedCriteria.push("Still contains nested callback pyramid");
-
-          if (usesPromiseAll) passedCriteria.push("Performs independent fetches concurrently via Promise.all");
-          else failedCriteria.push("Should use Promise.all for independent requests");
-        } else if (taskId === "task_refactor_event_leak") {
-          const usesSignal = cleanSubmitted.includes("signal") || cleanSubmitted.includes("AbortController");
-          const hasCleanup = cleanSubmitted.includes("abort()") || cleanSubmitted.includes("removeEventListener");
-
-          if (usesSignal) passedCriteria.push("Uses AbortController signal or listener cleanup");
-          else failedCriteria.push("Missing AbortController signal or listener unsubscription");
-
-          if (hasCleanup) passedCriteria.push("Provides explicit cleanup/destroy lifecycle method");
-          else failedCriteria.push("Needs a destroy/cleanup method to prevent leaks");
-        } else if (taskId === "task_refactor_o_n2_lookup") {
-          const usesMap = cleanSubmitted.includes("new Map(") || cleanSubmitted.includes("Map()");
-          const noFind = !cleanSubmitted.includes(".find(");
-
-          if (usesMap) passedCriteria.push("Replaces nested find with Map pre-indexing");
-          else failedCriteria.push("Did not use a Map for O(1) indexed lookups");
-
-          if (noFind) passedCriteria.push("Eliminated inner loop search");
-          else failedCriteria.push("Still uses linear find search inside loop");
-        } else if (taskId === "task_refactor_input_sanitization") {
-          const guardsProto = cleanSubmitted.includes("__proto__") && cleanSubmitted.includes("constructor");
-          if (guardsProto) passedCriteria.push("Guards against __proto__ and constructor prototype pollution");
-          else failedCriteria.push("Does not explicitly sanitize __proto__ or constructor keys");
-          } else if (taskId === "task_refactor_buffer_alloc") {
-           const usesUint8 = cleanSubmitted.includes("Uint8Array");
-           const usesSlicing = cleanSubmitted.includes("subarray") || cleanSubmitted.includes("copyWithin");
-           if (usesUint8) passedCriteria.push("Uses typed Uint8Arrays instead of raw string concatenation");
-           else failedCriteria.push("Missing typed Uint8Array allocation");
-           if (usesSlicing) passedCriteria.push("Maintains ring/sliding buffer with copyWithin or subarray offsets");
-           else failedCriteria.push("Should use zero-copy subarray or copyWithin offsets");
-          } else if (taskId === "task_refactor_middleware_pipeline") {
-           const hasUse = cleanSubmitted.includes("use(");
-           const hasNext = cleanSubmitted.includes("next()") || cleanSubmitted.includes("dispatch(");
-           if (hasUse) passedCriteria.push("Implements extensible middleware registration");
-           else failedCriteria.push("Missing use() middleware registration method");
-           if (hasNext) passedCriteria.push("Implements standard (context, next) onion dispatch pattern");
-           else failedCriteria.push("Missing onion dispatch or next() execution");
-          } else if (taskId === "task_refactor_debounce_search") {
-           const hasTimer = cleanSubmitted.includes("clearTimeout") && cleanSubmitted.includes("setTimeout");
-           const hasAbort = cleanSubmitted.includes("AbortController");
-           if (hasTimer) passedCriteria.push("Throttles rapid keystrokes with configurable timeout delay");
-           else failedCriteria.push("Missing timer clearance and delayed debounce execution");
-           if (hasAbort) passedCriteria.push("Aborts in-flight outdated HTTP requests using AbortController");
-           else failedCriteria.push("Should abort previous in-flight request on new input");
-          } else if (taskId === "task_refactor_semantic_a11y") {
-           const hasButton = cleanSubmitted.includes("<button");
-           const hasRole = cleanSubmitted.includes('role="switch"') || cleanSubmitted.includes("role='switch'");
-           const hasAria = cleanSubmitted.includes("aria-checked");
-           if (hasButton) passedCriteria.push("Replaces non-semantic div with button element");
-           else failedCriteria.push("Did not replace div with semantic button element");
-           if (hasRole && hasAria) passedCriteria.push("Applies correct ARIA role and aria-checked attribute");
-           else failedCriteria.push("Missing ARIA switch role or aria-checked attribute");
-          } else if (taskId === "task_refactor_typed_schema") {
-           const hasTypeChecks = cleanSubmitted.includes("typeof ") && cleanSubmitted.includes("throw ");
-           if (hasTypeChecks) passedCriteria.push("Validates nested fields with composable type guards");
-           else failedCriteria.push("Missing type verification and validation errors");
-          } else if (taskId === "task_refactor_worker_pool") {
-           const hasConcurrency = cleanSubmitted.includes("concurrency") || cleanSubmitted.includes("pool");
-           const hasPromiseAll = cleanSubmitted.includes("Promise.all");
-           if (hasConcurrency && hasPromiseAll) passedCriteria.push("Controls concurrency with bounded worker pool");
-           else failedCriteria.push("Should implement bounded concurrency pool with Promise.all");
-        } else if (taskId === "task_db_connection_pool") {
-          const hasPoolBounds = cleanSubmitted.includes("acquire") && cleanSubmitted.includes("release") && cleanSubmitted.includes("finally");
-          if (hasPoolBounds) passedCriteria.push("Enforces bounded connection pooling with finally release");
-          else failedCriteria.push("Missing acquire/release lifecycle or finally block");
-        } else if (taskId === "task_db_transactional_outbox") {
-          const hasTx = cleanSubmitted.includes("BEGIN") && cleanSubmitted.includes("COMMIT") && cleanSubmitted.includes("ROLLBACK");
-          const hasParams = (cleanSubmitted.includes("$1") || cleanSubmitted.includes("?")) && !cleanSubmitted.includes("${fromAccount}");
-          if (hasTx && hasParams) passedCriteria.push("Uses parameterized SQL and atomic BEGIN/COMMIT/ROLLBACK outbox");
-          else failedCriteria.push("Missing transaction boundaries or parameterized SQL placeholders");
-        } else if (taskId === "task_db_keyset_pagination_dataloader") {
-          const hasBatch = cleanSubmitted.includes("queueMicrotask") && !cleanSubmitted.includes("OFFSET");
-          if (hasBatch) passedCriteria.push("Uses microtask batching and keyset pagination");
-          else failedCriteria.push("Missing queueMicrotask batching or still uses OFFSET pagination");
-        } else if (taskId === "task_auth_dpop_token_binding") {
-          const hasDpop = cleanSubmitted.includes("dpop+jwt") && cleanSubmitted.includes("htm") && cleanSubmitted.includes("htu") && cleanSubmitted.includes("jti");
-          if (hasDpop) passedCriteria.push("Verifies RFC 9449 DPoP proof claims, thumbprint binding, and JTI replay guard");
-          else failedCriteria.push("Missing DPoP header/claim checks (dpop+jwt, htm, htu, jti)");
-        } else if (taskId === "task_auth_webauthn_passkey") {
-          const hasWebAuthn = cleanSubmitted.includes("webauthn.get") && cleanSubmitted.includes("signCount") && cleanSubmitted.includes("0x01");
-          if (hasWebAuthn) passedCriteria.push("Validates WebAuthn clientDataJSON, binary authenticator flags, and signCount clone detection");
-          else failedCriteria.push("Missing WebAuthn clientDataJSON, UP/UV flags, or signCount check");
-        } else if (taskId === "task_auth_refresh_rotation_reuse") {
-          const hasRotation = cleanSubmitted.includes("familyId") && cleanSubmitted.includes("used") && cleanSubmitted.includes("revokeFamily");
-          if (hasRotation) passedCriteria.push("Rotates one-time refresh tokens and revokes entire family on token reuse");
-          else failedCriteria.push("Missing refresh token family tracking or reuse revocation");
-        } else if (taskId === "task_fingerprint_entropy_normalizer") {
-          const hasFp = cleanSubmitted.includes("SwiftShader") && cleanSubmitted.includes("webdriver") && cleanSubmitted.includes("platform");
-          if (hasFp) passedCriteria.push("Normalizes multi-surface fingerprint entropy and detects cross-layer spoofing");
-          else failedCriteria.push("Missing cross-layer anomaly checks (SwiftShader, webdriver, platform)");
-        } else if (taskId === "task_fingerprint_tls_ja4_http2") {
-          const hasJa4 = (cleanSubmitted.includes("0x0a0a") || cleanSubmitted.includes("isTlsGreaseValue")) && cleanSubmitted.includes(":method,:authority,:scheme,:path");
-          if (hasJa4) passedCriteria.push("Strips RFC 8701 GREASE values and correlates JA4 TLS with HTTP/2 framing");
-          else failedCriteria.push("Missing GREASE filtering or HTTP/2 pseudo-header order check");
-        } else if (taskId === "task_fingerprint_privacy_budget_defense") {
-          const hasBudget = cleanSubmitted.includes("maxBudgetBits") && cleanSubmitted.includes("farbleCanvasPixels");
-          if (hasBudget) passedCriteria.push("Enforces per-origin entropy budget and deterministic canvas farbling");
-          else failedCriteria.push("Missing per-origin entropy budget or deterministic pixel farbling");
-        } else if (taskId === "task_cybersec_ssrf_dns_rebind") {
-          const hasSsrf = cleanSubmitted.includes("169") && cleanSubmitted.includes("254") && cleanSubmitted.includes("pinnedIp");
-          if (hasSsrf) passedCriteria.push("Blocks private/metadata CIDRs and pins resolved IP against DNS rebinding");
-          else failedCriteria.push("Missing cloud metadata CIDR check or DNS IP pinning");
-        } else if (taskId === "task_cybersec_csp_trusted_types_dom") {
-          const hasCsp = cleanSubmitted.includes("strict-dynamic") && cleanSubmitted.includes("require-trusted-types-for") && cleanSubmitted.includes("javascript:");
-          if (hasCsp) passedCriteria.push("Sanitizes DOM XSS vectors and builds nonce-strict Trusted Types CSP");
-          else failedCriteria.push("Missing XSS attribute/URI sanitization or Trusted Types CSP directives");
-        } else if (taskId === "task_cybersec_timing_safe_webhook_csrf") {
-          const hasTiming = cleanSubmitted.includes("charCodeAt") && cleanSubmitted.includes("^") && cleanSubmitted.includes("same-origin");
-          if (hasTiming) passedCriteria.push("Uses constant-time XOR comparison, replay window, and Sec-Fetch-Site CSRF defense");
-          else failedCriteria.push("Missing constant-time comparison or Fetch-Metadata CSRF check");
-        } else if (taskId === "task_agentic_dag_planner_saga") {
-          const hasDagSaga = cleanSubmitted.includes("CyclicDependencyError") && cleanSubmitted.includes("compensate") && cleanSubmitted.includes("reverse");
-          if (hasDagSaga) passedCriteria.push("Executes DAG topological waves with checkpoint resume and reverse Saga compensation");
-          else failedCriteria.push("Missing DAG cycle check, checkpointing, or reverse Saga compensation");
-        } else if (taskId === "task_agentic_tool_circuit_breaker_budget") {
-          const hasBreaker = cleanSubmitted.includes("fallback") && cleanSubmitted.includes("loopDetected") && cleanSubmitted.includes("maxTokens");
-          if (hasBreaker) passedCriteria.push("Enforces per-tool circuit breaker fallback, loop detection, and token budgets");
-          else failedCriteria.push("Missing tool circuit breaker fallback, loop detection, or token budget check");
-        } else if (taskId === "task_agentic_episodic_memory_compactor") {
-          const hasMemory = cleanSubmitted.includes("retrieveEpisodic") && cleanSubmitted.includes("checkGoalAlignment") && cleanSubmitted.includes("maxContextTokens");
-          if (hasMemory) passedCriteria.push("Compacts long-horizon context into episodic memory with goal-drift guard");
-          else failedCriteria.push("Missing episodic memory compaction/retrieval or goal-alignment check");
-        } else if (taskId === "task_db_read_write_replica_lag_router") {
-          const hasReplicaLsn = cleanSubmitted.includes("minLsn") && cleanSubmitted.includes("appliedLsn") && cleanSubmitted.includes("primary");
-          if (hasReplicaLsn) passedCriteria.push("Enforces causal LSN read-your-writes routing with primary failover");
-          else failedCriteria.push("Missing session minLsn watermark check or primary fallback");
-        } else if (taskId === "task_auth_oidc_federated_jwt_validator") {
-          const hasOidc = cleanSubmitted.includes("RS256") && cleanSubmitted.includes("azp") && cleanSubmitted.includes("nonce") && cleanSubmitted.includes("forceRefresh");
-          if (hasOidc) passedCriteria.push("Validates OIDC asymmetric algorithms, JWKS rotation, azp, and nonce");
-          else failedCriteria.push("Missing asymmetric alg allowlist, JWKS rotation, or azp/nonce check");
-        } else if (taskId === "task_fingerprint_behavioral_biometrics_bot") {
-          const hasBiometrics = cleanSubmitted.includes("isTrusted") && cleanSubmitted.includes("variance") && cleanSubmitted.includes("upTime");
-          if (hasBiometrics) passedCriteria.push("Classifies pointer kinematics variance, collinearity, and keystroke dwell times");
-          else failedCriteria.push("Missing pointer velocity variance/collinearity or keystroke dwell checks");
-        } else if (taskId === "task_cybersec_http_desync_header_canonicalizer") {
-          const hasDesync = cleanSubmitted.includes("transfer-encoding") && cleanSubmitted.includes("content-length") && cleanSubmitted.includes("\\r");
-          if (hasDesync) passedCriteria.push("Blocks CL.TE/TE.CL request smuggling ambiguity and CRLF header splitting");
-          else failedCriteria.push("Missing CL.TE conflict check or CRLF header injection guard");
-        } else if (taskId === "task_agentic_multi_agent_consensus_arbiter") {
-          const hasArbiter = cleanSubmitted.includes("epoch") && cleanSubmitted.includes("StaleFencingTokenError") && cleanSubmitted.includes("startsWith");
-          if (hasArbiter) passedCriteria.push("Coordinates hierarchical path leases with monotonic fencing token validation");
-          else failedCriteria.push("Missing hierarchical path overlap check or fencing epoch validation");
-        } else if (taskId === "task_chat_realtime_instrumentation") {
-          const hasInst = cleanSubmitted.includes("dm:") && cleanSubmitted.includes("readWatermarks") && cleanSubmitted.includes("telemetry");
-          if (hasInst) passedCriteria.push("Instruments two-user canonical rooms, sequence IDs, typing TTL, and read watermarks");
-          else failedCriteria.push("Missing canonical dm: room ID, readWatermarks, or telemetry counters");
-        } else if (taskId === "task_chat_debug_race_duplication") {
-          const hasDebug = cleanSubmitted.includes("clientMsgId") && cleanSubmitted.includes("nextExpectedSeq") && cleanSubmitted.includes("holdbackBuffer");
-          if (hasDebug) passedCriteria.push("Eliminates duplicate retries, resequences out-of-order packets, and evicts ghost typing");
-          else failedCriteria.push("Missing clientMsgId deduplication or out-of-order holdback resequencing");
-        } else if (taskId === "task_chat_refactor_state_protocol") {
-          const hasReducer = cleanSubmitted.includes("MESSAGE_SENT") && cleanSubmitted.includes("MESSAGE_EDITED") && cleanSubmitted.includes("effects");
-          if (hasReducer) passedCriteria.push("Extracts pure deterministic chat protocol reducer returning { state, effects }");
-          else failedCriteria.push("Missing pure protocol reducer transitions or declarative effects array");
-        } else if (taskId === "task_chat_perf_ringbuffer_fanout_bench") {
-          const hasRing = cleanSubmitted.includes("%") && cleanSubmitted.includes("p99Us") && cleanSubmitted.includes("JSON.stringify");
-          if (hasRing) passedCriteria.push("Optimizes chat history to O(1) circular ring buffer with P99 fanout benchmark");
-          else failedCriteria.push("Missing modular ring buffer indexing or P99 fanout latency benchmark");
-        } else {
-          // General criteria: clean code, non-empty, replaces starter
-          passedCriteria.push("Valid JS syntax & structure verified");
-          passedCriteria.push("Meets core refactoring objective");
-        }
-
-        const isSuccess = failedCriteria.length === 0;
-        return json({
-          success: isSuccess,
-          passedCriteria,
-          failedCriteria,
-          score: Math.round((passedCriteria.length / (passedCriteria.length + failedCriteria.length || 1)) * 100),
-          verifiedAt: new Date().toISOString(),
-        });
+        return json(evaluator.verifyCriteria(taskId, cleanSubmitted));
       }
 
       /* ── Boards CRUD ──────────────────────────────────────── */

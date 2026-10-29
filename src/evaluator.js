@@ -76,8 +76,8 @@ export class Evaluator {
     }
     const cleanCode = String(code || "").trim();
     const assertions = this.#verifyCriteria(task, cleanCode);
-    const passedCriteria = assertions.filter((a) => a.passed).map((a) => `${a.name}: ${a.detail}`);
-    const failedCriteria = assertions.filter((a) => !a.passed).map((a) => `${a.name}: ${a.detail}`);
+    const passedCriteria = assertions.filter((a) => a.passed).map((a) => a.detail);
+    const failedCriteria = assertions.filter((a) => !a.passed).map((a) => a.detail);
     const total = assertions.length || 1;
     return {
       success: failedCriteria.length === 0,
@@ -146,12 +146,12 @@ export class Evaluator {
       results.push({
         name: "Typed Uint8Array Usage",
         passed: code.includes("Uint8Array"),
-        detail: "Uses typed Uint8Array buffers",
+        detail: "Uses typed Uint8Arrays instead of raw string concatenation",
       });
       results.push({
         name: "Zero-Copy Subarray Slicing",
         passed: code.includes("subarray") || code.includes("copyWithin"),
-        detail: "Avoids memory reallocation with subarray slicing or copyWithin",
+        detail: "Maintains ring/sliding buffer with copyWithin or subarray offsets",
       });
     } else if (id === "task_refactor_middleware_pipeline") {
       results.push({
