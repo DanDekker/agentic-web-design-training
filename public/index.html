@@ -213,6 +213,7 @@
             <div class="badge-row">
               <loom-badge variant="difficulty" id="refactor-difficulty">Intermediate</loom-badge>
               <loom-badge variant="category" id="refactor-category">Async</loom-badge>
+              <loom-badge variant="track" id="refactor-track">core-engineering</loom-badge>
             </div>
             <h2 id="refactor-title" class="modal-title">Refactor Callback Hell to Pipeline</h2>
           </div>
@@ -369,7 +370,22 @@
             </div>
           </div>
 
-          <div style="display:flex;gap:0.75rem;margin:1rem 0 1.2rem;">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:1rem 0 1.2rem;">
+            <select id="bench-category-filter" class="chat-sender-select" aria-label="Filter benchmark category">
+              <option value="">All 12 Categories (36 Tasks)</option>
+              <option value="database">database (4)</option>
+              <option value="web-auth">web-auth (4)</option>
+              <option value="web-fingerprinting">web-fingerprinting (4)</option>
+              <option value="web-cybersec">web-cybersec (4)</option>
+              <option value="agentic-workflow">agentic-workflow (4)</option>
+              <option value="realtime-chat">realtime-chat (4)</option>
+              <option value="performance">performance (3)</option>
+              <option value="architecture">architecture (3)</option>
+              <option value="async">async (2)</option>
+              <option value="security">security (2)</option>
+              <option value="css">css (1)</option>
+              <option value="accessibility">accessibility (1)</option>
+            </select>
             <button type="button" class="btn-primary" id="btn-run-full-benchmark">Run All Benchmarks</button>
             <button type="button" class="btn-secondary" id="btn-download-benchmark-md">Download Markdown Report</button>
           </div>

@@ -31,6 +31,11 @@ badgeStyles.replaceSync(`
     border-color: var(--ink, oklch(0.12 0.005 90));
   }
 
+  :host([variant="track"]) .badge {
+    border-style: dashed;
+    color: var(--ink, oklch(0.12 0.005 90));
+  }
+
   :host([variant="difficulty"][level="advanced"]) .badge {
     border-color: var(--ink, oklch(0.12 0.005 90));
     font-weight: 600;

@@ -34,6 +34,7 @@ const el = {
   refactorTitle: document.querySelector("#refactor-title"),
   refactorDifficulty: document.querySelector("#refactor-difficulty"),
   refactorCategory: document.querySelector("#refactor-category"),
+  refactorTrack: document.querySelector("#refactor-track"),
   refactorInstructions: document.querySelector("#refactor-instructions"),
   refactorCriteriaList: document.querySelector("#refactor-criteria-list"),
   codeStarter: document.querySelector("#code-starter"),
@@ -67,6 +68,7 @@ const el = {
   // Benchmark modal
   benchmarkModal: document.querySelector("#benchmark-modal"),
   btnCloseBenchmark: document.querySelector("#btn-close-benchmark"),
+  benchCategoryFilter: document.querySelector("#bench-category-filter"),
   btnRunFullBenchmark: document.querySelector("#btn-run-full-benchmark"),
   btnDownloadBenchmarkMd: document.querySelector("#btn-download-benchmark-md"),
   benchTotalTasks: document.querySelector("#bench-total-tasks"),
@@ -607,6 +609,7 @@ function openRefactorModal(task) {
   if (el.refactorDifficulty) el.refactorDifficulty.textContent = (data.difficulty || "intermediate").toUpperCase();
   el.refactorDifficulty?.setAttribute("level", data.difficulty || "intermediate");
   if (el.refactorCategory) el.refactorCategory.textContent = (task.category || "Refactor").toUpperCase();
+  if (el.refactorTrack) el.refactorTrack.textContent = (data.track || task.track || "core-engineering").toUpperCase();
   if (el.refactorInstructions) el.refactorInstructions.textContent = data.instructions || "";
 
   if (el.refactorCriteriaList) {
@@ -931,7 +934,8 @@ async function runFullBenchmarkUI() {
   el.btnRunFullBenchmark.textContent = "Running Benchmark Suite...";
 
   try {
-    const data = await api("POST", "/api/curriculum/benchmark/run-all");
+    const selectedCategory = el.benchCategoryFilter?.value || null;
+    const data = await api("POST", "/api/curriculum/benchmark/run-all", selectedCategory ? { category: selectedCategory } : {});
     const { summary, results } = data;
 
     if (el.benchTotalTasks) el.benchTotalTasks.textContent = summary.totalTasks;

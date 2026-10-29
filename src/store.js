@@ -461,6 +461,8 @@ export class TaskStore {
           notes: `${item.instructions}\n\n[Refactoring Criteria]\n${item.criteria.map((c) => `- ${c}`).join("\n")}`,
           refactorData: {
             difficulty: item.difficulty,
+            track: item.track,
+            order: item.order,
             instructions: item.instructions,
             starterCode: item.starterCode,
             solutionCode: item.solutionCode,
