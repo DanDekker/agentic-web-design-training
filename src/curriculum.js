@@ -10129,6 +10129,496 @@ export class ZeroClsSkeletonTransitionController {
       "Computes intrinsic aspect-ratio and min-block-size reservations so skeleton-to-content swap produces 0.000 CLS",
     ],
   },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 19: ADVANCED WEB COMPONENTS, SHADOW DOM & ELEMENTINTERNALS (web-components)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_webcomp_form_associated_element_internals_custom_states",
+    title: "Build Form-Associated Custom Element (static formAssociated = true) with ElementInternals (setFormValue, setValidity) & CustomStateSet (:state())",
+    category: "web-components",
+    difficulty: "advanced",
+    tags: ["web-components", "element-internals", "form-associated", "custom-state-set", "shadow-dom", "typescript"],
+    instructions:
+      "Standard custom elements are opaque to native HTML <form> submission, FormData, and constraint validation (:invalid) unless they implement WHATWG Form-Associated Custom Element lifecycle callbacks and ElementInternals. Build a FormAssociatedSwitchCore that synchronizes its value with ElementInternals.setFormValue(), validates required state via setValidity({ valueMissing: true }), exposes CSS custom states (:state(checked), :state(invalid)) through CustomStateSet, and handles formResetCallback() and formStateRestoreCallback().",
+    starterCode: `// Non-Form-Associated Custom Element Invisible to <form> Submission & :invalid
+export class BasicToggle {
+  checked = false;
+}`,
+    solutionCode: `// WHATWG Form-Associated Custom Element Core with ElementInternals & CustomStateSet (:state())
+export interface MockElementInternals {
+  formValue: string | null;
+  validityFlags: Readonly<Record<string, boolean>>;
+  validationMessage: string;
+  readonly states: Set<string>;
+  setFormValue(value: string | null): void;
+  setValidity(flags: Readonly<Record<string, boolean>>, message?: string): void;
+}
+
+export function createMockElementInternals(): MockElementInternals {
+  return {
+    formValue: null,
+    validityFlags: {},
+    validationMessage: "",
+    states: new Set<string>(),
+    setFormValue(val: string | null) {
+      this.formValue = val;
+    },
+    setValidity(flags: Readonly<Record<string, boolean>>, message = "") {
+      this.validityFlags = { ...flags };
+      this.validationMessage = message;
+    },
+  };
+}
+
+export class FormAssociatedSwitchCore {
+  static readonly formAssociated = true;
+
+  readonly #internals: MockElementInternals;
+  readonly #defaultChecked: boolean;
+  #checked: boolean;
+  #required: boolean;
+  #disabled = false;
+  #value: string;
+
+  constructor(params: {
+    readonly internals: MockElementInternals;
+    readonly defaultChecked?: boolean;
+    readonly required?: boolean;
+    readonly value?: string;
+  }) {
+    this.#internals = params.internals;
+    this.#defaultChecked = Boolean(params.defaultChecked);
+    this.#checked = this.#defaultChecked;
+    this.#required = Boolean(params.required);
+    this.#value = params.value ?? "on";
+    this.#syncInternals();
+  }
+
+  toggle(): boolean {
+    if (this.#disabled) return this.#checked;
+    this.#checked = !this.#checked;
+    this.#syncInternals();
+    return this.#checked;
+  }
+
+  formDisabledCallback(disabled: boolean): void {
+    this.#disabled = disabled;
+    if (disabled) this.#internals.states.add("disabled");
+    else this.#internals.states.delete("disabled");
+    this.#syncInternals();
+  }
+
+  formResetCallback(): void {
+    this.#checked = this.#defaultChecked;
+    this.#syncInternals();
+  }
+
+  formStateRestoreCallback(state: string | null): void {
+    this.#checked = state === this.#value;
+    this.#syncInternals();
+  }
+
+  #syncInternals(): void {
+    if (this.#checked) {
+      this.#internals.states.add("checked");
+      this.#internals.setFormValue(this.#value);
+    } else {
+      this.#internals.states.delete("checked");
+      this.#internals.setFormValue(null);
+    }
+
+    if (this.#required && !this.#checked && !this.#disabled) {
+      this.#internals.states.add("invalid");
+      this.#internals.setValidity({ valueMissing: true }, "Please check this switch to proceed.");
+    } else {
+      this.#internals.states.delete("invalid");
+      this.#internals.setValidity({});
+    }
+  }
+
+  getSnapshot(): {
+    readonly checked: boolean;
+    readonly formValue: string | null;
+    readonly valid: boolean;
+    readonly activeStates: readonly string[];
+  } {
+    return {
+      checked: this.#checked,
+      formValue: this.#internals.formValue,
+      valid: !this.#internals.validityFlags.valueMissing,
+      activeStates: Array.from(this.#internals.states).sort(),
+    };
+  }
+}`,
+    criteria: [
+      "Declares static formAssociated = true and synchronizes form submission values via ElementInternals.setFormValue()",
+      "Manages CustomStateSet states ('checked', 'invalid', 'disabled') for :state(...) CSS pseudo-class matching",
+      "Implements formDisabledCallback, formResetCallback, and formStateRestoreCallback lifecycle hooks and constraint validation",
+    ],
+  },
+  {
+    id: "task_webcomp_constructable_stylesheets_reactive_attribute_bridge",
+    title: "Implement Constructable Stylesheets (adoptedStyleSheets) Shared Cache & Reactive observedAttributes / Property Reflection Bridge",
+    category: "web-components",
+    difficulty: "advanced",
+    tags: ["web-components", "adopted-stylesheets", "constructable-stylesheets", "attribute-reflection", "shadow-dom", "typescript"],
+    instructions:
+      "Creating a <style> tag inside every Shadow Root duplicates CSS parser work and memory across 1,000 component instances, while naive attributeChangedCallback <-> property setters cause infinite recursion loops when reflecting properties back to attributes. Build a ConstructableStyleAttributeBridge that caches shared CSSStyleSheet instances by CSS digest for shadowRoot.adoptedStyleSheets and provides loop-safe two-way attribute/property reflection.",
+    starterCode: `// Duplicated <style> Allocation & Infinite Recursion Attribute Reflection
+export class NaiveComponent {
+  set variant(v: string) {
+    this.setAttribute("variant", v);
+  }
+  attributeChangedCallback(name: string, _old: string, next: string) {
+    this.variant = next;
+  }
+}`,
+    solutionCode: `// Shared Constructable CSSStyleSheet Pool & Loop-Safe Reactive Attribute/Property Bridge
+export interface ConstructableSheetEntry {
+  readonly sheetId: string;
+  readonly cssText: string;
+  readonly refCount: number;
+}
+
+export class ConstructableStyleAttributeBridge {
+  #sheetCache = new Map<string, { sheetId: string; cssText: string; refCount: number }>();
+  #attributes = new Map<string, string>();
+  #props = new Map<string, string | number | boolean>();
+  #reflecting = new Set<string>();
+  #renderCount = 0;
+
+  acquireSharedStyleSheet(cssText: string): ConstructableSheetEntry {
+    const normalized = cssText.trim().replace(/\\s+/g, " ");
+    const existing = this.#sheetCache.get(normalized);
+    if (existing) {
+      existing.refCount += 1;
+      return { ...existing };
+    }
+
+    const entry = {
+      sheetId: \`sheet_\${this.#sheetCache.size + 1}\`,
+      cssText: normalized,
+      refCount: 1,
+    };
+    this.#sheetCache.set(normalized, entry);
+    return { ...entry };
+  }
+
+  setProperty(name: string, value: string | number | boolean, reflectToAttribute = true): void {
+    const prev = this.#props.get(name);
+    if (prev === value) return;
+    this.#props.set(name, value);
+    this.#renderCount += 1;
+
+    if (reflectToAttribute && !this.#reflecting.has(name)) {
+      this.#reflecting.add(name);
+      try {
+        if (typeof value === "boolean") {
+          if (value) this.setAttribute(name, "");
+          else this.removeAttribute(name);
+        } else {
+          this.setAttribute(name, String(value));
+        }
+      } finally {
+        this.#reflecting.delete(name);
+      }
+    }
+  }
+
+  setAttribute(name: string, value: string): void {
+    const oldVal = this.#attributes.get(name) ?? null;
+    if (oldVal === value) return;
+    this.#attributes.set(name, value);
+    this.attributeChangedCallback(name, oldVal, value);
+  }
+
+  removeAttribute(name: string): void {
+    if (!this.#attributes.has(name)) return;
+    const oldVal = this.#attributes.get(name) ?? null;
+    this.#attributes.delete(name);
+    this.attributeChangedCallback(name, oldVal, null);
+  }
+
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+    if (oldValue === newValue || this.#reflecting.has(name)) return;
+    this.#reflecting.add(name);
+    try {
+      this.#props.set(name, newValue === null ? false : newValue === "" ? true : newValue);
+      this.#renderCount += 1;
+    } finally {
+      this.#reflecting.delete(name);
+    }
+  }
+
+  getAttribute(name: string): string | null {
+    return this.#attributes.get(name) ?? null;
+  }
+
+  getProperty(name: string): string | number | boolean | undefined {
+    return this.#props.get(name);
+  }
+
+  getStats(): { readonly uniqueSheetsAllocated: number; readonly renderCount: number } {
+    return {
+      uniqueSheetsAllocated: this.#sheetCache.size,
+      renderCount: this.#renderCount,
+    };
+  }
+}`,
+    criteria: [
+      "Deduplicates identical CSS rules into shared Constructable Stylesheet instances for shadowRoot.adoptedStyleSheets",
+      "Prevents infinite attributeChangedCallback <-> property setter recursion using a re-entrancy guard",
+      "Reflects boolean properties to standard HTML presence/absence attributes ('' when true, removed when false)",
+    ],
+  },
+  {
+    id: "task_webcomp_named_slot_projection_part_theming_guard",
+    title: "Architect Encapsulated Shadow DOM Component with Named <slot> Fallback Projection, slotchange Inspector & ::part() Whitelist",
+    category: "web-components",
+    difficulty: "advanced",
+    tags: ["web-components", "shadow-dom-slots", "slotchange", "css-shadow-parts", "encapsulation", "typescript"],
+    instructions:
+      "Design system Web Components project light-DOM children into named Shadow DOM <slot name='...'> outlets while exposing a curated set of internal elements via part='...' for ::part() styling and exportparts='...' for nested composition. Build a ShadowSlotPartProjectionEngine that resolves light-DOM node distribution across named and default slots, renders fallback slot content when a slot has zero assigned nodes, and audits part/exportparts contracts.",
+    starterCode: `// Unslotted InnerHTML Concatenation Breaking Shadow DOM Encapsulation
+export function renderCard(headerHtml: string, bodyHtml: string) {
+  return \`<div class="card">\${headerHtml}\${bodyHtml}</div>\`;
+}`,
+    solutionCode: `// Shadow DOM Named <slot> Distribution, Fallback Resolver & ::part() Whitelist Engine
+export interface LightDomChildNode {
+  readonly nodeId: string;
+  readonly slotAttr?: string;
+  readonly textContent: string;
+}
+
+export interface SlotDefinition {
+  readonly name: string; // "" for default unnamed slot
+  readonly fallbackText: string;
+}
+
+export class ShadowSlotPartProjectionEngine {
+  readonly #slots: readonly SlotDefinition[];
+  readonly #allowedParts: ReadonlySet<string>;
+
+  constructor(params: {
+    readonly slots: readonly SlotDefinition[];
+    readonly allowedParts: readonly string[];
+  }) {
+    this.#slots = params.slots;
+    this.#allowedParts = new Set(params.allowedParts);
+  }
+
+  distributeLightDomNodes(children: readonly LightDomChildNode[]): {
+    readonly projectedSlots: Readonly<Record<string, {
+      readonly assignedNodeIds: readonly string[];
+      readonly usingFallback: boolean;
+      readonly renderedText: string;
+    }>>;
+    readonly unslottedOrphanNodeIds: readonly string[];
+  } {
+    const knownSlotNames = new Set(this.#slots.map((s) => s.name));
+    const bucketBySlot = new Map<string, LightDomChildNode[]>();
+    for (const s of this.#slots) bucketBySlot.set(s.name, []);
+
+    const unslottedOrphanNodeIds: string[] = [];
+
+    for (const child of children) {
+      const targetSlot = child.slotAttr ?? "";
+      // Whitespace-only text nodes should not suppress slot fallback content
+      if (!child.textContent.trim()) continue;
+
+      if (knownSlotNames.has(targetSlot)) {
+        bucketBySlot.get(targetSlot)!.push(child);
+      } else {
+        unslottedOrphanNodeIds.push(child.nodeId);
+      }
+    }
+
+    const projectedSlots: Record<string, {
+      readonly assignedNodeIds: readonly string[];
+      readonly usingFallback: boolean;
+      readonly renderedText: string;
+    }> = {};
+
+    for (const slotDef of this.#slots) {
+      const assigned = bucketBySlot.get(slotDef.name) ?? [];
+      const key = slotDef.name || "default";
+      if (assigned.length > 0) {
+        projectedSlots[key] = {
+          assignedNodeIds: assigned.map((n) => n.nodeId),
+          usingFallback: false,
+          renderedText: assigned.map((n) => n.textContent).join(" "),
+        };
+      } else {
+        projectedSlots[key] = {
+          assignedNodeIds: [],
+          usingFallback: true,
+          renderedText: slotDef.fallbackText,
+        };
+      }
+    }
+
+    return {
+      projectedSlots,
+      unslottedOrphanNodeIds,
+    };
+  }
+
+  validateCssPartSelectors(selectors: readonly string[]): {
+    readonly validParts: readonly string[];
+    readonly unauthorizedParts: readonly string[];
+  } {
+    const validParts: string[] = [];
+    const unauthorizedParts: string[] = [];
+
+    for (const sel of selectors) {
+      const m = /::part\\(([a-zA-Z0-9_-]+)\\)/.exec(sel);
+      if (!m) continue;
+      const partName = m[1];
+      if (this.#allowedParts.has(partName)) validParts.push(partName);
+      else unauthorizedParts.push(partName);
+    }
+
+    return { validParts, unauthorizedParts };
+  }
+}`,
+    criteria: [
+      "Distributes light-DOM children into matching named <slot> outlets and the unnamed default slot",
+      "Renders slot fallback content when a slot has zero non-empty assigned nodes and flags orphaned slot names",
+      "Audits ::part(...) selectors against the component's whitelisted part surface",
+    ],
+  },
+  {
+    id: "task_webcomp_virtualized_shadow_list_resize_observer",
+    title: "Build High-Density Virtualized Shadow DOM List Component with Overscan Windowing & Dynamic Row Height Prefix-Sum Binary Search",
+    category: "web-components",
+    difficulty: "advanced",
+    tags: ["web-components", "virtual-scroll", "resize-observer", "binary-search", "shadow-dom", "typescript"],
+    instructions:
+      "Rendering 50,000 rows inside a Web Component freezes the main thread and bloats Shadow DOM memory. Furthermore, real-world items have variable heights measured via ResizeObserver, breaking fixed-height math (scrollTop / rowHeight). Build a VirtualizedShadowListEngine that maintains a cumulative height prefix-sum array, locates the first visible row in O(log N) via binary search, applies overscan buffering above and below the viewport, and calculates exact top/bottom spacer offsets.",
+    starterCode: `// Unvirtualized 50,000-Node DOM Renderer Freezing the Browser
+export function renderAllRows(items: string[]) {
+  return items.map((item) => \`<div class="row">\${item}</div>\`).join("");
+}`,
+    solutionCode: `// O(log N) Prefix-Sum Binary Search Virtualized Shadow DOM Viewport Engine
+export interface VirtualRowDescriptor {
+  readonly index: number;
+  readonly offsetTopPx: number;
+  readonly heightPx: number;
+}
+
+export class VirtualizedShadowListEngine {
+  readonly #heights: number[];
+  #prefixOffsets: number[] = [];
+  #totalHeightPx = 0;
+
+  constructor(totalItems: number, defaultRowHeightPx = 40) {
+    this.#heights = new Array(totalItems).fill(defaultRowHeightPx);
+    this.#recomputePrefixSums();
+  }
+
+  updateMeasuredRowHeight(index: number, measuredHeightPx: number): void {
+    if (index < 0 || index >= this.#heights.length || measuredHeightPx <= 0) return;
+    if (this.#heights[index] === measuredHeightPx) return;
+    this.#heights[index] = measuredHeightPx;
+    this.#recomputePrefixSums();
+  }
+
+  #recomputePrefixSums(): void {
+    this.#prefixOffsets = new Array(this.#heights.length);
+    let running = 0;
+    for (let i = 0; i < this.#heights.length; i++) {
+      this.#prefixOffsets[i] = running;
+      running += this.#heights[i];
+    }
+    this.#totalHeightPx = running;
+  }
+
+  // O(log N) binary search for the first row whose bottom edge > scrollTopPx
+  #findStartIndex(scrollTopPx: number): number {
+    let lo = 0;
+    let hi = this.#heights.length - 1;
+    let ans = 0;
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1;
+      const rowBottom = this.#prefixOffsets[mid] + this.#heights[mid];
+      if (rowBottom <= scrollTopPx) {
+        lo = mid + 1;
+      } else {
+        ans = mid;
+        hi = mid - 1;
+      }
+    }
+    return ans;
+  }
+
+  computeViewportWindow(params: {
+    readonly scrollTopPx: number;
+    readonly viewportHeightPx: number;
+    readonly overscanCount?: number;
+  }): {
+    readonly startIndex: number;
+    readonly endIndexInclusive: number;
+    readonly visibleRows: readonly VirtualRowDescriptor[];
+    readonly topSpacerPx: number;
+    readonly bottomSpacerPx: number;
+    readonly totalScrollHeightPx: number;
+  } {
+    const n = this.#heights.length;
+    if (n === 0) {
+      return {
+        startIndex: 0,
+        endIndexInclusive: -1,
+        visibleRows: [],
+        topSpacerPx: 0,
+        bottomSpacerPx: 0,
+        totalScrollHeightPx: 0,
+      };
+    }
+
+    const overscan = params.overscanCount ?? 3;
+    const rawStart = this.#findStartIndex(Math.max(0, params.scrollTopPx));
+    const maxVisibleY = Math.max(0, params.scrollTopPx) + params.viewportHeightPx;
+
+    let rawEnd = rawStart;
+    while (rawEnd + 1 < n && this.#prefixOffsets[rawEnd + 1] < maxVisibleY) {
+      rawEnd++;
+    }
+
+    const startIndex = Math.max(0, rawStart - overscan);
+    const endIndexInclusive = Math.min(n - 1, rawEnd + overscan);
+
+    const visibleRows: VirtualRowDescriptor[] = [];
+    for (let i = startIndex; i <= endIndexInclusive; i++) {
+      visibleRows.push({
+        index: i,
+        offsetTopPx: this.#prefixOffsets[i],
+        heightPx: this.#heights[i],
+      });
+    }
+
+    const topSpacerPx = this.#prefixOffsets[startIndex];
+    const lastRenderedBottom =
+      this.#prefixOffsets[endIndexInclusive] + this.#heights[endIndexInclusive];
+    const bottomSpacerPx = Math.max(0, this.#totalHeightPx - lastRenderedBottom);
+
+    return {
+      startIndex,
+      endIndexInclusive,
+      visibleRows,
+      topSpacerPx,
+      bottomSpacerPx,
+      totalScrollHeightPx: this.#totalHeightPx,
+    };
+  }
+}`,
+    criteria: [
+      "Maintains cumulative row height prefix sums and supports dynamic ResizeObserver row height updates",
+      "Locates the first visible row in O(log N) time using binary search over prefix offsets",
+      "Applies overscan buffering and computes exact topSpacerPx and bottomSpacerPx so totalScrollHeightPx is preserved",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

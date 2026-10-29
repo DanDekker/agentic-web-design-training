@@ -1588,6 +1588,74 @@ export class Evaluator {
           code.includes("minBlockSizeCss"),
         detail: "Reserves exact aspect-ratio and min-block-size dimensions to guarantee 0.000 CLS",
       });
+    } else if (id === "task_webcomp_form_associated_element_internals_custom_states") {
+      results.push({
+        name: "Form-Associated Custom Element & ElementInternals.setFormValue()",
+        passed:
+          code.includes("formAssociated") &&
+          code.includes("setFormValue") &&
+          code.includes("setValidity"),
+        detail: "Synchronizes custom element value and validity with parent <form> via ElementInternals",
+      });
+      results.push({
+        name: "CustomStateSet (:state(checked), :state(invalid)) & Lifecycle Hooks",
+        passed:
+          code.includes("states.add") &&
+          code.includes("formResetCallback") &&
+          code.includes("formStateRestoreCallback"),
+        detail: "Manages CustomStateSet tokens and implements form reset/restore lifecycle hooks",
+      });
+    } else if (id === "task_webcomp_constructable_stylesheets_reactive_attribute_bridge") {
+      results.push({
+        name: "Constructable Stylesheet (adoptedStyleSheets) Deduplication Pool",
+        passed:
+          code.includes("acquireSharedStyleSheet") &&
+          code.includes("refCount") &&
+          code.includes("uniqueSheetsAllocated"),
+        detail: "Shares Constructable CSSStyleSheet instances across component instances",
+      });
+      results.push({
+        name: "Re-Entrancy Guarded Attribute <-> Property Reflection Bridge",
+        passed:
+          code.includes("attributeChangedCallback") &&
+          code.includes("setProperty") &&
+          code.includes("#reflecting"),
+        detail: "Reflects properties to attributes without infinite recursion loops",
+      });
+    } else if (id === "task_webcomp_named_slot_projection_part_theming_guard") {
+      results.push({
+        name: "Named & Default <slot> Distribution with Fallback Content",
+        passed:
+          code.includes("distributeLightDomNodes") &&
+          code.includes("usingFallback") &&
+          code.includes("unslottedOrphanNodeIds"),
+        detail: "Projects light-DOM nodes into named slots and renders fallback content when empty",
+      });
+      results.push({
+        name: "CSS Shadow ::part() Surface Whitelist Validator",
+        passed:
+          code.includes("validateCssPartSelectors") &&
+          code.includes("::part") &&
+          code.includes("unauthorizedParts"),
+        detail: "Audits external ::part(...) selectors against the component's whitelisted parts",
+      });
+    } else if (id === "task_webcomp_virtualized_shadow_list_resize_observer") {
+      results.push({
+        name: "O(log N) Prefix-Sum Binary Search & ResizeObserver Row Measurement",
+        passed:
+          code.includes("updateMeasuredRowHeight") &&
+          code.includes("#findStartIndex") &&
+          code.includes(">>> 1"),
+        detail: "Finds first visible variable-height row via binary search over prefix-sum offsets",
+      });
+      results.push({
+        name: "Overscan Windowing & Exact Top/Bottom Spacer Conservation",
+        passed:
+          code.includes("topSpacerPx") &&
+          code.includes("bottomSpacerPx") &&
+          code.includes("totalScrollHeightPx"),
+        detail: "Renders overscan-buffered viewport slice and preserves totalScrollHeightPx",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -5705,6 +5773,163 @@ export class Evaluator {
         name: "Skeleton Anti-Flash Minimum Dwell & Zero-CLS Aspect-Ratio Reservation",
         passed: Boolean(res?.antiFlashAndZeroClsOk),
         detail: "Skips skeleton on 50ms response, holds skeleton until 420ms on 200ms response, and reserves aspect-ratio",
+      });
+    } else if (taskId === "task_webcomp_form_associated_element_internals_custom_states") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const SwitchCore = typeof FormAssociatedSwitchCore === "function"
+            ? FormAssociatedSwitchCore
+            : exports.FormAssociatedSwitchCore;
+          const createInternals = typeof createMockElementInternals === "function"
+            ? createMockElementInternals
+            : exports.createMockElementInternals;
+
+          const internals = createInternals();
+          const sw = new SwitchCore({ internals, defaultChecked: false, required: true, value: "accepted" });
+
+          const initialSnap = sw.getSnapshot();
+          sw.toggle();
+          const checkedSnap = sw.getSnapshot();
+          sw.formResetCallback();
+          const resetSnap = sw.getSnapshot();
+
+          return {
+            internalsAndStatesOk:
+              SwitchCore.formAssociated === true &&
+              initialSnap.valid === false &&
+              initialSnap.activeStates.includes("invalid") &&
+              checkedSnap.checked === true &&
+              checkedSnap.formValue === "accepted" &&
+              checkedSnap.valid === true &&
+              checkedSnap.activeStates.includes("checked") &&
+              resetSnap.checked === false,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Form-Associated ElementInternals Validity & CustomStateSet Verification",
+        passed: Boolean(res?.internalsAndStatesOk),
+        detail: "Syncs setFormValue('accepted'), toggles :state(checked)/:state(invalid), and resets on formResetCallback",
+      });
+    } else if (taskId === "task_webcomp_constructable_stylesheets_reactive_attribute_bridge") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Bridge = typeof ConstructableStyleAttributeBridge === "function"
+            ? ConstructableStyleAttributeBridge
+            : exports.ConstructableStyleAttributeBridge;
+
+          const bridge = new Bridge();
+          const s1 = bridge.acquireSharedStyleSheet(":host { display: block; }");
+          const s2 = bridge.acquireSharedStyleSheet("  :host {   display: block; } ");
+
+          bridge.setProperty("elevated", true);
+          const attrAfterTrue = bridge.getAttribute("elevated");
+          bridge.setProperty("elevated", false);
+          const attrAfterFalse = bridge.getAttribute("elevated");
+
+          const stats = bridge.getStats();
+
+          return {
+            sheetCacheAndBridgeOk:
+              s1.sheetId === s2.sheetId &&
+              s2.refCount === 2 &&
+              stats.uniqueSheetsAllocated === 1 &&
+              attrAfterTrue === "" &&
+              attrAfterFalse === null &&
+              stats.renderCount === 2,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Shared Constructable CSSStyleSheet Pool & Loop-Safe Attribute Reflection",
+        passed: Boolean(res?.sheetCacheAndBridgeOk),
+        detail: "Deduplicates normalized CSSStyleSheets (refCount=2) and reflects boolean properties without recursion",
+      });
+    } else if (taskId === "task_webcomp_named_slot_projection_part_theming_guard") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Engine = typeof ShadowSlotPartProjectionEngine === "function"
+            ? ShadowSlotPartProjectionEngine
+            : exports.ShadowSlotPartProjectionEngine;
+
+          const engine = new Engine({
+            slots: [
+              { name: "header", fallbackText: "Default Header" },
+              { name: "", fallbackText: "Default Body" },
+              { name: "footer", fallbackText: "Default Footer" },
+            ],
+            allowedParts: ["surface", "header-title"],
+          });
+
+          const dist = engine.distributeLightDomNodes([
+            { nodeId: "n1", slotAttr: "header", textContent: "Custom Title" },
+            { nodeId: "n2", textContent: "Main Content" },
+            { nodeId: "n3", slotAttr: "unknown-slot", textContent: "Orphaned" },
+          ]);
+
+          const parts = engine.validateCssPartSelectors([
+            "loom-card::part(surface)",
+            "loom-card::part(private-internal-node)",
+          ]);
+
+          return {
+            slotAndPartOk:
+              dist.projectedSlots.header.usingFallback === false &&
+              dist.projectedSlots.header.renderedText === "Custom Title" &&
+              dist.projectedSlots.footer.usingFallback === true &&
+              dist.projectedSlots.footer.renderedText === "Default Footer" &&
+              dist.unslottedOrphanNodeIds.includes("n3") &&
+              parts.validParts.includes("surface") &&
+              parts.unauthorizedParts.includes("private-internal-node"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Shadow DOM Named Slot Projection, Fallback Rendering & ::part() Audit",
+        passed: Boolean(res?.slotAndPartOk),
+        detail: "Projects named/default slots, renders footer fallback, isolates orphan slots, and validates ::part()",
+      });
+    } else if (taskId === "task_webcomp_virtualized_shadow_list_resize_observer") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Engine = typeof VirtualizedShadowListEngine === "function"
+            ? VirtualizedShadowListEngine
+            : exports.VirtualizedShadowListEngine;
+
+          // 1,000 rows @ 40px default = 40,000px total height
+          const vlist = new Engine(1000, 40);
+          // ResizeObserver measures row 10 at 100px (+60px delta => 40,060px total)
+          vlist.updateMeasuredRowHeight(10, 100);
+
+          const win = vlist.computeViewportWindow({
+            scrollTopPx: 460, // lands right inside row 10 (offsets: row 0..9 = 400px, row 10 = 400..500px)
+            viewportHeightPx: 120,
+            overscanCount: 2,
+          });
+
+          const renderedHeight = win.visibleRows.reduce((s, r) => s + r.heightPx, 0);
+
+          return {
+            virtualListOk:
+              win.totalScrollHeightPx === 40060 &&
+              win.startIndex === 8 &&
+              win.visibleRows.length <= 8 &&
+              win.topSpacerPx + renderedHeight + win.bottomSpacerPx === 40060,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "O(log N) Prefix-Sum Virtualized Viewport & Spacer Conservation",
+        passed: Boolean(res?.virtualListOk),
+        detail: "Updates measured row height, slices overscan window in O(log N), and preserves 40,060px scroll height",
       });
     } else {
       // General syntax evaluation
