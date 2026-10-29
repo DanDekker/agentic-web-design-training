@@ -10,6 +10,9 @@ class MockShadowRoot {
     if (selector === ".delete-btn") return new MockElement("button");
     if (selector === ".diff-table") return new MockElement("div");
     if (selector === ".badge") return new MockElement("span");
+    if (selector === ".swatch-preview") return new MockElement("div");
+    if (selector === ".token-name") return new MockElement("span");
+    if (selector === ".apca-pill") return new MockElement("span");
     return null;
   }
 
@@ -40,7 +43,18 @@ class MockElement {
   }
 
   attachInternals() {
-    return { role: "status" };
+    return {
+      role: "status",
+      formValue: null,
+      states: new Set(),
+      setFormValue(val) {
+        this.formValue = val;
+      },
+    };
+  }
+
+  hasAttribute(name) {
+    return this.#attributes.has(name);
   }
 
   getAttribute(name) {
@@ -108,11 +122,13 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     await import("../public/components/loom-diff-viewer.js");
     await import("../public/components/loom-badge.js");
     await import("../public/components/loom-platform.js");
+    await import("../public/components/loom-design-swatch.js");
 
     expect(globalThis.customElements.get("loom-task-item")).toBeDefined();
     expect(globalThis.customElements.get("loom-diff-viewer")).toBeDefined();
     expect(globalThis.customElements.get("loom-badge")).toBeDefined();
     expect(globalThis.customElements.get("loom-capabilities")).toBeDefined();
+    expect(globalThis.customElements.get("loom-design-swatch")).toBeDefined();
   });
 
   test("loom-task-item encapsulates Shadow DOM and manages attributes", async () => {
@@ -166,5 +182,21 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     expect(el.shadowRoot).toBeDefined();
     el.connectedCallback();
     expect(el.getAttribute("data-score")).toMatch(/^\d+$/);
+  });
+
+  test("loom-design-swatch synchronizes OKLCH tokens, APCA Lc, and CustomStateSet states via ElementInternals", async () => {
+    const { LoomDesignSwatch } = await import("../public/components/loom-design-swatch.js");
+    expect(LoomDesignSwatch.formAssociated).toBe(true);
+
+    const swatch = new LoomDesignSwatch();
+    swatch.token = "--bg-obsidian-950";
+    swatch.oklch = "oklch(0.11 0.005 90)";
+    swatch.apcaLc = 102.4;
+    swatch.setAttribute("selected", "");
+
+    expect(swatch.token).toBe("--bg-obsidian-950");
+    expect(swatch.oklch).toBe("oklch(0.11 0.005 90)");
+    expect(swatch.apcaLc).toBe(102.4);
+    expect(swatch.shadowRoot).toBeDefined();
   });
 });
