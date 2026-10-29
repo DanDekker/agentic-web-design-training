@@ -11,6 +11,7 @@ describe("Client dialogs and keyboard navigation", () => {
     ["user-pill", "auth-modal", "btn-close-auth"],
     ["btn-oauth-portal", "oauth-modal", "btn-close-oauth"],
     ["btn-benchmark-portal", "benchmark-modal", "btn-close-benchmark"],
+    ["btn-chat-portal", "chat-modal", "btn-close-chat"],
   ]) {
     test(`${dialog} opens, closes, and returns focus to its opener`, async () => {
       const app = await createClient();

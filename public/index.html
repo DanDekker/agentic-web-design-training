@@ -63,6 +63,11 @@
             <span>Benchmark</span>
           </button>
 
+          <button type="button" class="btn-subtle" id="btn-chat-portal" title="Two-User Real-Time Chat & Debugger (C)">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>Chat</span>
+          </button>
+
           <button type="button" class="user-pill" id="user-pill" aria-label="Account menu">
             <span class="status-dot"></span>
             <span id="user-name">Guest</span>
@@ -175,6 +180,7 @@
         <span><kbd>R</kbd> curriculum</span>
         <span><kbd>O</kbd> oauth</span>
         <span><kbd>B</kbd> benchmark</span>
+        <span><kbd>C</kbd> chat</span>
         <span><kbd>⌘K</kbd> commands</span>
       </div>
     </main>
@@ -193,6 +199,7 @@
         <li><kbd>R</kbd> Refactoring curriculum / inspect</li>
         <li><kbd>O</kbd> OAuth 2.0 portal</li>
         <li><kbd>B</kbd> Run 1M benchmark suite</li>
+        <li><kbd>C</kbd> Two-user real-time chat & debugger</li>
         <li><kbd>T</kbd> Toggle dark / light theme</li>
         <li><kbd>/</kbd> Focus search filter</li>
       </ul>
@@ -340,12 +347,12 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Executes automated sandboxed verification across all 32 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Async, Performance & Architecture), computing telemetry, assertion scores, and execution durations.
+            Executes automated sandboxed verification across all 36 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Async, Performance & Architecture), computing telemetry, assertion scores, and execution durations.
           </p>
 
           <div class="telemetry-grid" id="benchmark-stats-grid">
             <div class="stat-card">
-              <div class="stat-value" id="bench-total-tasks">32</div>
+              <div class="stat-value" id="bench-total-tasks">36</div>
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
@@ -382,6 +389,63 @@
               <tbody id="bench-table-body"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Native HTML5 <dialog>: Two-User Real-Time Chat, Debugger & Benchmark -->
+    <dialog class="native-modal" id="chat-modal" aria-labelledby="chat-title">
+      <div class="modal-card benchmark-card" role="document">
+        <header class="modal-header">
+          <div>
+            <span class="badge">dm:agent:pp</span>
+            <h2 class="modal-title" id="chat-title">Two-User Real-Time Chat & Telemetry</h2>
+          </div>
+          <button type="button" class="close-btn" id="btn-close-chat" aria-label="Close dialog">×</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="benchmark-desc">
+            Real-time two-user channel between <strong>agent</strong> and <strong>pp</strong> with causal sequence IDs, idempotency deduplication, typing TTLs, read watermarks, protocol debugger, and P99 latency benchmarking.
+          </p>
+
+          <div class="telemetry-grid" id="chat-telemetry-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="chat-stat-seq">2</div>
+              <div class="stat-label">Latest Sequence</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="chat-stat-p99">0ms</div>
+              <div class="stat-label">P99 Fanout Latency</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="chat-stat-dedup">0</div>
+              <div class="stat-label">Duplicates Suppressed</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="chat-stat-health">HEALTHY</div>
+              <div class="stat-label">Protocol State</div>
+            </div>
+          </div>
+
+          <div id="chat-messages-list" class="sim-output" style="margin-top:0;max-height:220px;" role="log" aria-live="polite"></div>
+          <div id="chat-typing-indicator" style="font-size:0.75rem;color:var(--muted);min-height:1.2rem;margin:0.35rem 0;font-family:var(--font-mono);"></div>
+
+          <form id="chat-form" class="composer" style="margin-top:0.4rem;" autocomplete="off">
+            <select id="chat-sender-select" aria-label="Send as user" title="Active sender identity" style="appearance:none;border:1px solid var(--line);border-radius:6px;background:none;color:var(--ink);font:inherit;font-size:0.75rem;padding:0.25rem 0.45rem;">
+              <option value="agent">agent → pp</option>
+              <option value="pp">pp → agent</option>
+            </select>
+            <input id="chat-input" type="text" maxlength="2000" placeholder="Send real-time message between users..." aria-label="Chat message" />
+            <button type="submit" class="btn-primary" id="btn-chat-send">Send</button>
+          </form>
+
+          <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-top:0.9rem;">
+            <button type="button" class="btn-secondary" id="btn-chat-simulate">Simulate 2-User Exchange</button>
+            <button type="button" class="btn-secondary" id="btn-chat-debug">Run Protocol Debugger</button>
+            <button type="button" class="btn-primary" id="btn-chat-benchmark">Run P99 Chat Benchmark</button>
+          </div>
+          <div id="chat-debug-output" class="sim-output" hidden></div>
         </div>
       </div>
     </dialog>

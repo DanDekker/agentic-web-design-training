@@ -173,7 +173,24 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
         Object.assign(task, body);
         return json(task);
       }
-      if (path === "/api/curriculum/benchmark") return json({ totalTasks: 32 });
+      if (path === "/api/curriculum/benchmark") return json({ totalTasks: 36 });
+      if (path.startsWith("/api/chat/messages") && method === "GET") {
+        return json({
+          roomId: "dm:agent:pp",
+          latestSeq: 2,
+          messages: [
+            { seq: 1, sender: "pp", recipient: "agent", text: "Hello agent", readBy: ["pp", "agent"] },
+            { seq: 2, sender: "agent", recipient: "pp", text: "Hello pp", readBy: ["pp", "agent"] },
+          ],
+          typingUsers: [],
+        });
+      }
+      if (path.startsWith("/api/chat/") && method === "POST") {
+        return json({ ok: true, diagnosticsHealthy: true, throughputMsgsPerSec: 25000, latency: { p99Ms: 0.05 }, duplicatesSuppressed: 15 });
+      }
+      if (path.startsWith("/api/chat/debug") && method === "GET") {
+        return json({ healthy: true, latestSeq: 2, telemetry: { duplicatesSuppressed: 0, latency: { p99Ms: 0.02 } } });
+      }
       throw new Error(`Unhandled fixture request: ${method} ${path}`);
     },
   });

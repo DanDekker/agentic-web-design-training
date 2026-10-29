@@ -26,6 +26,7 @@ const el = {
   btnCurriculum: document.querySelector("#btn-curriculum"),
   btnOAuthPortal: document.querySelector("#btn-oauth-portal"),
   btnBenchmarkPortal: document.querySelector("#btn-benchmark-portal"),
+  btnChatPortal: document.querySelector("#btn-chat-portal"),
 
   // Modals
   refactorModal: document.querySelector("#refactor-modal"),
@@ -73,6 +74,24 @@ const el = {
   benchAvgScore: document.querySelector("#bench-avg-score"),
   benchAvgDuration: document.querySelector("#bench-avg-duration"),
   benchTableBody: document.querySelector("#bench-table-body"),
+
+  // Chat modal
+  chatModal: document.querySelector("#chat-modal"),
+  btnCloseChat: document.querySelector("#btn-close-chat"),
+  chatMessagesList: document.querySelector("#chat-messages-list"),
+  chatTypingIndicator: document.querySelector("#chat-typing-indicator"),
+  chatForm: document.querySelector("#chat-form"),
+  chatSenderSelect: document.querySelector("#chat-sender-select"),
+  chatInput: document.querySelector("#chat-input"),
+  btnChatSend: document.querySelector("#btn-chat-send"),
+  btnChatSimulate: document.querySelector("#btn-chat-simulate"),
+  btnChatDebug: document.querySelector("#btn-chat-debug"),
+  btnChatBenchmark: document.querySelector("#btn-chat-benchmark"),
+  chatDebugOutput: document.querySelector("#chat-debug-output"),
+  chatStatSeq: document.querySelector("#chat-stat-seq"),
+  chatStatP99: document.querySelector("#chat-stat-p99"),
+  chatStatDedup: document.querySelector("#chat-stat-dedup"),
+  chatStatHealth: document.querySelector("#chat-stat-health"),
 
   // Command palette
   palette: document.querySelector("#palette"),
@@ -136,7 +155,7 @@ const isTyping = (node) =>
   !!node &&
   (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT" || node.isContentEditable);
 
-const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.palette].filter(Boolean);
+const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.palette].filter(Boolean);
 
 function openDialog(dialog) {
   if (dialog && !dialog.open) dialog.showModal();
@@ -895,7 +914,7 @@ async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 32;
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 36;
   } catch (err) {
     toast(err.message);
   }
@@ -965,6 +984,125 @@ async function downloadBenchmarkMarkdown() {
     toast(`Failed to download report: ${err.message}`);
   }
 }
+
+/* ── Two-User Real-Time Chat, Debugger & Benchmark Modal ── */
+
+async function openChatModal() {
+  openDialog(el.chatModal);
+  await refreshChatChannel();
+}
+
+function closeChatModal() {
+  closeDialog(el.chatModal);
+}
+
+async function refreshChatChannel() {
+  try {
+    const data = await api("GET", "/api/chat/messages?roomId=dm:agent:pp");
+    renderChatMessages(data);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+function renderChatMessages(data) {
+  if (!data) return;
+  if (el.chatStatSeq) el.chatStatSeq.textContent = String(data.latestSeq ?? 0);
+  if (el.chatTypingIndicator) {
+    const typing = data.typingUsers || [];
+    el.chatTypingIndicator.textContent = typing.length > 0 ? `${typing.join(", ")} is typing…` : "";
+  }
+  if (!el.chatMessagesList) return;
+  const msgs = data.messages || [];
+  el.chatMessagesList.innerHTML = msgs
+    .map((m) => {
+      const readCount = (m.readBy || []).length;
+      const receipt = readCount >= 2 ? "✓✓ Read" : "✓ Sent";
+      return `<div style="padding:0.3rem 0;border-bottom:1px solid var(--line);"><strong>[#${m.seq}] ${escapeHtml(m.sender)} → ${escapeHtml(m.recipient)}:</strong> ${escapeHtml(m.text)} <span style="color:var(--muted);font-size:0.68rem;float:right;">${receipt}</span></div>`;
+    })
+    .join("");
+}
+
+async function handleChatSend(event) {
+  event.preventDefault();
+  const text = el.chatInput?.value?.trim();
+  if (!text) return el.chatInput?.focus();
+  const sender = el.chatSenderSelect?.value || "agent";
+  const recipient = sender === "agent" ? "pp" : "agent";
+  if (el.chatInput) el.chatInput.value = "";
+
+  try {
+    await api("POST", "/api/chat/messages", {
+      roomId: "dm:agent:pp",
+      sender,
+      recipient,
+      text,
+      clientMsgId: `ui_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    });
+    await api("POST", "/api/chat/read", { roomId: "dm:agent:pp", username: recipient });
+    await refreshChatChannel();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function simulateTwoUserExchange() {
+  try {
+    await api("POST", "/api/chat/typing", { roomId: "dm:agent:pp", username: "agent", isTyping: true });
+    await api("POST", "/api/chat/messages", {
+      roomId: "dm:agent:pp",
+      sender: "agent",
+      recipient: "pp",
+      text: "Completed DAG checkpoint #4; verifying P99 fanout latency.",
+    });
+    await api("POST", "/api/chat/messages", {
+      roomId: "dm:agent:pp",
+      sender: "pp",
+      recipient: "agent",
+      text: "Confirmed. Sequence monotonicity and read watermarks aligned.",
+    });
+    await api("POST", "/api/chat/read", { roomId: "dm:agent:pp", username: "agent" });
+    await api("POST", "/api/chat/read", { roomId: "dm:agent:pp", username: "pp" });
+    await refreshChatChannel();
+    toast("Simulated two-user real-time exchange.");
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function runChatProtocolDebugger() {
+  try {
+    const diag = await api("GET", "/api/chat/debug?roomId=dm:agent:pp");
+    if (el.chatStatSeq) el.chatStatSeq.textContent = String(diag.latestSeq ?? 0);
+    if (el.chatStatP99) el.chatStatP99.textContent = `${diag.telemetry?.latency?.p99Ms ?? 0}ms`;
+    if (el.chatStatDedup) el.chatStatDedup.textContent = String(diag.telemetry?.duplicatesSuppressed ?? 0);
+    if (el.chatStatHealth) el.chatStatHealth.textContent = diag.healthy ? "HEALTHY" : "ANOMALY";
+    if (el.chatDebugOutput) {
+      el.chatDebugOutput.hidden = false;
+      el.chatDebugOutput.textContent = JSON.stringify(diag, null, 2);
+    }
+    toast(`Chat protocol debugger: ${diag.healthy ? "All invariants healthy" : "Anomalies found"}`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function runChatBenchmarkUI() {
+  try {
+    const bench = await api("POST", "/api/chat/benchmark", { messageCount: 150, duplicateRate: 0.1 });
+    if (el.chatStatP99) el.chatStatP99.textContent = `${bench.latency?.p99Ms ?? 0}ms`;
+    if (el.chatStatDedup) el.chatStatDedup.textContent = String(bench.duplicatesSuppressed ?? 0);
+    if (el.chatStatHealth) el.chatStatHealth.textContent = bench.diagnosticsHealthy ? "HEALTHY" : "FAILED";
+    if (el.chatDebugOutput) {
+      el.chatDebugOutput.hidden = false;
+      el.chatDebugOutput.textContent = JSON.stringify(bench, null, 2);
+    }
+    toast(`Chat benchmark: ${bench.throughputMsgsPerSec} msgs/sec (P99: ${bench.latency?.p99Ms}ms)`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 /* ── Command Palette ─────────────────────────────────────── */
 
 const commands = [
@@ -972,6 +1110,7 @@ const commands = [
   { label: "Toggle theme", hint: "T", run: toggleTheme },
   { label: "Agentic Refactoring Curriculum", hint: "R", run: seedCurriculum },
   { label: "Agentic 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
+  { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
   { label: "OAuth 2.0 Applications & Simulator", hint: "O", run: openOAuthModal },
   { label: "Switch to Today board", hint: "", run: () => switchBoard("board_today") },
   { label: "Switch to Agentic Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
@@ -1040,6 +1179,7 @@ function runCommand(command) {
   closeAuthModal();
   closeOAuthModal();
   closeBenchmarkModal();
+  closeChatModal();
   command.run();
 }
 
@@ -1087,6 +1227,8 @@ function connectEvents() {
       const data = JSON.parse(event.data);
       if (data.type === "state") {
         loadInitialState();
+      } else if (data.type === "chat" && el.chatModal?.open) {
+        refreshChatChannel();
       }
     } catch {}
   };
@@ -1165,6 +1307,14 @@ el.btnBenchmarkPortal?.addEventListener("click", openBenchmarkModal);
 el.btnCloseBenchmark?.addEventListener("click", closeBenchmarkModal);
 el.btnRunFullBenchmark?.addEventListener("click", runFullBenchmarkUI);
 el.btnDownloadBenchmarkMd?.addEventListener("click", downloadBenchmarkMarkdown);
+
+// Chat Modal Wiring
+el.btnChatPortal?.addEventListener("click", openChatModal);
+el.btnCloseChat?.addEventListener("click", closeChatModal);
+el.chatForm?.addEventListener("submit", handleChatSend);
+el.btnChatSimulate?.addEventListener("click", simulateTwoUserExchange);
+el.btnChatDebug?.addEventListener("click", runChatProtocolDebugger);
+el.btnChatBenchmark?.addEventListener("click", runChatBenchmarkUI);
 
 // Command palette wiring
 el.palette?.addEventListener("mousedown", (event) => {
@@ -1256,6 +1406,11 @@ document.addEventListener("keydown", (event) => {
     case "O":
       event.preventDefault();
       openOAuthModal();
+      break;
+    case "c":
+    case "C":
+      event.preventDefault();
+      openChatModal();
       break;
     case "1":
       setFilter("all");
