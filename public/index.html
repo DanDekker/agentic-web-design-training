@@ -348,12 +348,12 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Executes automated sandboxed verification across all 36 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Async, Performance & Architecture), computing telemetry, assertion scores, and execution durations.
+            Executes automated sandboxed verification across all 52 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations &amp; Package Managers), computing telemetry, assertion scores, and execution durations.
           </p>
 
           <div class="telemetry-grid" id="benchmark-stats-grid">
             <div class="stat-card">
-              <div class="stat-value" id="bench-total-tasks">36</div>
+              <div class="stat-value" id="bench-total-tasks">52</div>
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
@@ -372,18 +372,21 @@
 
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:1rem 0 1.2rem;">
             <select id="bench-category-filter" class="chat-sender-select" aria-label="Filter benchmark category">
-              <option value="">All 12 Categories (36 Tasks)</option>
+              <option value="">All 15 Categories (52 Tasks)</option>
+              <option value="css">css (5)</option>
               <option value="database">database (4)</option>
               <option value="web-auth">web-auth (4)</option>
               <option value="web-fingerprinting">web-fingerprinting (4)</option>
               <option value="web-cybersec">web-cybersec (4)</option>
               <option value="agentic-workflow">agentic-workflow (4)</option>
               <option value="realtime-chat">realtime-chat (4)</option>
+              <option value="ts-frameworks">ts-frameworks (4)</option>
+              <option value="framework-migration">framework-migration (4)</option>
+              <option value="package-managers">package-managers (4)</option>
               <option value="performance">performance (3)</option>
               <option value="architecture">architecture (3)</option>
               <option value="async">async (2)</option>
               <option value="security">security (2)</option>
-              <option value="css">css (1)</option>
               <option value="accessibility">accessibility (1)</option>
             </select>
             <button type="button" class="btn-primary" id="btn-run-full-benchmark">Run All Benchmarks</button>
