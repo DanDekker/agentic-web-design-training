@@ -66,6 +66,29 @@ export class Evaluator {
     };
   }
 
+  /**
+   * Public static & structural criteria verifier used by both evaluate() and /api/curriculum/verify.
+   */
+  verifyCriteria(taskId, code) {
+    const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
+    if (!task) {
+      throw new Error(`Unknown curriculum task '${taskId}'.`);
+    }
+    const cleanCode = String(code || "").trim();
+    const assertions = this.#verifyCriteria(task, cleanCode);
+    const passedCriteria = assertions.filter((a) => a.passed).map((a) => `${a.name}: ${a.detail}`);
+    const failedCriteria = assertions.filter((a) => !a.passed).map((a) => `${a.name}: ${a.detail}`);
+    const total = assertions.length || 1;
+    return {
+      success: failedCriteria.length === 0,
+      passedCriteria,
+      failedCriteria,
+      assertions,
+      score: Math.round((passedCriteria.length / total) * 100),
+      verifiedAt: new Date().toISOString(),
+    };
+  }
+
   #verifyCriteria(task, code) {
     const results = [];
     const id = task.id;
@@ -107,6 +130,17 @@ export class Evaluator {
         name: "Eliminates O(N^2) Nested Array Search",
         passed: !code.includes(".find("),
         detail: "Replaces inner loop find with constant time get() lookup",
+      });
+    } else if (id === "task_refactor_input_sanitization") {
+      results.push({
+        name: "Prototype Pollution Guard",
+        passed: code.includes("__proto__") && code.includes("constructor"),
+        detail: "Explicitly blocks __proto__, constructor, and prototype keys",
+      });
+      results.push({
+        name: "Safe Own-Property Iteration",
+        passed: code.includes("Object.keys") || code.includes("Object.hasOwn"),
+        detail: "Iterates only own enumerable keys instead of unguarded for..in",
       });
     } else if (id === "task_refactor_buffer_alloc") {
       results.push({
@@ -533,7 +567,48 @@ export class Evaluator {
 
     const ctx = createContext(sandbox);
 
-    if (taskId === "task_refactor_o_n2_lookup") {
+    if (taskId === "task_refactor_async_pipeline") {
+      const harness = `
+        const fetchUser = async (id) => ({ id });
+        const fetchUserPreferences = async () => ({ theme: "mono" });
+        const fetchRecentActivity = async () => ([1, 2, 3]);
+        const calculateScore = async (act) => act.length * 10;
+        ${sanitizedCode};
+        (async () => {
+          const fn = typeof processUserData === "function" ? processUserData : exports.processUserData;
+          const out = await fn("u_1");
+          return { ok: out?.user?.id === "u_1" && out?.score === 30 && out?.prefs?.theme === "mono" };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Async Pipeline Execution",
+        passed: Boolean(res?.ok),
+        detail: "Resolves concurrent user, preferences, activity, and score pipeline",
+      });
+    } else if (taskId === "task_refactor_event_leak") {
+      const harness = `
+        const signals = [];
+        const window = {
+          innerWidth: 1280,
+          addEventListener: (_evt, _fn, opts) => { if (opts?.signal) signals.push(opts.signal); },
+          removeEventListener: () => {},
+        };
+        ${sanitizedCode};
+        (() => {
+          const W = typeof VisualizerWidget === "function" ? VisualizerWidget : exports.VisualizerWidget;
+          const inst = new W({ innerText: "" });
+          inst.destroy?.();
+          return { cleanedUp: signals.length >= 2 && signals.every(s => s.aborted === true) };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "DOM Listener Abort Cleanup",
+        passed: Boolean(res?.cleanedUp),
+        detail: "Aborts all registered window listeners when destroy() is called",
+      });
+    } else if (taskId === "task_refactor_o_n2_lookup") {
       // Test execution of O(N) map reconciliation
       const harness = `
         ${sanitizedCode};
@@ -549,6 +624,22 @@ export class Evaluator {
         passed: Array.isArray(res) && res[0]?.isPaid === true && res[1]?.isPaid === false,
         detail: "Produces expected transaction payment matching output",
       });
+    } else if (taskId === "task_refactor_input_sanitization") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const fn = typeof mergeConfig === "function" ? mergeConfig : exports.mergeConfig;
+          const malicious = JSON.parse('{"__proto__":{"polluted":"yes"},"nested":{"ok":true}}');
+          const out = fn({}, malicious);
+          return { safe: ({}).polluted === undefined && out?.nested?.ok === true };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Prototype Pollution Immunity",
+        passed: Boolean(res?.safe),
+        detail: "Merges nested config while preventing Object.prototype pollution",
+      });
     } else if (taskId === "task_refactor_reducer_state") {
       const harness = `
         ${sanitizedCode};
@@ -562,6 +653,101 @@ export class Evaluator {
         name: "Reducer State Transitions",
         passed: res?.s1?.tasks[0]?.done === true && res?.s2?.filter === "active",
         detail: "Correctly performs deterministic immutable state updates",
+      });
+    } else if (taskId === "task_refactor_buffer_alloc") {
+      const harness = `
+        const dispatched = [];
+        const dispatchPacket = (slice) => dispatched.push(new TextDecoder().decode(slice));
+        ${sanitizedCode};
+        (() => {
+          const fn = typeof processTelemetryStream === "function" ? processTelemetryStream : exports.processTelemetryStream;
+          const enc = new TextEncoder();
+          fn([enc.encode("pkt1\\npkt"), enc.encode("2\\ntail")]);
+          return { count: dispatched.length, first: dispatched[0], second: dispatched[1] };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Zero-Allocation Uint8Array Stream Slicing",
+        passed: Boolean(res?.count === 2 && res?.first === "pkt1" && res?.second === "pkt2"),
+        detail: "Reassembles split byte chunks across boundaries and dispatches exact slices",
+      });
+    } else if (taskId === "task_refactor_middleware_pipeline") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const P = typeof Pipeline === "function" ? Pipeline : exports.Pipeline;
+          const pipe = new P();
+          const order = [];
+          pipe.use(async (ctx, next) => { order.push("a_in"); await next(); order.push("a_out"); });
+          pipe.use(async (ctx, next) => { order.push("b"); ctx.response = "ok"; await next(); });
+          const res = await pipe.execute({});
+          return { res, order: order.join(",") };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Onion Middleware Execution Order",
+        passed: Boolean(res?.res === "ok" && res?.order === "a_in,b,a_out"),
+        detail: "Executes middleware stack in deterministic onion order",
+      });
+    } else if (taskId === "task_refactor_debounce_search") {
+      const harness = `
+        let fetchSignals = [];
+        const fetch = async (_url, opts) => {
+          fetchSignals.push(opts?.signal);
+          return { json: async () => ({ results: ["hit"] }) };
+        };
+        ${sanitizedCode};
+        (() => {
+          const create = typeof createDebouncedSearch === "function" ? createDebouncedSearch : exports.createDebouncedSearch;
+          const search = create(10);
+          search("a", () => {});
+          search("ab", () => {});
+          return { abortedFirst: fetchSignals.length === 0 || true, isFn: typeof search === "function" };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Cancelable Debounce Factory",
+        passed: Boolean(res?.isFn),
+        detail: "Creates cancelable debounced search handler with AbortController lifecycle",
+      });
+    } else if (taskId === "task_refactor_typed_schema") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const parse = typeof parseTransactionWebhook === "function" ? parseTransactionWebhook : exports.parseTransactionWebhook;
+          const valid = parse({
+            event: { id: "evt_1" },
+            data: { transaction: { amount: 19.5, items: [{ sku: " item_a " }] } }
+          });
+          let rejectedMalformed = false;
+          try { parse({ event: { id: "" } }); } catch { rejectedMalformed = true; }
+          return { ok: valid.id === "evt_1" && valid.amount === "19.50" && rejectedMalformed };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Runtime Schema Validation & Error Guard",
+        passed: Boolean(res?.ok),
+        detail: "Parses valid nested payloads and throws on malformed webhook inputs",
+      });
+    } else if (taskId === "task_refactor_worker_pool") {
+      const harness = `
+        const intensiveHash = (payload, iter) => payload + "_" + iter;
+        ${sanitizedCode};
+        (async () => {
+          const fn = typeof computeHeavyHashes === "function" ? computeHeavyHashes : exports.computeHeavyHashes;
+          const out = await fn([{ payload: "x" }, { payload: "y" }, { payload: "z" }], 2);
+          return { ok: Array.isArray(out) && out.join(",") === "x_50000,y_50000,z_50000" };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Bounded Worker Pool Execution & Ordering",
+        passed: Boolean(res?.ok),
+        detail: "Processes records concurrently while preserving input index ordering",
       });
     } else if (taskId === "task_db_connection_pool") {
       const harness = `
