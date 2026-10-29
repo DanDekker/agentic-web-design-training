@@ -8,6 +8,7 @@ import {
 import { Evaluator } from "./evaluator.js";
 import { BenchmarkSuite } from "./benchmark.js";
 import { getTypeScriptEcosystemOverview } from "./ts_ecosystem.js";
+import { buildApplicationJsonLdGraph, auditHtmlSeoAndStructuredData } from "./seo.js";
 import { ChatEngine } from "./chat.js";
 
 class HttpError extends Error {
@@ -406,6 +407,16 @@ const benchmarkSuite = new BenchmarkSuite();
       }
       if (pathname === "/api/curriculum/ecosystem" && req.method === "GET") {
         return json(getTypeScriptEcosystemOverview());
+      }
+      if (pathname === "/api/seo/json-ld" && req.method === "GET") {
+        return json(buildApplicationJsonLdGraph(url.origin));
+      }
+      if (pathname === "/api/seo/audit" && req.method === "POST") {
+        const body = await readJson(req);
+        if (!body?.html || typeof body.html !== "string") {
+          throw new ValidationError("html string is required for SEO audit.");
+        }
+        return json(auditHtmlSeoAndStructuredData(body.html));
       }
       if (pathname === "/api/curriculum/tasks") {
         const category = searchParams.get("category");
