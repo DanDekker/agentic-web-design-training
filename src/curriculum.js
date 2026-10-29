@@ -8725,6 +8725,494 @@ export class OfflineMutationOutboxEngine {
       "Auto-merges disjoint field edits cleanly (cleanMerge: true) and reports true field-level collisions in conflictingFields",
     ],
   },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 16: WEB TRAFFIC, HTTP CACHING & TELEMETRY (web-traffic)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_traffic_rfc9111_http_cache_swr_vary_etag",
+    title: "Implement RFC 9111 HTTP Cache Coordinator with stale-while-revalidate, Vary Content-Negotiation Keys & If-None-Match (304 Not Modified)",
+    category: "web-traffic",
+    difficulty: "advanced",
+    tags: ["web-traffic", "rfc9111", "http-cache", "stale-while-revalidate", "vary-header", "etag"],
+    instructions:
+      "Reverse-proxy and CDN caches that key entries solely by URL path accidentally serve br/gzip payloads or localized responses to incompatible clients (ignoring the Vary response header), and force synchronous origin waits when max-age expires instead of serving stale-while-revalidate (RFC 5861 / RFC 9111). Build an Rfc9111HttpCacheEngine that computes composite Vary cache keys, evaluates FRESH / STALE_WHILE_REVALIDATE / EXPIRED freshness states, and handles conditional If-None-Match (304 Not Modified).",
+    starterCode: `// Naive URL-Only Cache Ignoring Vary Headers, ETag 304 & stale-while-revalidate
+export class SimpleUrlCache {
+  map = new Map<string, any>();
+  get(url: string) {
+    return this.map.get(url);
+  }
+}`,
+    solutionCode: `// RFC 9111 HTTP Cache Engine with Vary Negotiation, ETag 304 & stale-while-revalidate
+export interface CachedHttpEntry {
+  readonly url: string;
+  readonly status: number;
+  readonly body: string;
+  readonly etag: string;
+  readonly varyHeaders: readonly string[];
+  readonly varyValues: Readonly<Record<string, string>>;
+  readonly storedAtSec: number;
+  readonly maxAgeSec: number;
+  readonly staleWhileRevalidateSec: number;
+}
+
+export function parseCacheControlDirectives(header: string): {
+  readonly noStore: boolean;
+  readonly maxAgeSec: number;
+  readonly sMaxAgeSec: number | null;
+  readonly staleWhileRevalidateSec: number;
+} {
+  const parts = header.split(",").map((d) => d.trim().toLowerCase());
+  let noStore = false;
+  let maxAgeSec = 0;
+  let sMaxAgeSec: number | null = null;
+  let staleWhileRevalidateSec = 0;
+
+  for (const part of parts) {
+    if (part === "no-store") noStore = true;
+    else if (part.startsWith("max-age=")) maxAgeSec = Number(part.slice(8)) || 0;
+    else if (part.startsWith("s-maxage=")) sMaxAgeSec = Number(part.slice(9)) || 0;
+    else if (part.startsWith("stale-while-revalidate=")) {
+      staleWhileRevalidateSec = Number(part.slice(23)) || 0;
+    }
+  }
+
+  return { noStore, maxAgeSec, sMaxAgeSec, staleWhileRevalidateSec };
+}
+
+export class Rfc9111HttpCacheEngine {
+  #entries = new Map<string, CachedHttpEntry>();
+
+  #buildCompositeKey(url: string, varyHeaders: readonly string[], reqHeaders: Readonly<Record<string, string>>): string {
+    const normalizedVary = varyHeaders
+      .map((h) => h.trim().toLowerCase())
+      .sort()
+      .map((h) => \`\${h}=\${(reqHeaders[h] ?? "").trim().toLowerCase()}\`)
+      .join("&");
+    return \`GET|\${url}|\${normalizedVary}\`;
+  }
+
+  storeResponse(params: {
+    readonly url: string;
+    readonly requestHeaders: Readonly<Record<string, string>>;
+    readonly status: number;
+    readonly body: string;
+    readonly cacheControl: string;
+    readonly etag: string;
+    readonly vary?: string;
+    readonly nowSec: number;
+  }): boolean {
+    const cc = parseCacheControlDirectives(params.cacheControl);
+    if (cc.noStore) return false;
+
+    const varyHeaders = params.vary
+      ? params.vary.split(",").map((v) => v.trim().toLowerCase()).filter(Boolean)
+      : [];
+    const varyValues: Record<string, string> = {};
+    for (const h of varyHeaders) {
+      varyValues[h] = (params.requestHeaders[h] ?? "").trim().toLowerCase();
+    }
+
+    const effectiveMaxAge = cc.sMaxAgeSec ?? cc.maxAgeSec;
+    const key = this.#buildCompositeKey(params.url, varyHeaders, params.requestHeaders);
+
+    this.#entries.set(key, {
+      url: params.url,
+      status: params.status,
+      body: params.body,
+      etag: params.etag,
+      varyHeaders,
+      varyValues,
+      storedAtSec: params.nowSec,
+      maxAgeSec: effectiveMaxAge,
+      staleWhileRevalidateSec: cc.staleWhileRevalidateSec,
+    });
+    return true;
+  }
+
+  lookup(params: {
+    readonly url: string;
+    readonly varyHeaders: readonly string[];
+    readonly requestHeaders: Readonly<Record<string, string>>;
+    readonly nowSec: number;
+  }): {
+    readonly cacheStatus: "HIT_FRESH" | "HIT_STALE_WHILE_REVALIDATE" | "REVALIDATED_304" | "MISS";
+    readonly status: number | null;
+    readonly body: string | null;
+    readonly ageSec: number;
+    readonly triggerBackgroundRevalidate: boolean;
+  } {
+    const key = this.#buildCompositeKey(params.url, params.varyHeaders, params.requestHeaders);
+    const entry = this.#entries.get(key);
+    if (!entry) {
+      return {
+        cacheStatus: "MISS",
+        status: null,
+        body: null,
+        ageSec: 0,
+        triggerBackgroundRevalidate: false,
+      };
+    }
+
+    const ageSec = Math.max(0, params.nowSec - entry.storedAtSec);
+    const ifNoneMatch = params.requestHeaders["if-none-match"];
+
+    if (ageSec <= entry.maxAgeSec) {
+      if (ifNoneMatch && (ifNoneMatch === entry.etag || ifNoneMatch === \`W/\${entry.etag}\`)) {
+        return {
+          cacheStatus: "REVALIDATED_304",
+          status: 304,
+          body: null,
+          ageSec,
+          triggerBackgroundRevalidate: false,
+        };
+      }
+      return {
+        cacheStatus: "HIT_FRESH",
+        status: entry.status,
+        body: entry.body,
+        ageSec,
+        triggerBackgroundRevalidate: false,
+      };
+    }
+
+    if (ageSec <= entry.maxAgeSec + entry.staleWhileRevalidateSec) {
+      return {
+        cacheStatus: "HIT_STALE_WHILE_REVALIDATE",
+        status: entry.status,
+        body: entry.body,
+        ageSec,
+        triggerBackgroundRevalidate: true,
+      };
+    }
+
+    return {
+      cacheStatus: "MISS",
+      status: null,
+      body: null,
+      ageSec,
+      triggerBackgroundRevalidate: false,
+    };
+  }
+}`,
+    criteria: [
+      "Builds composite cache keys incorporating normalized Vary request headers (e.g. accept-encoding, accept-language)",
+      "Respects no-store, s-maxage over max-age precedence, and serves stale-while-revalidate responses while signaling background revalidation",
+      "Returns 304 Not Modified with empty body when If-None-Match matches the stored ETag",
+    ],
+  },
+  {
+    id: "task_traffic_edge_request_coalescing_singleflight_stampede",
+    title: "Build CDN Edge Request Coalescing (Singleflight) & Negative Cache Shield to Prevent Cache-Stampede Origin Meltdowns",
+    category: "web-traffic",
+    difficulty: "advanced",
+    tags: ["web-traffic", "singleflight", "cache-stampede", "negative-caching", "cdn-edge", "typescript"],
+    instructions:
+      "When a high-traffic cached resource expires under 5,000 concurrent requests, naive edge workers forward all 5,000 misses to the origin database simultaneously (cache stampede / dogpile). Build an EdgeSingleflightTrafficShield that coalesces concurrent misses for the same cache key into a single origin fetch Promise, caches 404 Not Found responses with a short negative-cache TTL, and tracks coalesced request savings.",
+    starterCode: `// Stampede-Prone Fetch Handler Forwarding Every Concurrent Miss to Origin
+export async function fetchThroughEdge(key: string, originLoader: () => Promise<any>) {
+  return originLoader();
+}`,
+    solutionCode: `// Edge Request Coalescing (Singleflight) & Negative Cache Stampede Shield
+export interface OriginResponse {
+  readonly status: 200 | 404 | 500;
+  readonly body: string;
+}
+
+export class EdgeSingleflightTrafficShield {
+  #cache = new Map<string, { response: OriginResponse; expiresAtMs: number }>();
+  #inFlight = new Map<string, Promise<OriginResponse>>();
+  #originFetches = 0;
+  #coalescedHits = 0;
+
+  async handleRequest(params: {
+    readonly key: string;
+    readonly nowMs: number;
+    readonly positiveTtlMs: number;
+    readonly negative404TtlMs: number;
+    readonly originFetcher: () => Promise<OriginResponse>;
+  }): Promise<{
+    readonly response: OriginResponse;
+    readonly source: "CACHE_HIT" | "COALESCED_IN_FLIGHT" | "ORIGIN_FETCH";
+  }> {
+    const cached = this.#cache.get(params.key);
+    if (cached && params.nowMs < cached.expiresAtMs) {
+      return { response: cached.response, source: "CACHE_HIT" };
+    }
+
+    const existingFlight = this.#inFlight.get(params.key);
+    if (existingFlight) {
+      this.#coalescedHits++;
+      const response = await existingFlight;
+      return { response, source: "COALESCED_IN_FLIGHT" };
+    }
+
+    const flightPromise = (async () => {
+      try {
+        this.#originFetches++;
+        const res = await params.originFetcher();
+        if (res.status === 200) {
+          this.#cache.set(params.key, {
+            response: res,
+            expiresAtMs: params.nowMs + params.positiveTtlMs,
+          });
+        } else if (res.status === 404) {
+          // Short-TTL negative caching prevents repeated 404 origin scans
+          this.#cache.set(params.key, {
+            response: res,
+            expiresAtMs: params.nowMs + params.negative404TtlMs,
+          });
+        }
+        return res;
+      } finally {
+        this.#inFlight.delete(params.key);
+      }
+    })();
+
+    this.#inFlight.set(params.key, flightPromise);
+    const response = await flightPromise;
+    return { response, source: "ORIGIN_FETCH" };
+  }
+
+  getStats(): { readonly originFetches: number; readonly coalescedHits: number } {
+    return {
+      originFetches: this.#originFetches,
+      coalescedHits: this.#coalescedHits,
+    };
+  }
+}`,
+    criteria: [
+      "Coalesces N concurrent cache misses for the same key into exactly 1 originFetcher invocation (Singleflight pattern)",
+      "Applies short-TTL negative caching for 404 Not Found responses while avoiding caching 500 server errors",
+      "Cleans up in-flight promise map entries in a finally block so subsequent expired requests can re-fetch",
+    ],
+  },
+  {
+    id: "task_traffic_ietf_ratelimit_token_bucket_sliding_window",
+    title: "Architect Multi-Tier Web Traffic Rate Limiter (Token Bucket + Sliding Window) Emitting IETF RateLimit & Retry-After Headers",
+    category: "web-traffic",
+    difficulty: "advanced",
+    tags: ["web-traffic", "rate-limiting", "token-bucket", "ietf-ratelimit", "ddos-protection", "typescript"],
+    instructions:
+      "API gateways must protect upstream services against burst traffic and expensive query abuse while giving well-behaved clients machine-readable quota telemetry. Build a WebTrafficRateLimiter that enforces per-client token-bucket burst capacity with continuous refill, supports route-specific cost weights (e.g. cost=1 for GET, cost=5 for heavy search/export), and emits IETF RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, RateLimit-Policy, and Retry-After headers.",
+    starterCode: `// Naive Counter Without Cost Weights, Refill Math or IETF RateLimit Headers
+export function checkRateLimit(count: number, max: number) {
+  return count <= max;
+}`,
+    solutionCode: `// Token-Bucket Web Traffic Rate Limiter Emitting Standard IETF RateLimit Headers
+export interface RateLimitBucketState {
+  tokens: number;
+  lastRefillMs: number;
+}
+
+export interface RateLimitDecision {
+  readonly allowed: boolean;
+  readonly status: 200 | 429;
+  readonly remainingTokens: number;
+  readonly resetAfterSec: number;
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+export class WebTrafficRateLimiter {
+  readonly #capacity: number;
+  readonly #refillTokensPerSec: number;
+  readonly #windowSec: number;
+  #buckets = new Map<string, RateLimitBucketState>();
+
+  constructor(params: { readonly capacity: number; readonly refillTokensPerSec: number; readonly windowSec?: number }) {
+    this.#capacity = params.capacity;
+    this.#refillTokensPerSec = params.refillTokensPerSec;
+    this.#windowSec = params.windowSec ?? Math.ceil(params.capacity / params.refillTokensPerSec);
+  }
+
+  evaluateTraffic(params: {
+    readonly clientKey: string;
+    readonly routeCost?: number;
+    readonly nowMs: number;
+  }): RateLimitDecision {
+    const cost = Math.max(1, params.routeCost ?? 1);
+    let bucket = this.#buckets.get(params.clientKey);
+
+    if (!bucket) {
+      bucket = { tokens: this.#capacity, lastRefillMs: params.nowMs };
+      this.#buckets.set(params.clientKey, bucket);
+    } else {
+      const elapsedSec = Math.max(0, (params.nowMs - bucket.lastRefillMs) / 1000);
+      const refilled = elapsedSec * this.#refillTokensPerSec;
+      bucket.tokens = Math.min(this.#capacity, bucket.tokens + refilled);
+      bucket.lastRefillMs = params.nowMs;
+    }
+
+    const policyHeader = \`\${this.#capacity};w=\${this.#windowSec}\`;
+
+    if (bucket.tokens >= cost) {
+      bucket.tokens -= cost;
+      const remaining = Math.floor(bucket.tokens);
+      const deficitToFull = this.#capacity - bucket.tokens;
+      const resetAfterSec = Math.ceil(deficitToFull / this.#refillTokensPerSec);
+
+      return {
+        allowed: true,
+        status: 200,
+        remainingTokens: remaining,
+        resetAfterSec,
+        headers: {
+          "RateLimit-Limit": String(this.#capacity),
+          "RateLimit-Remaining": String(remaining),
+          "RateLimit-Reset": String(resetAfterSec),
+          "RateLimit-Policy": policyHeader,
+        },
+      };
+    }
+
+    const neededTokens = cost - bucket.tokens;
+    const retryAfterSec = Math.max(1, Math.ceil(neededTokens / this.#refillTokensPerSec));
+    const remaining = Math.max(0, Math.floor(bucket.tokens));
+
+    return {
+      allowed: false,
+      status: 429,
+      remainingTokens: remaining,
+      resetAfterSec: retryAfterSec,
+      headers: {
+        "RateLimit-Limit": String(this.#capacity),
+        "RateLimit-Remaining": String(remaining),
+        "RateLimit-Reset": String(retryAfterSec),
+        "RateLimit-Policy": policyHeader,
+        "Retry-After": String(retryAfterSec),
+      },
+    };
+  }
+}`,
+    criteria: [
+      "Computes continuous time-based token refill up to bucket capacity and deducts route-specific cost weights",
+      "Emits IETF standard RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, and RateLimit-Policy headers",
+      "Returns HTTP 429 with an exact Retry-After header when remaining tokens are insufficient for the request cost",
+    ],
+  },
+  {
+    id: "task_traffic_w3c_traceparent_server_timing_rfc9218_priority",
+    title: "Build W3C Trace Context (traceparent) Propagator, Server-Timing Telemetry Compiler & RFC 9218 HTTP Priority (u=0..7, i) Scheduler",
+    category: "web-traffic",
+    difficulty: "advanced",
+    tags: ["web-traffic", "w3c-traceparent", "server-timing", "rfc9218-priority", "observability", "typescript"],
+    instructions:
+      "Modern HTTP/3 and edge proxies must propagate W3C Trace Context (traceparent: 00-<32hex-traceId>-<16hex-parentId>-<2hex-flags>) by validating incoming trace IDs and minting a fresh 16-hex child span ID, schedule concurrent HTTP streams according to RFC 9218 Extensible Prioritization (Priority: u=0..7, i), and serialize Server-Timing headers for browser DevTools. Build a WebTrafficObservabilityPriorityEngine.",
+    starterCode: `// Unvalidated Trace Header Passthrough & FIFO Request Queue Ignoring RFC 9218 Priority
+export function forwardTrace(headers: Record<string, string>) {
+  return headers["traceparent"] || "";
+}`,
+    solutionCode: `// W3C Trace Context Propagator, RFC 9218 Priority Scheduler & Server-Timing Compiler
+export interface ParsedTraceParent {
+  readonly version: "00";
+  readonly traceId: string;
+  readonly parentSpanId: string;
+  readonly traceFlags: string;
+  readonly sampled: boolean;
+}
+
+export interface Rfc9218PrioritySpec {
+  readonly urgency: number; // 0 (highest) to 7 (lowest), default 3
+  readonly incremental: boolean;
+}
+
+const TRACEPARENT_REGEX = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/;
+
+export function parseAndPropagateW3CTraceparent(
+  incomingHeader: string | undefined,
+  newChildSpanIdHex16: string,
+  fallbackTraceIdHex32: string,
+): {
+  readonly validIncoming: boolean;
+  readonly traceId: string;
+  readonly parentSpanId: string | null;
+  readonly outboundTraceparent: string;
+  readonly sampled: boolean;
+} {
+  if (!/^[0-9a-f]{16}$/.test(newChildSpanIdHex16) || /^0+$/.test(newChildSpanIdHex16)) {
+    throw new Error("newChildSpanIdHex16 must be 16 non-zero lowercase hex chars");
+  }
+
+  const match = incomingHeader ? TRACEPARENT_REGEX.exec(incomingHeader.trim()) : null;
+  if (match) {
+    const [, traceId, parentSpanId, flags] = match;
+    // W3C spec forbids all-zero traceId or all-zero parentSpanId
+    if (!/^0+$/.test(traceId) && !/^0+$/.test(parentSpanId)) {
+      const sampled = (parseInt(flags, 16) & 0x01) === 1;
+      return {
+        validIncoming: true,
+        traceId,
+        parentSpanId,
+        outboundTraceparent: \`00-\${traceId}-\${newChildSpanIdHex16}-\${flags}\`,
+        sampled,
+      };
+    }
+  }
+
+  return {
+    validIncoming: false,
+    traceId: fallbackTraceIdHex32,
+    parentSpanId: null,
+    outboundTraceparent: \`00-\${fallbackTraceIdHex32}-\${newChildSpanIdHex16}-01\`,
+    sampled: true,
+  };
+}
+
+export function parseRfc9218PriorityHeader(header: string | undefined): Rfc9218PrioritySpec {
+  let urgency = 3; // RFC 9218 default urgency is 3
+  let incremental = false;
+
+  if (!header) return { urgency, incremental };
+
+  const directives = header.split(",").map((d) => d.trim());
+  for (const dir of directives) {
+    if (dir === "i" || dir === "i=?1") {
+      incremental = true;
+    } else if (dir === "i=?0") {
+      incremental = false;
+    } else if (dir.startsWith("u=")) {
+      const val = Number(dir.slice(2));
+      if (Number.isInteger(val) && val >= 0 && val <= 7) {
+        urgency = val;
+      }
+    }
+  }
+
+  return { urgency, incremental };
+}
+
+export function scheduleRequestsByRfc9218Priority<T extends { readonly id: string; readonly priorityHeader?: string }>(
+  requests: readonly T[],
+): readonly T[] {
+  return [...requests].sort((a, b) => {
+    const pa = parseRfc9218PriorityHeader(a.priorityHeader);
+    const pb = parseRfc9218PriorityHeader(b.priorityHeader);
+    // Lower urgency number (0..7) has higher priority; incremental=false before incremental=true on tie
+    if (pa.urgency !== pb.urgency) return pa.urgency - pb.urgency;
+    if (pa.incremental !== pb.incremental) return pa.incremental ? 1 : -1;
+    return 0;
+  });
+}
+
+export function formatServerTimingHeader(
+  metrics: readonly { readonly name: string; readonly durationMs: number; readonly description?: string }[],
+): string {
+  return metrics
+    .map((m) => {
+      const dur = Math.round(m.durationMs * 100) / 100;
+      return m.description
+        ? \`\${m.name};desc="\${m.description.replace(/"/g, "")}";dur=\${dur}\`
+        : \`\${m.name};dur=\${dur}\`;
+    })
+    .join(", ");
+}`,
+    criteria: [
+      "Validates W3C traceparent (00-traceId-parentId-flags), rejects all-zero trace/span IDs, and mints a child span traceparent",
+      "Parses RFC 9218 Priority headers (u=0..7, i) with default u=3 and schedules lower urgency numbers first",
+      "Formats standard Server-Timing headers (name;desc=\"...\";dur=...) for browser DevTools performance inspection",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

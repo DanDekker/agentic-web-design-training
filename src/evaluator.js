@@ -1383,6 +1383,75 @@ export class Evaluator {
           code.includes("cleanMerge"),
         detail: "Merges non-overlapping local and server field edits and isolates true field collisions",
       });
+    } else if (id === "task_traffic_rfc9111_http_cache_swr_vary_etag") {
+      results.push({
+        name: "RFC 9111 Vary Composite Key & stale-while-revalidate Evaluation",
+        passed:
+          code.includes("HIT_STALE_WHILE_REVALIDATE") &&
+          code.includes("triggerBackgroundRevalidate") &&
+          code.includes("varyHeaders"),
+        detail: "Keys cache entries by normalized Vary headers and serves stale-while-revalidate with background refresh",
+      });
+      results.push({
+        name: "Conditional If-None-Match (304 Not Modified) & no-store Handling",
+        passed:
+          code.includes("REVALIDATED_304") &&
+          code.includes("if-none-match") &&
+          code.includes("no-store"),
+        detail: "Short-circuits 304 Not Modified on ETag match and bypasses storage on Cache-Control: no-store",
+      });
+    } else if (id === "task_traffic_edge_request_coalescing_singleflight_stampede") {
+      results.push({
+        name: "Singleflight Concurrent Miss Coalescing",
+        passed:
+          code.includes("COALESCED_IN_FLIGHT") &&
+          code.includes("coalescedHits") &&
+          code.includes("finally"),
+        detail: "Collapses concurrent cache misses for the same key into a single shared origin Promise",
+      });
+      results.push({
+        name: "Short-TTL 404 Negative Caching Shield",
+        passed:
+          code.includes("negative404TtlMs") &&
+          code.includes("status === 404") &&
+          code.includes("CACHE_HIT"),
+        detail: "Caches 404 Not Found responses for negative404TtlMs to prevent repeated origin scans",
+      });
+    } else if (id === "task_traffic_ietf_ratelimit_token_bucket_sliding_window") {
+      results.push({
+        name: "Continuous Token-Bucket Refill & Route Cost Weight Deduction",
+        passed:
+          code.includes("refillTokensPerSec") &&
+          code.includes("routeCost") &&
+          code.includes("remainingTokens"),
+        detail: "Refills tokens continuously over elapsed time and deducts route-specific cost weights",
+      });
+      results.push({
+        name: "Standard IETF RateLimit-* & Retry-After Response Headers",
+        passed:
+          code.includes("RateLimit-Limit") &&
+          code.includes("RateLimit-Remaining") &&
+          code.includes("RateLimit-Policy") &&
+          code.includes("Retry-After"),
+        detail: "Emits RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, RateLimit-Policy, and Retry-After",
+      });
+    } else if (id === "task_traffic_w3c_traceparent_server_timing_rfc9218_priority") {
+      results.push({
+        name: "W3C traceparent Validation & Child Span Propagation",
+        passed:
+          code.includes("outboundTraceparent") &&
+          code.includes("validIncoming") &&
+          code.includes("parentSpanId"),
+        detail: "Validates 00-<32hex>-<16hex>-<2hex> W3C traceparent headers and rotates the child spanId",
+      });
+      results.push({
+        name: "RFC 9218 Priority (u=0..7, i) Scheduling & Server-Timing Formatting",
+        passed:
+          code.includes("parseRfc9218PriorityHeader") &&
+          code.includes("scheduleRequestsByRfc9218Priority") &&
+          code.includes("formatServerTimingHeader"),
+        detail: "Schedules HTTP requests by RFC 9218 urgency/incremental directives and compiles Server-Timing headers",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -4988,6 +5057,199 @@ export class Evaluator {
         name: "Offline Outbox Log Compaction & 3-Way ETag Conflict Merge",
         passed: Boolean(res?.compactionAndMergeOk),
         detail: "Compacts CREATE+UPDATE, elides CREATE+DELETE, and merges disjoint local/server field changes",
+      });
+    } else if (taskId === "task_traffic_rfc9111_http_cache_swr_vary_etag") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Cache = typeof Rfc9111HttpCacheEngine === "function"
+            ? Rfc9111HttpCacheEngine
+            : exports.Rfc9111HttpCacheEngine;
+
+          const cache = new Cache();
+          cache.storeResponse({
+            url: "/api/catalog",
+            requestHeaders: { "accept-encoding": "br", "accept-language": "en-us" },
+            status: 200,
+            body: '{"items":[1,2]}',
+            cacheControl: "public, max-age=60, stale-while-revalidate=120",
+            etag: '"v1_hash"',
+            vary: "Accept-Encoding, Accept-Language",
+            nowSec: 1000,
+          });
+
+          // 1. Different Vary header (gzip instead of br) must MISS
+          const varyMiss = cache.lookup({
+            url: "/api/catalog",
+            varyHeaders: ["accept-encoding", "accept-language"],
+            requestHeaders: { "accept-encoding": "gzip", "accept-language": "en-us" },
+            nowSec: 1020,
+          });
+
+          // 2. Matching Vary + If-None-Match within max-age -> 304 Not Modified
+          const reval304 = cache.lookup({
+            url: "/api/catalog",
+            varyHeaders: ["accept-encoding", "accept-language"],
+            requestHeaders: {
+              "accept-encoding": "br",
+              "accept-language": "en-us",
+              "if-none-match": '"v1_hash"',
+            },
+            nowSec: 1030,
+          });
+
+          // 3. Inside stale-while-revalidate window (age=100s > maxAge=60s, <= 180s)
+          const swrHit = cache.lookup({
+            url: "/api/catalog",
+            varyHeaders: ["accept-encoding", "accept-language"],
+            requestHeaders: { "accept-encoding": "br", "accept-language": "en-us" },
+            nowSec: 1100,
+          });
+
+          return {
+            varyEtagAndSwrOk:
+              varyMiss.cacheStatus === "MISS" &&
+              reval304.cacheStatus === "REVALIDATED_304" &&
+              reval304.status === 304 &&
+              swrHit.cacheStatus === "HIT_STALE_WHILE_REVALIDATE" &&
+              swrHit.triggerBackgroundRevalidate === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "RFC 9111 Vary Isolation, ETag 304 & stale-while-revalidate Verification",
+        passed: Boolean(res?.varyEtagAndSwrOk),
+        detail: "Isolates Vary variants, returns 304 on ETag match, and serves SWR with background revalidation",
+      });
+    } else if (taskId === "task_traffic_edge_request_coalescing_singleflight_stampede") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Shield = typeof EdgeSingleflightTrafficShield === "function"
+            ? EdgeSingleflightTrafficShield
+            : exports.EdgeSingleflightTrafficShield;
+
+          const shield = new Shield();
+          let originCalls = 0;
+
+          const loader = async () => {
+            originCalls++;
+            await new Promise((r) => setTimeout(r, 15));
+            return { status: 200, body: "payload_ok" };
+          };
+
+          // Fire 5 concurrent requests for the same cold key
+          const batch = await Promise.all(
+            Array.from({ length: 5 }, () =>
+              shield.handleRequest({
+                key: "hot_product_1",
+                nowMs: 1000,
+                positiveTtlMs: 10000,
+                negative404TtlMs: 2000,
+                originFetcher: loader,
+              }),
+            ),
+          );
+
+          const stats = shield.getStats();
+
+          return {
+            singleflightOk:
+              originCalls === 1 &&
+              stats.originFetches === 1 &&
+              stats.coalescedHits === 4 &&
+              batch.every((b) => b.response.body === "payload_ok"),
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Edge Singleflight Coalescing (5 Concurrent Misses -> 1 Origin Fetch)",
+        passed: Boolean(res?.singleflightOk),
+        detail: "Collapses 5 simultaneous cache misses into 1 origin call and 4 coalesced followers",
+      });
+    } else if (taskId === "task_traffic_ietf_ratelimit_token_bucket_sliding_window") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Limiter = typeof WebTrafficRateLimiter === "function"
+            ? WebTrafficRateLimiter
+            : exports.WebTrafficRateLimiter;
+
+          const limiter = new Limiter({ capacity: 10, refillTokensPerSec: 2, windowSec: 5 });
+
+          // Spend 8 tokens on a heavy search route (2 remaining)
+          const r1 = limiter.evaluateTraffic({ clientKey: "ip_1", routeCost: 8, nowMs: 1000 });
+          // Spend 5 tokens immediately -> rejected with 429 (needs 3 more tokens @ 2/sec => Retry-After: 2s)
+          const r2Blocked = limiter.evaluateTraffic({ clientKey: "ip_1", routeCost: 5, nowMs: 1000 });
+          // Advance 2000ms (+4 tokens refilled -> 6 tokens available) -> 5-token request succeeds!
+          const r3Refilled = limiter.evaluateTraffic({ clientKey: "ip_1", routeCost: 5, nowMs: 3000 });
+
+          return {
+            rateLimitAndHeadersOk:
+              r1.allowed === true &&
+              r1.remainingTokens === 2 &&
+              r2Blocked.allowed === false &&
+              r2Blocked.status === 429 &&
+              r2Blocked.headers["Retry-After"] === "2" &&
+              r2Blocked.headers["RateLimit-Policy"] === "10;w=5" &&
+              r3Refilled.allowed === true &&
+              r3Refilled.remainingTokens === 1,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Token-Bucket Cost Refill & IETF RateLimit / Retry-After Headers",
+        passed: Boolean(res?.rateLimitAndHeadersOk),
+        detail: "Deducts weighted route costs, emits Retry-After=2 on 429, and refills tokens accurately",
+      });
+    } else if (taskId === "task_traffic_w3c_traceparent_server_timing_rfc9218_priority") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const propagate = typeof parseAndPropagateW3CTraceparent === "function"
+            ? parseAndPropagateW3CTraceparent
+            : exports.parseAndPropagateW3CTraceparent;
+          const schedule = typeof scheduleRequestsByRfc9218Priority === "function"
+            ? scheduleRequestsByRfc9218Priority
+            : exports.scheduleRequestsByRfc9218Priority;
+          const formatTiming = typeof formatServerTimingHeader === "function"
+            ? formatServerTimingHeader
+            : exports.formatServerTimingHeader;
+
+          const trace = propagate(
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+            "aabbccddeeff0011",
+            "11111111111111111111111111111111",
+          );
+
+          const ordered = schedule([
+            { id: "bg_prefetch", priorityHeader: "u=6, i" },
+            { id: "hero_lcp_img", priorityHeader: "u=0" },
+            { id: "default_api" }, // default u=3
+          ]);
+
+          const serverTiming = formatTiming([
+            { name: "cache", durationMs: 1.4, description: "HIT" },
+            { name: "db", durationMs: 12.8 },
+          ]);
+
+          return {
+            tracePriorityAndTimingOk:
+              trace.validIncoming === true &&
+              trace.outboundTraceparent === "00-4bf92f3577b34da6a3ce929d0e0e4736-aabbccddeeff0011-01" &&
+              ordered.map((r) => r.id).join(",") === "hero_lcp_img,default_api,bg_prefetch" &&
+              serverTiming === 'cache;desc="HIT";dur=1.4, db;dur=12.8',
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "W3C traceparent Child Span, RFC 9218 Priority Ordering & Server-Timing",
+        passed: Boolean(res?.tracePriorityAndTimingOk),
+        detail: "Propagates W3C traceId with new child spanId, orders u=0 before u=3 before u=6, and formats Server-Timing",
       });
     } else {
       // General syntax evaluation
