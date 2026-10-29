@@ -13,7 +13,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://loom.test${path}`, {
+    new Request(`http://guantlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -21,7 +21,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "loom-traffic-"));
+  dir = await mkdtemp(join(tmpdir(), "guantlet-web-traffic-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -48,7 +48,7 @@ describe("First-Party Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Data & HTTP T
 
   test("audits and serializes RFC 6265bis __Host- & CHIPS Partitioned cookies via POST /api/traffic/cookies/audit", async () => {
     const validRes = await call("POST", "/api/traffic/cookies/audit", {
-      name: "__Host-loom_sid",
+      name: "__Host-guantlet-web_sid",
       value: "token_xyz",
       path: "/",
       secure: true,
@@ -64,14 +64,14 @@ describe("First-Party Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Data & HTTP T
     expect(valid.valid).toBe(true);
     expect(valid.score).toBe(100);
     expect(valid.clampedMaxAgeSec).toBe(34_560_000);
-    expect(valid.setCookieHeader).toContain("__Host-loom_sid=v1.k_01.");
+    expect(valid.setCookieHeader).toContain("__Host-guantlet-web_sid=v1.k_01.");
     expect(valid.setCookieHeader).toContain("Partitioned");
 
     // Invalid __Host- cookie with Domain attribute and Path=/app
     const badRes = await call("POST", "/api/traffic/cookies/audit", {
       name: "__Host-broken",
       value: "1",
-      domain: "loom.test",
+      domain: "guantlet-web.test",
       path: "/app",
       secure: false,
       sameSite: "None",
@@ -109,7 +109,7 @@ describe("First-Party Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Data & HTTP T
       requestHeaders: {
         "accept-encoding": "br",
         "accept-language": "en-us",
-        "if-none-match": '"loom_v2_94tasks"',
+        "if-none-match": '"guantlet-web_v2_106tasks"',
       },
       nowSec: 1020,
     });

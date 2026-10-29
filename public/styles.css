@@ -1566,18 +1566,18 @@
       background: var(--ink);
       z-index: 70;
       pointer-events: none;
-      animation: loom-grow linear both;
+      animation: guantlet-web-grow linear both;
       animation-timeline: scroll(root block);
     }
 
     .task {
-      animation: loom-reveal linear both;
+      animation: guantlet-web-reveal linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 55%;
     }
   }
 
-  @keyframes loom-grow {
+  @keyframes guantlet-web-grow {
     from {
       transform: scaleX(0);
     }
@@ -1586,7 +1586,7 @@
     }
   }
 
-  @keyframes loom-reveal {
+  @keyframes guantlet-web-reveal {
     from {
       opacity: 0.35;
       translate: 0 0.35rem;

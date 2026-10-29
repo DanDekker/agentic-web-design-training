@@ -9,10 +9,10 @@ import { ChatEngine } from "./chat.js";
 
 const ROOT = join(import.meta.dir, "..");
 const PUBLIC_DIR = join(ROOT, "public");
-const DATA_DIR = process.env.LOOM_DATA_DIR ?? join(ROOT, "data");
-const DATA_FILE = process.env.LOOM_DATA ?? join(DATA_DIR, "tasks.json");
-const AUTH_FILE = process.env.LOOM_AUTH_DATA ?? join(DATA_DIR, "auth.json");
-const OAUTH_FILE = process.env.LOOM_OAUTH_DATA ?? join(DATA_DIR, "oauth.json");
+const DATA_DIR = process.env.GUANTLET_WEB_DATA_DIR ?? join(ROOT, "data");
+const DATA_FILE = process.env.GUANTLET_WEB_DATA ?? join(DATA_DIR, "tasks.json");
+const AUTH_FILE = process.env.GUANTLET_WEB_AUTH_DATA ?? join(DATA_DIR, "auth.json");
+const OAUTH_FILE = process.env.GUANTLET_WEB_OAUTH_DATA ?? join(DATA_DIR, "oauth.json");
 const PORT = Number(process.env.PORT ?? 3000);
 
 const store = await new TaskStore(DATA_FILE).load();
@@ -49,5 +49,5 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Loom  →  http://localhost:${server.port}`);
+console.log(`guantlet-web  →  http://localhost:${server.port}`);
 console.log(`data  →  ${DATA_FILE}`);

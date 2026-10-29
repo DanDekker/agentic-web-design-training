@@ -100,13 +100,13 @@ describe("Refactor inspector", () => {
     await app.click(app.get("list").querySelector(".refactor-inspect-btn"));
     expect(app.get("refactor-modal").open).toBe(true);
     expect(app.get("refactor-difficulty").getAttribute("level")).toBe("advanced");
-    expect(app.get("loom-diff-component").getAttribute("original")).toBe(task.refactorData.starterCode);
+    expect(app.get("guantlet-web-diff-component").getAttribute("original")).toBe(task.refactorData.starterCode);
     await app.input("refactor-submit-code", "const changed = true;");
-    expect(app.get("loom-diff-component").getAttribute("modified")).toBe("const changed = true;");
+    expect(app.get("guantlet-web-diff-component").getAttribute("modified")).toBe("const changed = true;");
     await app.click("btn-load-solution");
-    expect(app.get("loom-diff-component").getAttribute("modified")).toBe(task.refactorData.solutionCode);
+    expect(app.get("guantlet-web-diff-component").getAttribute("modified")).toBe(task.refactorData.solutionCode);
     await app.input("refactor-submit-code", "");
-    expect(app.get("loom-diff-component").getAttribute("modified")).toBe("");
+    expect(app.get("guantlet-web-diff-component").getAttribute("modified")).toBe("");
   });
 
   test("closing an inspector ignores late verification results for another task", async () => {

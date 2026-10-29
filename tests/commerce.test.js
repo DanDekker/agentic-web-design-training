@@ -19,7 +19,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://loom.test${path}`, {
+    new Request(`http://guantlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -27,7 +27,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "loom-commerce-"));
+  dir = await mkdtemp(join(tmpdir(), "guantlet-web-commerce-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -173,7 +173,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     // 1. Add physical & digital items to an anonymous guest cart
     const g1 = await call("POST", "/api/commerce/shop/cart/items", {
       cartId: "cart_guest_session_99",
-      sku: "LOOM-KB-OBS-TKL",
+      sku: "GUANTLET_WEB-KB-OBS-TKL",
       quantity: 2,
     });
     expect(g1.status).toBe(200);
@@ -187,7 +187,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
 
     // 2. Create customer account & merge guest cart + deduplicate shipping address
     const acctRes = await call("POST", "/api/commerce/shop/account", {
-      email: "  Shopper@Loom.Dev ",
+      email: "  Shopper@guantlet-web.test ",
       displayName: "Ada Shopper",
       guestCartId: "cart_guest_session_99",
       shippingAddress: {
@@ -201,7 +201,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     });
     expect(acctRes.status).toBe(201);
     const onboarded = await acctRes.json();
-    expect(onboarded.account.email).toBe("shopper@loom.dev");
+    expect(onboarded.account.email).toBe("shopper@guantlet-web.test");
     expect(onboarded.cart.itemCount).toBe(3);
     expect(onboarded.account.savedAddresses.length).toBe(1);
 
@@ -211,7 +211,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
       accountId: onboarded.account.accountId,
       cartId: onboarded.cart.cartId,
       paymentProvider: "stripe",
-      promoCode: "LOOM10",
+      promoCode: "GUANTLET_WEB10",
       buyerCountry: "US",
       buyerState: "CA",
     };
@@ -231,7 +231,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     // 4. Mutate live catalog price & title and verify historical order snapshot remains 100% isolated!
     const origGrandTotal = promoted1.order.grandTotalMinor;
     const mutRes = await call("POST", "/api/commerce/shop/catalog-mutate", {
-      sku: "LOOM-KB-OBS-TKL",
+      sku: "GUANTLET_WEB-KB-OBS-TKL",
       newTitle: "Renamed Keyboard v2",
       newUnitPriceMinor: 39900,
     });
@@ -246,14 +246,14 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     const delivered = await shipRes.json();
     expect(delivered.status).toBe("FULFILLED");
     expect(delivered.grandTotalMinor).toBe(origGrandTotal);
-    expect(delivered.lines.find((l) => l.sku === "LOOM-KB-OBS-TKL").snapshotTitle).toBe(
-      "Loom Monochrome Mechanical Keyboard (Obsidian · TKL)",
+    expect(delivered.lines.find((l) => l.sku === "GUANTLET_WEB-KB-OBS-TKL").snapshotTitle).toBe(
+      "guantlet-web Monochrome Mechanical Keyboard (Obsidian · TKL)",
     );
 
     const rmaRes = await call("POST", "/api/commerce/shop/orders/lifecycle", {
       orderId: promoted1.order.orderId,
       action: "RMA_REFUND_LINE",
-      refundLineSku: "LOOM-KB-OBS-TKL",
+      refundLineSku: "GUANTLET_WEB-KB-OBS-TKL",
       refundQty: 1,
     });
     expect(rmaRes.status).toBe(200);

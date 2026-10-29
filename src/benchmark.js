@@ -1,5 +1,5 @@
 /**
- * Agentic Curriculum 1M Tasks — Benchmark Suite.
+ * Web development curriculum benchmark suite.
  * Computes aggregate evaluation metrics, agent test coverage, and benchmark reports across all curriculum tasks.
  */
 
@@ -100,7 +100,7 @@ export class BenchmarkSuite {
   formatMarkdown(benchmark) {
     const { summary, results } = benchmark;
     const lines = [
-      `# Agentic 1M Benchmark Report`,
+      `# guantlet-web Benchmark Report`,
       ``,
       `*Generated at: ${benchmark.timestamp}*`,
       ``,

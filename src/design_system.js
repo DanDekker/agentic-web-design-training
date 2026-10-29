@@ -8,8 +8,8 @@ export const PROPRIETARY_DESIGN_SYSTEM_CATALOG = Object.freeze({
   categories: ["proprietary-design-systems", "ui-ux-interaction", "web-components"],
   designDirections: [
     {
-      id: "loom-monochrome-editorial",
-      name: "Loom Monochrome Editorial & High-Craft Precision",
+      id: "guantlet-web-monochrome-editorial",
+      name: "guantlet-web Monochrome Editorial & High-Craft Precision",
       principles: [
         "Perceptual OKLCH warm obsidian & alabaster surfaces (oklch(0.11 0.005 90) to oklch(0.97 0.004 90))",
         "1px inner specular highlight borders (inset 0 1px 0 0 oklch(1 0 0 / 0.09))",
@@ -38,15 +38,15 @@ export const PROPRIETARY_DESIGN_SYSTEM_CATALOG = Object.freeze({
     },
   ],
   customElementsRegistry: [
-    { tag: "loom-task-item", features: ["Shadow DOM", "adoptedStyleSheets", "CustomEvent dispatch"] },
-    { tag: "loom-diff-viewer", features: ["Shadow DOM", "Live line-by-line code diff"] },
-    { tag: "loom-badge", features: ["formAssociated", "ElementInternals", "::part(badge)"] },
-    { tag: "loom-capabilities", features: ["Declarative Shadow DOM hydration", "Platform feature probe"] },
-    { tag: "loom-design-swatch", features: ["formAssociated", "ElementInternals", "CustomStateSet :state()", "::part(swatch)"] },
+    { tag: "guantlet-web-task-item", features: ["Shadow DOM", "adoptedStyleSheets", "CustomEvent dispatch"] },
+    { tag: "guantlet-web-diff-viewer", features: ["Shadow DOM", "Live line-by-line code diff"] },
+    { tag: "guantlet-web-badge", features: ["formAssociated", "ElementInternals", "::part(badge)"] },
+    { tag: "guantlet-web-capabilities", features: ["Declarative Shadow DOM hydration", "Platform feature probe"] },
+    { tag: "guantlet-web-design-swatch", features: ["formAssociated", "ElementInternals", "CustomStateSet :state()", "::part(swatch)"] },
   ],
 });
 
-export const DEFAULT_LOOM_DTCG_TOKENS = Object.freeze({
+export const DEFAULT_GUANTLET_WEB_DTCG_TOKENS = Object.freeze({
   color: {
     $type: "color",
     primitive: {
@@ -77,7 +77,7 @@ export const DEFAULT_LOOM_DTCG_TOKENS = Object.freeze({
 /**
  * Compiles a W3C DTCG 2025.10 token tree with group $type inheritance and cycle-safe alias resolution.
  */
-export function compileDtcgDesignTokens(tokenTree = DEFAULT_LOOM_DTCG_TOKENS, selector = ":root") {
+export function compileDtcgDesignTokens(tokenTree = DEFAULT_GUANTLET_WEB_DTCG_TOKENS, selector = ":root") {
   const flat = new Map();
 
   function walk(node, pathPrefix = "", inheritedType = "unknown") {

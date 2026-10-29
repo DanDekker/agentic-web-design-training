@@ -10,7 +10,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://loom.test${path}`, {
+    new Request(`http://guantlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -18,7 +18,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "loom-api-"));
+  dir = await mkdtemp(join(tmpdir(), "guantlet-web-api-"));
   handle = createHandler(await new TaskStore(join(dir, "tasks.json")).load());
 });
 
@@ -52,7 +52,7 @@ describe("/api", () => {
 
   test("validates input", async () => {
     expect((await call("POST", "/api/tasks", { title: "  " })).status).toBe(422);
-    const raw = await handle(new Request("http://loom.test/api/tasks", { method: "POST", body: "{oops" }));
+    const raw = await handle(new Request("http://guantlet-web.test/api/tasks", { method: "POST", body: "{oops" }));
     expect(raw.status).toBe(400);
   });
 

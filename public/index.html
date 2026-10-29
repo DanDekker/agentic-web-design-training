@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Loom — Agentic Curriculum &amp; Monochrome Task Suite</title>
+    <title>guantlet-web — Agentic Curriculum &amp; Monochrome Task Suite</title>
     <meta name="description" content="Monochrome task management &amp; agent-agnostic curriculum training suite. Bun + vanilla JS, zero build step." />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
     <meta name="color-scheme" content="light dark" />
     <link rel="canonical" href="http://localhost:3000/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Loom — Agentic Curriculum &amp; Monochrome Task Suite" />
+    <meta property="og:title" content="guantlet-web — Agentic Curriculum &amp; Monochrome Task Suite" />
     <meta property="og:description" content="106-task AI model training curriculum across 27 categories and 11 tracks." />
     <meta property="og:url" content="http://localhost:3000/" />
     <script type="application/ld+json">
@@ -19,20 +19,20 @@
           {
             "@type": "Organization",
             "@id": "http://localhost:3000/#organization",
-            "name": "Loom Agentic Systems",
+            "name": "guantlet-web Agentic Systems",
             "url": "http://localhost:3000"
           },
           {
             "@type": "WebSite",
             "@id": "http://localhost:3000/#website",
             "url": "http://localhost:3000",
-            "name": "Loom — Agentic 1M Curriculum & Monochrome Suite",
+            "name": "guantlet-web — 106-Exercise Curriculum & Monochrome Suite",
             "publisher": { "@id": "http://localhost:3000/#organization" }
           },
           {
             "@type": "SoftwareApplication",
             "@id": "http://localhost:3000/#application",
-            "name": "Loom Agentic 1M Curriculum Suite",
+            "name": "guantlet-web 106-Exercise Curriculum Suite",
             "applicationCategory": "DeveloperApplication",
             "operatingSystem": "Web, macOS, Linux, Windows",
             "offers": {
@@ -69,15 +69,15 @@
     />
     <link rel="stylesheet" href="/styles.css" />
     <!-- MDN Web Components & Custom Elements -->
-    <script type="module" src="/components/loom-task-item.js"></script>
-    <script type="module" src="/components/loom-diff-viewer.js"></script>
-    <script type="module" src="/components/loom-badge.js"></script>
-    <script type="module" src="/components/loom-platform.js"></script>
-    <script type="module" src="/components/loom-design-swatch.js"></script>
+    <script type="module" src="/components/guantlet-web-task-item.js"></script>
+    <script type="module" src="/components/guantlet-web-diff-viewer.js"></script>
+    <script type="module" src="/components/guantlet-web-badge.js"></script>
+    <script type="module" src="/components/guantlet-web-platform.js"></script>
+    <script type="module" src="/components/guantlet-web-design-swatch.js"></script>
     <script>
       try {
         const asked = new URLSearchParams(location.search).get("theme");
-        const saved = localStorage.getItem("loom.theme");
+        const saved = localStorage.getItem("guantlet-web.theme");
         const dark = matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.theme =
           asked === "dark" || asked === "light" ? asked : saved || (dark ? "dark" : "light");
@@ -95,8 +95,8 @@
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M6.2 12.6l3.7 3.7L17.8 8.3" /></svg>
           </span>
-          <span class="brand-name">Loom</span>
-          <span class="version-tag">Agentic 1M</span>
+          <span class="brand-name">guantlet-web</span>
+          <span class="version-tag">106 Exercises</span>
         </div>
 
         <div class="bar-actions">
@@ -116,7 +116,7 @@
             <span>Curriculum</span>
           </button>
 
-          <button type="button" class="btn-subtle" id="btn-benchmark-portal" title="Curriculum 1M Benchmark (B)">
+          <button type="button" class="btn-subtle" id="btn-benchmark-portal" title="106-Exercise Curriculum Benchmark (B)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             <span>Benchmark</span>
           </button>
@@ -230,10 +230,10 @@
       </footer>
 
 
-      <!-- Declarative Shadow DOM: server-rendered content, hydrated by loom-platform.js -->
+      <!-- Declarative Shadow DOM: server-rendered content, hydrated by guantlet-web-platform.js -->
       <details class="platform-panel">
         <summary>Platform capabilities</summary>
-        <loom-capabilities>
+        <guantlet-web-capabilities>
           <template shadowrootmode="open">
             <style>
               ul { list-style: none; margin: 0; padding: 0; }
@@ -241,7 +241,7 @@
             </style>
             <ul><li>Detecting platform features…</li></ul>
           </template>
-        </loom-capabilities>
+        </guantlet-web-capabilities>
       </details>
 
       <!-- Keyboard Hints -->
@@ -271,7 +271,7 @@
         <li><kbd>⏎</kbd> Inline edit title</li>
         <li><kbd>R</kbd> Refactoring curriculum / inspect</li>
         <li><kbd>O</kbd> OAuth 2.0 portal</li>
-        <li><kbd>B</kbd> Run 1M benchmark suite</li>
+        <li><kbd>B</kbd> Run 106-exercise benchmark suite</li>
         <li><kbd>C</kbd> Two-user real-time chat & debugger</li>
         <li><kbd>T</kbd> Toggle dark / light theme</li>
         <li><kbd>/</kbd> Focus search filter</li>
@@ -284,9 +284,9 @@
         <header class="modal-header">
           <div>
             <div class="badge-row">
-              <loom-badge variant="difficulty" id="refactor-difficulty">Intermediate</loom-badge>
-              <loom-badge variant="category" id="refactor-category">Async</loom-badge>
-              <loom-badge variant="track" id="refactor-track">core-engineering</loom-badge>
+              <guantlet-web-badge variant="difficulty" id="refactor-difficulty">Intermediate</guantlet-web-badge>
+              <guantlet-web-badge variant="category" id="refactor-category">Async</guantlet-web-badge>
+              <guantlet-web-badge variant="track" id="refactor-track">core-engineering</guantlet-web-badge>
             </div>
             <h2 id="refactor-title" class="modal-title">Refactor Callback Hell to Pipeline</h2>
           </div>
@@ -318,7 +318,7 @@
 
           <div id="tab-diff" class="tab-pane">
             <!-- Web Component: Shadow DOM Diff Viewer -->
-            <loom-diff-viewer id="loom-diff-component"></loom-diff-viewer>
+            <guantlet-web-diff-viewer id="guantlet-web-diff-component"></guantlet-web-diff-viewer>
           </div>
 
           <div id="tab-verify" class="tab-pane">
@@ -338,7 +338,7 @@
     <dialog class="native-modal" id="auth-modal" aria-labelledby="auth-title">
       <div class="modal-card auth-card" role="document">
         <header class="modal-header">
-          <h2 class="modal-title" id="auth-title">Sign In to Loom</h2>
+          <h2 class="modal-title" id="auth-title">Sign In to guantlet-web</h2>
           <button type="button" class="close-btn" id="btn-close-auth" aria-label="Close dialog">×</button>
         </header>
 
@@ -413,7 +413,7 @@
       <div class="modal-card benchmark-card" role="document">
         <header class="modal-header">
           <div>
-            <span class="badge">Curriculum 1M</span>
+            <span class="badge">106-Exercise Curriculum</span>
             <h2 class="modal-title" id="benchmark-title">Agentic Benchmark Suite</h2>
           </div>
           <button type="button" class="close-btn" id="btn-close-benchmark" aria-label="Close dialog">×</button>
@@ -657,7 +657,7 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Compiles W3C Design Tokens (<code>DTCG 2025.10</code>) with <code>$type</code> inheritance and alias resolution, audits perceptual <code>OKLCH</code> / <code>APCA Lc</code> contrast, and renders live Form-Associated <code>&lt;loom-design-swatch&gt;</code> Web Components using <code>ElementInternals</code> and <code>CustomStateSet</code>.
+            Compiles W3C Design Tokens (<code>DTCG 2025.10</code>) with <code>$type</code> inheritance and alias resolution, audits perceptual <code>OKLCH</code> / <code>APCA Lc</code> contrast, and renders live Form-Associated <code>&lt;guantlet-web-design-swatch&gt;</code> Web Components using <code>ElementInternals</code> and <code>CustomStateSet</code>.
           </p>
 
           <div class="telemetry-grid" id="design-telemetry-grid">
@@ -680,10 +680,10 @@
           </div>
 
           <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.85rem 0;">
-            <loom-design-swatch token="--bg-obsidian-950" oklch="oklch(0.11 0.005 90)" apca-lc="102.4" selected></loom-design-swatch>
-            <loom-design-swatch token="--panel-obsidian-900" oklch="oklch(0.15 0.005 90)" apca-lc="96.8"></loom-design-swatch>
-            <loom-design-swatch token="--ink-alabaster-50" oklch="oklch(0.97 0.004 90)" apca-lc="102.4"></loom-design-swatch>
-            <loom-design-swatch token="--accent-emerald-500" oklch="oklch(0.72 0.17 155)" apca-lc="68.2"></loom-design-swatch>
+            <guantlet-web-design-swatch token="--bg-obsidian-950" oklch="oklch(0.11 0.005 90)" apca-lc="102.4" selected></guantlet-web-design-swatch>
+            <guantlet-web-design-swatch token="--panel-obsidian-900" oklch="oklch(0.15 0.005 90)" apca-lc="96.8"></guantlet-web-design-swatch>
+            <guantlet-web-design-swatch token="--ink-alabaster-50" oklch="oklch(0.97 0.004 90)" apca-lc="102.4"></guantlet-web-design-swatch>
+            <guantlet-web-design-swatch token="--accent-emerald-500" oklch="oklch(0.72 0.17 155)" apca-lc="68.2"></guantlet-web-design-swatch>
           </div>
 
           <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.9rem 0;">

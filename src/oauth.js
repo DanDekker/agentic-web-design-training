@@ -102,7 +102,7 @@ export class OAuthServer {
   async registerClient({ name, description = "", redirectUris = [], allowedScopes = ["read:tasks", "write:tasks"] }) {
     const cleanName = String(name || "").trim();
     if (!cleanName) throw new ValidationError("Client app needs a name.");
-    const clientId = `loom_${randomToken(8)}`;
+    const clientId = `guantlet-web_${randomToken(8)}`;
     const clientSecret = `sec_${randomToken(24)}`;
 
     const client = {

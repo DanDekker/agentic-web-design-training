@@ -53,7 +53,7 @@ export class ChatEngine {
       roomId: room.id,
       sender: "pp",
       recipient: "agent",
-      text: "Welcome to the Loom real-time two-user instrumentation channel. Ready for latency & protocol telemetry.",
+      text: "Welcome to the guantlet-web real-time two-user instrumentation channel. Ready for latency & protocol telemetry.",
       clientMsgId: "seed_msg_1",
       nowMs: Date.now() - 2000,
     });

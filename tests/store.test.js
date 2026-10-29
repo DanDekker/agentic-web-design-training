@@ -8,7 +8,7 @@ let dir;
 let file;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "loom-store-"));
+  dir = await mkdtemp(join(tmpdir(), "guantlet-web-store-"));
   file = join(dir, "tasks.json");
 });
 

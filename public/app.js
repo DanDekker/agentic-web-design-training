@@ -1,4 +1,4 @@
-/* Loom — Agentic Curriculum & Monochrome Task Management Suite.
+/* guantlet-web — Agentic Curriculum & Monochrome Task Management Suite.
    Vanilla JS, zero dependencies, Bun backend. */
 
 const el = {
@@ -614,14 +614,14 @@ function toggleTheme() {
   const next = root.dataset.theme === "dark" ? "light" : "dark";
   root.dataset.theme = next;
   try {
-    localStorage.setItem("loom.theme", next);
+    localStorage.setItem("guantlet-web.theme", next);
   } catch {}
 }
 
 /* ── Refactoring Tasks Curriculum ────────────────────────── */
 
 async function seedCurriculum() {
-  toast("Seeding Agentic 1M Curriculum tasks...");
+  toast("Seeding 106 curriculum exercises...");
   try {
     const res = await api("POST", "/api/curriculum/seed");
     // Reload state
@@ -690,7 +690,7 @@ function switchRefactorTab(tabName) {
 }
 
 function renderDiff() {
-  const viewer = document.querySelector("#loom-diff-component");
+  const viewer = document.querySelector("#guantlet-web-diff-component");
   if (!viewer || !state.currentRefactorTask) return;
 
   const starter = state.currentRefactorTask.refactorData.starterCode || "";
@@ -791,7 +791,7 @@ function setAuthMode(mode) {
   state.authMode = mode;
   el.tabLogin?.classList.toggle("active", mode === "login");
   el.tabRegister?.classList.toggle("active", mode === "register");
-  if (el.authTitle) el.authTitle.textContent = mode === "login" ? "Sign In to Loom" : "Create Loom Account";
+  if (el.authTitle) el.authTitle.textContent = mode === "login" ? "Sign In to guantlet-web" : "Create guantlet-web Account";
   if (el.btnAuthSubmit) el.btnAuthSubmit.textContent = mode === "login" ? "Sign In" : "Register Account";
   if (el.authDisplayGroup) el.authDisplayGroup.hidden = mode === "login";
   el.authPassword?.setAttribute("autocomplete", mode === "login" ? "current-password" : "new-password");
@@ -947,7 +947,7 @@ async function simulateAgentOAuthPkce() {
   }
 }
 
-/* ── Agentic 1M Benchmark Suite Modal ───────────────────── */
+/* ── Agentic 106-Exercise Benchmark Suite Modal ───────────────────── */
 
 async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
@@ -1178,7 +1178,7 @@ async function simulateShopEndToEndFlow() {
     // 1. Add items to anonymous guest cart
     await api("POST", "/api/commerce/shop/cart/items", {
       cartId: "cart_guest_ui",
-      sku: "LOOM-KB-OBS-TKL",
+      sku: "GUANTLET_WEB-KB-OBS-TKL",
       quantity: 1,
     });
     await api("POST", "/api/commerce/shop/cart/items", {
@@ -1189,7 +1189,7 @@ async function simulateShopEndToEndFlow() {
 
     // 2. Create customer account & merge guest cart + normalize address book
     const onboarded = await api("POST", "/api/commerce/shop/account", {
-      email: "architect@loom.dev",
+      email: "architect@guantlet-web.test",
       displayName: "Lead Architect",
       guestCartId: "cart_guest_ui",
       shippingAddress: {
@@ -1208,7 +1208,7 @@ async function simulateShopEndToEndFlow() {
       accountId: onboarded.account.accountId,
       cartId: onboarded.cart.cartId,
       paymentProvider: "stripe",
-      promoCode: "LOOM10",
+      promoCode: "GUANTLET_WEB10",
       buyerCountry: "US",
       buyerState: "CA",
     });
@@ -1272,7 +1272,7 @@ function closeTrafficModal() {
 async function runTrafficCookieAuditUI() {
   try {
     const audit = await api("POST", "/api/traffic/cookies/audit", {
-      name: "__Host-loom_session",
+      name: "__Host-guantlet-web_session",
       value: "sess_dbsc_bound_2026",
       path: "/",
       secure: true,
@@ -1280,7 +1280,7 @@ async function runTrafficCookieAuditUI() {
       sameSite: "None",
       partitioned: true,
       maxAgeSec: 99999999,
-      signingSecret: "loom_keyring_secret_2026",
+      signingSecret: "guantlet-web_keyring_secret_2026",
       kid: "k_2026_01",
     });
     if (el.trafficStatCookieScore) el.trafficStatCookieScore.textContent = `${audit.score}%`;
@@ -1372,7 +1372,7 @@ const commands = [
   { label: "New task", hint: "N", run: () => el.input?.focus() },
   { label: "Toggle theme", hint: "T", run: toggleTheme },
   { label: "Agentic Refactoring Curriculum", hint: "R", run: seedCurriculum },
-  { label: "Agentic 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
+  { label: "Agentic 106-Exercise Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
   { label: "Web Shop Storefront, Checkout & Order History", hint: "S", run: openShopModal },
   { label: "Web Cookies, Client Data & HTTP Traffic Inspector", hint: "W", run: openTrafficModal },
@@ -1464,7 +1464,7 @@ function exportJSON() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `loom-tasks-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `guantlet-web-tasks-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
   toast("Exported state as JSON.");

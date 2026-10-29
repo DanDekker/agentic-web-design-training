@@ -1,7 +1,24 @@
 /**
- * Agentic Curriculum: 1M Tasks — Standardized AI Training & Refactoring Suite.
- * Pre-seeded high-signal challenges across 12 categories and 5 domain tracks.
+ * Web development curriculum: 106 exercises across 27 categories and 11 tracks.
+ * Framework challenge code is imported from standalone TypeScript files.
  */
+
+import reactNextStarter from "../exercises/frameworks/ts_react_nextjs_server_actions/starter.ts" with { type: "text" };
+import reactNextSolution from "../exercises/frameworks/ts_react_nextjs_server_actions/solution.ts" with { type: "text" };
+import angularSignalsStarter from "../exercises/frameworks/ts_angular_signals_computed_rx/starter.ts" with { type: "text" };
+import angularSignalsSolution from "../exercises/frameworks/ts_angular_signals_computed_rx/solution.ts" with { type: "text" };
+import nestjsDiStarter from "../exercises/frameworks/ts_nestjs_di_guard_interceptor/starter.ts" with { type: "text" };
+import nestjsDiSolution from "../exercises/frameworks/ts_nestjs_di_guard_interceptor/solution.ts" with { type: "text" };
+import trpcZodStarter from "../exercises/frameworks/ts_trpc_zod_end_to_end_rpc/starter.ts" with { type: "text" };
+import trpcZodSolution from "../exercises/frameworks/ts_trpc_zod_end_to_end_rpc/solution.ts" with { type: "text" };
+import expressHonoStarter from "../exercises/frameworks/migrate_express_to_hono_edge_ts/starter.ts" with { type: "text" };
+import expressHonoSolution from "../exercises/frameworks/migrate_express_to_hono_edge_ts/solution.ts" with { type: "text" };
+import reactSvelteVueStarter from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/starter.ts" with { type: "text" };
+import reactSvelteVueSolution from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/solution.ts" with { type: "text" };
+import reduxTanstackStarter from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/starter.ts" with { type: "text" };
+import reduxTanstackSolution from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/solution.ts" with { type: "text" };
+import nextAppRouterStarter from "../exercises/frameworks/migrate_nextjs_pages_to_app_router_rsc/starter.ts" with { type: "text" };
+import nextAppRouterSolution from "../exercises/frameworks/migrate_nextjs_pages_to_app_router_rsc/solution.ts" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -2889,84 +2906,8 @@ function positionTooltip(triggerEl, tooltipEl) {
     tags: ["typescript", "react-19", "nextjs", "server-actions", "use-optimistic", "discriminated-union"],
     instructions:
       "A Fortune 500 React/Next.js checkout form mutates client state with untyped any payloads, ignores validation errors, and leaves ghost optimistic items when the server action rejects. Refactor in strict TypeScript using a discriminated union ActionResult<T>, a generic runtime schema validator, an immutable useOptimistic-compatible reducer with rollback-on-failure, and a typed createSafeServerAction wrapper.",
-    starterCode: `// Untyped React Client Mutation with Broken Optimistic Rollback
-export async function submitOrderAction(rawInput: any): Promise<any> {
-  // No runtime validation or discriminated union error envelope
-  const saved = await saveOrderToDb(rawInput);
-  return saved;
-}
-
-export function optimisticOrdersReducer(state: any[], action: any) {
-  state.push(action.payload); // Mutates state in place and cannot roll back on server failure!
-  return state;
-}`,
-    solutionCode: `// TypeScript React 19 / Next.js Safe Server Action & Rollback-Capable Optimistic Reducer
-export type ActionResult<TData, TField extends string = string> =
-  | { readonly ok: true; readonly data: TData; readonly revalidatedTags: readonly string[] }
-  | { readonly ok: false; readonly code: "VALIDATION_ERROR" | "SERVER_ERROR"; readonly message: string; readonly fieldErrors?: Partial<Record<TField, string>> };
-
-export interface OrderItem {
-  readonly id: string;
-  readonly sku: string;
-  readonly amountCents: number;
-  readonly pending?: boolean;
-}
-
-export type OptimisticAction =
-  | { readonly type: "OPTIMISTIC_ADD"; readonly tempId: string; readonly sku: string; readonly amountCents: number }
-  | { readonly type: "COMMIT_SUCCESS"; readonly tempId: string; readonly committed: OrderItem }
-  | { readonly type: "ROLLBACK_FAILURE"; readonly tempId: string };
-
-export function optimisticOrdersReducer(
-  state: readonly OrderItem[],
-  action: OptimisticAction,
-): OrderItem[] {
-  switch (action.type) {
-    case "OPTIMISTIC_ADD":
-      return [
-        ...state,
-        { id: action.tempId, sku: action.sku, amountCents: action.amountCents, pending: true },
-      ];
-    case "COMMIT_SUCCESS":
-      return state.map((item) =>
-        item.id === action.tempId ? { ...action.committed, pending: false } : item,
-      );
-    case "ROLLBACK_FAILURE":
-      return state.filter((item) => item.id !== action.tempId);
-  }
-}
-
-export function createSafeServerAction<TInput extends Record<string, unknown>, TOutput>(config: {
-  readonly validate: (raw: Record<string, unknown>) => { valid: true; value: TInput } | { valid: false; fieldErrors: Record<string, string> };
-  readonly revalidateTags: readonly string[];
-  readonly handler: (input: TInput) => Promise<TOutput>;
-}) {
-  return async (rawInput: Record<string, unknown>): Promise<ActionResult<TOutput>> => {
-    const parsed = config.validate(rawInput);
-    if (!parsed.valid) {
-      return {
-        ok: false,
-        code: "VALIDATION_ERROR",
-        message: "Invalid action payload",
-        fieldErrors: parsed.fieldErrors,
-      };
-    }
-    try {
-      const data = await config.handler(parsed.value);
-      return {
-        ok: true,
-        data,
-        revalidatedTags: [...config.revalidateTags],
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        code: "SERVER_ERROR",
-        message: err instanceof Error ? err.message : "Action execution failed",
-      };
-    }
-  };
-}`,
+    starterCode: reactNextStarter.trimEnd(),
+    solutionCode: reactNextSolution.trimEnd(),
     criteria: [
       "Defines a strict TypeScript discriminated union ActionResult<TData> with ok: true | false branches",
       "Implements an immutable optimisticOrdersReducer handling OPTIMISTIC_ADD, COMMIT_SUCCESS, and ROLLBACK_FAILURE",
@@ -2981,119 +2922,8 @@ export function createSafeServerAction<TInput extends Record<string, unknown>, T
     tags: ["typescript", "angular", "signals", "computed", "switchmap", "reactivity"],
     instructions:
       "An enterprise Angular portfolio dashboard nests manual RxJS .subscribe() calls inside another .subscribe(), causing memory leaks and out-of-order race conditions when switching accounts. Refactor to a fine-grained TypeScript Angular Signal store providing signal<T>(), memoized computed<T>() with automatic dependency tracking, and a switchMapTask() operator that automatically aborts prior in-flight requests when the source signal updates.",
-    starterCode: `// Leaky Nested RxJS Subscriptions & Stale Account Race Condition
-export class PortfolioService {
-  selectedAccountId = "acc_1";
-  positions: any[] = [];
-  totalValuation = 0;
-
-  selectAccount(accountId: string, fetchPositions: (id: string) => Promise<any[]>) {
-    this.selectedAccountId = accountId;
-    // Race condition: slow previous account response overwrites newer account!
-    fetchPositions(accountId).then((rows) => {
-      this.positions = rows;
-      this.totalValuation = rows.reduce((s, r) => s + r.marketValue, 0);
-    });
-  }
-}`,
-    solutionCode: `// TypeScript Angular Signal, Memoized Computed & Cancelable switchMap Store
-export interface Signal<T> {
-  (): T;
-}
-
-export interface WritableSignal<T> extends Signal<T> {
-  set(value: T): void;
-  update(updater: (current: T) => T): void;
-  subscribe(listener: (value: T) => void): () => void;
-}
-
-let activeConsumer: (() => void) | null = null;
-
-export function signal<T>(initialValue: T): WritableSignal<T> {
-  let value = initialValue;
-  const subscribers = new Set<() => void>();
-  const listeners = new Set<(val: T) => void>();
-
-  const read = (() => {
-    if (activeConsumer) subscribers.add(activeConsumer);
-    return value;
-  }) as WritableSignal<T>;
-
-  read.set = (nextValue: T) => {
-    if (Object.is(value, nextValue)) return;
-    value = nextValue;
-    for (const sub of Array.from(subscribers)) sub();
-    for (const fn of Array.from(listeners)) fn(value);
-  };
-
-  read.update = (updater: (current: T) => T) => {
-    read.set(updater(value));
-  };
-
-  read.subscribe = (listener: (val: T) => void) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
-
-  return read;
-}
-
-export function computed<T>(derivation: () => T): Signal<T> {
-  let cached: T;
-  let dirty = true;
-
-  const invalidate = () => {
-    dirty = true;
-  };
-
-  return () => {
-    if (dirty) {
-      const prev = activeConsumer;
-      activeConsumer = invalidate;
-      try {
-        cached = derivation();
-        dirty = false;
-      } finally {
-        activeConsumer = prev;
-      }
-    }
-    return cached;
-  };
-}
-
-export function createSwitchMapLoader<TKey, TResult>(
-  source: WritableSignal<TKey>,
-  loader: (key: TKey, abortSignal: AbortSignal) => Promise<TResult>,
-) {
-  const data = signal<TResult | null>(null);
-  const loading = signal<boolean>(false);
-  let activeController: AbortController | null = null;
-  let epoch = 0;
-
-  const trigger = async (key: TKey) => {
-    if (activeController) activeController.abort();
-    const controller = new AbortController();
-    activeController = controller;
-    const currentEpoch = ++epoch;
-    loading.set(true);
-
-    try {
-      const res = await loader(key, controller.signal);
-      if (currentEpoch === epoch && !controller.signal.aborted) {
-        data.set(res);
-        loading.set(false);
-      }
-    } catch {
-      if (currentEpoch === epoch) loading.set(false);
-    }
-  };
-
-  const unsubscribe = source.subscribe((nextKey) => {
-    void trigger(nextKey);
-  });
-
-  return { data, loading, trigger, destroy: unsubscribe };
-}`,
+    starterCode: angularSignalsStarter.trimEnd(),
+    solutionCode: angularSignalsSolution.trimEnd(),
     criteria: [
       "Implements typed WritableSignal<T> with Object.is equality guard, .set(), and immutable .update()",
       "Implements lazy memoized computed<T>() tracking signal reads and invalidating only when dependencies change",
@@ -3108,113 +2938,8 @@ export function createSwitchMapLoader<TKey, TResult>(
     tags: ["typescript", "nestjs", "dependency-injection", "rbac-guard", "interceptor", "enterprise"],
     instructions:
       "A backend microservice hardcodes service singletons inside controller methods and duplicates role checks and latency logging across 40 endpoints. Refactor using NestJS TypeScript architecture: an IoC Dependency Injection Container supporting token registration and dependency resolution, a metadata-driven CanActivate RBAC Guard, and an around-advice NestInterceptor that attaches audit telemetry.",
-    starterCode: `// Tightly-Coupled Controller with Inline Auth & Duplicated Logging
-export class BillingController {
-  async issueRefund(req: any) {
-    if (!req.user || req.user.role !== "FINANCE_ADMIN") {
-      throw new Error("Forbidden");
-    }
-    const start = Date.now();
-    const res = { refundedId: req.body.invoiceId, by: req.user.id };
-    console.log("took", Date.now() - start);
-    return res;
-  }
-}`,
-    solutionCode: `// TypeScript NestJS IoC Container, RBAC CanActivate Guard & Around-Advice Interceptor
-export type Token<T = unknown> = string | symbol | (new (...args: any[]) => T);
-
-export interface ExecutionContext {
-  readonly handlerName: string;
-  readonly requiredRoles: readonly string[];
-  readonly request: {
-    readonly user?: { readonly id: string; readonly roles: readonly string[] };
-    readonly body?: Record<string, unknown>;
-  };
-}
-
-export interface CanActivate {
-  canActivate(context: ExecutionContext): boolean | Promise<boolean>;
-}
-
-export interface CallHandler<T = unknown> {
-  handle(): Promise<T>;
-}
-
-export interface NestInterceptor<T = unknown, R = unknown> {
-  intercept(context: ExecutionContext, next: CallHandler<T>): Promise<R>;
-}
-
-export class NestContainer {
-  #providers = new Map<Token, { useFactory: (c: NestContainer) => unknown; singleton?: boolean; instance?: unknown }>();
-
-  register<T>(token: Token<T>, useFactory: (container: NestContainer) => T, singleton = true): this {
-    this.#providers.set(token, { useFactory, singleton });
-    return this;
-  }
-
-  resolve<T>(token: Token<T>): T {
-    const entry = this.#providers.get(token);
-    if (!entry) throw new Error(\`No provider registered for token \${String(token)}\`);
-    if (entry.singleton) {
-      if (entry.instance === undefined) {
-        entry.instance = entry.useFactory(this);
-      }
-      return entry.instance as T;
-    }
-    return entry.useFactory(this) as T;
-  }
-}
-
-export class RolesGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    if (context.requiredRoles.length === 0) return true;
-    const userRoles = context.request.user?.roles ?? [];
-    return context.requiredRoles.some((role) => userRoles.includes(role));
-  }
-}
-
-export class AuditTelemetryInterceptor<T> implements NestInterceptor<T, { data: T; audit: { handler: string; actorId: string; durationMs: number } }> {
-  async intercept(
-    context: ExecutionContext,
-    next: CallHandler<T>,
-  ): Promise<{ data: T; audit: { handler: string; actorId: string; durationMs: number } }> {
-    const t0 = Date.now();
-    const data = await next.handle();
-    return {
-      data,
-      audit: {
-        handler: context.handlerName,
-        actorId: context.request.user?.id ?? "anonymous",
-        durationMs: Math.max(0, Date.now() - t0),
-      },
-    };
-  }
-}
-
-export async function executeNestPipeline<T>(
-  context: ExecutionContext,
-  guards: readonly CanActivate[],
-  interceptors: readonly NestInterceptor<any, any>[],
-  handler: () => Promise<T>,
-) {
-  for (const guard of guards) {
-    const allowed = await guard.canActivate(context);
-    if (!allowed) {
-      const err = new Error("Forbidden resource");
-      (err as any).statusCode = 403;
-      throw err;
-    }
-  }
-
-  const dispatch = (idx: number): Promise<any> => {
-    if (idx >= interceptors.length) return handler();
-    return interceptors[idx].intercept(context, {
-      handle: () => dispatch(idx + 1),
-    });
-  };
-
-  return dispatch(0);
-}`,
+    starterCode: nestjsDiStarter.trimEnd(),
+    solutionCode: nestjsDiSolution.trimEnd(),
     criteria: [
       "Implements a typed IoC NestContainer supporting singleton and factory provider resolution",
       "Enforces declarative RBAC authorization via CanActivate guard before controller invocation",
@@ -3229,111 +2954,8 @@ export async function executeNestPipeline<T>(
     tags: ["typescript", "trpc", "zod", "rpc", "type-inference", "middleware"],
     instructions:
       "REST endpoints drift out of sync with frontend TypeScript types and forget to validate inputs or narrow the authenticated session context. Build a tRPC-style generic ProcedureBuilder<TContext, TInput, TOutput> supporting .use() middleware that narrows TContext (e.g., guaranteeing ctx.user is non-null), .input(schema) runtime validation with structured TRPCError codes (BAD_REQUEST, UNAUTHORIZED), and createCaller(ctx) for direct server-side invocation.",
-    starterCode: `// Unvalidated Loose RPC Handler Map
-export const appRouter = {
-  createProject: async (ctx: any, input: any) => {
-    // Forgot to check ctx.user or validate input.name length!
-    return { id: "prj_1", name: input.name, ownerId: ctx.user.id };
-  }
-};`,
-    solutionCode: `// End-to-End Type-Safe tRPC Procedure Builder with Context-Narrowing Middleware & Schema Parser
-export type TRPCErrorCode = "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_SERVER_ERROR";
-
-export class TRPCError extends Error {
-  readonly code: TRPCErrorCode;
-  constructor(opts: { code: TRPCErrorCode; message: string }) {
-    super(opts.message);
-    this.name = "TRPCError";
-    this.code = opts.code;
-  }
-}
-
-export interface SchemaValidator<T> {
-  parse(raw: unknown): T;
-}
-
-type MiddlewareFn<TContextIn, TContextOut> = (opts: {
-  ctx: TContextIn;
-  next: <TNewCtx>(nextOpts?: { ctx: TNewCtx }) => Promise<TNewCtx>;
-}) => Promise<TContextOut>;
-
-export class ProcedureBuilder<TContext, TInput = undefined> {
-  #middlewares: MiddlewareFn<any, any>[];
-  #inputSchema?: SchemaValidator<TInput>;
-
-  constructor(middlewares: MiddlewareFn<any, any>[] = [], inputSchema?: SchemaValidator<TInput>) {
-    this.#middlewares = middlewares;
-    this.#inputSchema = inputSchema;
-  }
-
-  use<TNewContext>(fn: MiddlewareFn<TContext, TNewContext>): ProcedureBuilder<TNewContext, TInput> {
-    return new ProcedureBuilder<TNewContext, TInput>([...this.#middlewares, fn], this.#inputSchema);
-  }
-
-  input<TNewInput>(schema: SchemaValidator<TNewInput>): ProcedureBuilder<TContext, TNewInput> {
-    return new ProcedureBuilder<TContext, TNewInput>(this.#middlewares, schema);
-  }
-
-  mutation<TOutput>(resolver: (opts: { ctx: TContext; input: TInput }) => Promise<TOutput> | TOutput) {
-    return this.#buildProcedure("mutation", resolver);
-  }
-
-  query<TOutput>(resolver: (opts: { ctx: TContext; input: TInput }) => Promise<TOutput> | TOutput) {
-    return this.#buildProcedure("query", resolver);
-  }
-
-  #buildProcedure<TOutput>(
-    type: "query" | "mutation",
-    resolver: (opts: { ctx: TContext; input: TInput }) => Promise<TOutput> | TOutput,
-  ) {
-    const middlewares = this.#middlewares;
-    const schema = this.#inputSchema;
-
-    return {
-      _type: type,
-      async call(rawCtx: unknown, rawInput?: unknown): Promise<TOutput> {
-        let currentCtx: any = rawCtx;
-        for (const mw of middlewares) {
-          currentCtx = await mw({
-            ctx: currentCtx,
-            next: async (nextOpts) => (nextOpts && "ctx" in nextOpts ? nextOpts.ctx : currentCtx),
-          });
-        }
-
-        let parsedInput: any = rawInput;
-        if (schema) {
-          try {
-            parsedInput = schema.parse(rawInput);
-          } catch (err) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: err instanceof Error ? err.message : "Input validation failed",
-            });
-          }
-        }
-
-        return await resolver({ ctx: currentCtx as TContext, input: parsedInput as TInput });
-      },
-    };
-  }
-}
-
-export function createTRPCRouter<TProcedures extends Record<string, { call: (ctx: any, input?: any) => Promise<any> }>>(
-  procedures: TProcedures,
-) {
-  return {
-    procedures,
-    createCaller(ctx: unknown): {
-      [K in keyof TProcedures]: (input?: unknown) => ReturnType<TProcedures[K]["call"]>;
-    } {
-      const caller: Record<string, (input?: unknown) => Promise< unknown >> = {};
-      for (const [key, proc] of Object.entries(procedures)) {
-        caller[key] = (input?: unknown) => proc.call(ctx, input);
-      }
-      return caller as any;
-    },
-  };
-}`,
+    starterCode: trpcZodStarter.trimEnd(),
+    solutionCode: trpcZodSolution.trimEnd(),
     criteria: [
       "Implements generic ProcedureBuilder<TContext, TInput> supporting fluent .use() context narrowing and .input() schema parsing",
       "Throws structured TRPCError with BAD_REQUEST on schema failure and UNAUTHORIZED in auth middleware",
@@ -3350,112 +2972,8 @@ export function createTRPCRouter<TProcedures extends Record<string, { call: (ctx
     tags: ["typescript", "migration", "express", "hono", "fastify", "web-standards", "edge"],
     instructions:
       "A legacy Node.js Express router mutates (req as any).user, relies on callback-based next(err), and uses Node-only res.status(200).json() APIs that cannot run on Bun, Deno, or Cloudflare Workers edge runtimes. Migrate the router to a Web-Standard TypeScript Hono/Edge-style router using Fetch Request/Response primitives, typed Context<TVariables>, URLPattern-style :param extraction, and async onion middleware.",
-    starterCode: `// Legacy Express.js Mutating req/res Callback Router
-export function setupLegacyExpressRoutes(app: any) {
-  app.use((req: any, res: any, next: any) => {
-    const apiKey = req.headers["x-api-key"];
-    if (!apiKey) return res.status(401).json({ error: "Missing key" });
-    req.tenantId = "tenant_" + apiKey;
-    next();
-  });
-
-  app.get("/v1/orgs/:orgId/members", (req: any, res: any) => {
-    res.status(200).json({
-      tenantId: req.tenantId,
-      orgId: req.params.orgId,
-      runtime: "express-legacy"
-    });
-  });
-}`,
-    solutionCode: `// Migrated Web-Standard TypeScript Hono / Edge Router with Typed Context Variables
-export interface EdgeContext<TVariables extends Record<string, unknown> = Record<string, unknown>> {
-  readonly req: Request;
-  readonly params: Readonly<Record<string, string>>;
-  set<K extends keyof TVariables>(key: K, value: TVariables[K]): void;
-  get<K extends keyof TVariables>(key: K): TVariables[K];
-  json<T>(data: T, status?: number): Response;
-}
-
-type EdgeMiddleware<TVariables extends Record<string, unknown>> = (
-  c: EdgeContext<TVariables>,
-  next: () => Promise<Response>,
-) => Promise<Response>;
-
-type EdgeHandler<TVariables extends Record<string, unknown>> = (
-  c: EdgeContext<TVariables>,
-) => Promise<Response> | Response;
-
-export class TypedEdgeRouter<TVariables extends Record<string, unknown> = Record<string, unknown>> {
-  #middlewares: EdgeMiddleware<TVariables>[] = [];
-  #routes: { method: string; pattern: RegExp; keys: string[]; handler: EdgeHandler<TVariables> }[] = [];
-
-  use(mw: EdgeMiddleware<TVariables>): this {
-    this.#middlewares.push(mw);
-    return this;
-  }
-
-  get(pathPattern: string, handler: EdgeHandler<TVariables>): this {
-    return this.#addRoute("GET", pathPattern, handler);
-  }
-
-  post(pathPattern: string, handler: EdgeHandler<TVariables>): this {
-    return this.#addRoute("POST", pathPattern, handler);
-  }
-
-  #addRoute(method: string, pathPattern: string, handler: EdgeHandler<TVariables>): this {
-    const keys: string[] = [];
-    const regexSource =
-      "^" +
-      pathPattern.replace(/:([A-Za-z0-9_]+)/g, (_m, key) => {
-        keys.push(key);
-        return "([^/]+)";
-      }) +
-      "$";
-    this.#routes.push({ method, pattern: new RegExp(regexSource), keys, handler });
-    return this;
-  }
-
-  async fetch(req: Request): Promise<Response> {
-    const url = new URL(req.url);
-    const matched = this.#routes.find((r) => r.method === req.method && r.pattern.test(url.pathname));
-    if (!matched) {
-      return new Response(JSON.stringify({ error: "Not Found" }), {
-        status: 404,
-        headers: { "content-type": "application/json" },
-      });
-    }
-
-    const matchExec = matched.pattern.exec(url.pathname);
-    const params: Record<string, string> = {};
-    matched.keys.forEach((k, idx) => {
-      params[k] = decodeURIComponent(matchExec?.[idx + 1] ?? "");
-    });
-
-    const store = new Map<keyof TVariables, unknown>();
-    const ctx: EdgeContext<TVariables> = {
-      req,
-      params,
-      set: (key, value) => {
-        store.set(key, value);
-      },
-      get: (key) => store.get(key) as TVariables[typeof key],
-      json: (data, status = 200) =>
-        new Response(JSON.stringify(data), {
-          status,
-          headers: { "content-type": "application/json; charset=utf-8" },
-        }),
-    };
-
-    const dispatch = async (index: number): Promise<Response> => {
-      if (index < this.#middlewares.length) {
-        return await this.#middlewares[index](ctx, () => dispatch(index + 1));
-      }
-      return await matched.handler(ctx);
-    };
-
-    return await dispatch(0);
-  }
-}`,
+    starterCode: expressHonoStarter.trimEnd(),
+    solutionCode: expressHonoSolution.trimEnd(),
     criteria: [
       "Replaces Node-coupled Express req/res mutation with Web-Standard Fetch Request/Response and typed EdgeContext<TVariables>",
       "Extracts route parameters (:orgId) and propagates strongly-typed context variables via c.set() and c.get()",
@@ -3470,146 +2988,8 @@ export class TypedEdgeRouter<TVariables extends Record<string, unknown> = Record
     tags: ["typescript", "migration", "react", "svelte-5-runes", "vue-3-composition", "solidjs", "fine-grained-reactivity"],
     instructions:
       "A complex React analytics hook uses three coupled useState calls, a manual dependency array useMemo, and a useEffect that suffers from stale closure bugs and cascading re-renders. Migrate the component state machine to a universal fine-grained reactive graph (modeling Svelte 5 $state/$derived/$effect Runes and Vue 3 ref/computed/watchEffect) with automatic dependency tracking and deterministic cleanup.",
-    starterCode: `// React Hook with Manual Dependency Arrays & Stale Closure Bugs
-export function useLegacyAnalyticsFilter(initialItems: any[]) {
-  // In React, forgetting [minScore, query] in dependency arrays causes stale reads
-  let items = initialItems;
-  let query = "";
-  let minScore = 0;
-  let effectLog: string[] = [];
-
-  function setQuery(q: string) {
-    query = q;
-    // Manual imperative sync required
-  }
-  return { items, query, minScore, setQuery, effectLog };
-}`,
-    solutionCode: `// Universal Fine-Grained Reactive Primitives (Svelte 5 $state/$derived/$effect & Vue 3 ref/computed)
-type Subscriber = () => void;
-
-let currentObserver: Subscriber | null = null;
-
-export interface ReactiveState<T> {
-  get value(): T;
-  set value(next: T);
-}
-
-export interface ReadonlyDerived<T> {
-  readonly value: T;
-}
-
-export function $state<T>(initial: T): ReactiveState<T> {
-  let current = initial;
-  const deps = new Set<Subscriber>();
-
-  return {
-    get value(): T {
-      if (currentObserver) deps.add(currentObserver);
-      return current;
-    },
-    set value(next: T) {
-      if (Object.is(current, next)) return;
-      current = next;
-      for (const effect of Array.from(deps)) {
-        effect();
-      }
-    },
-  };
-}
-
-export function $derived<T>(compute: () => T): ReadonlyDerived<T> {
-  let cached!: T;
-  let dirty = true;
-  const downstream = new Set<Subscriber>();
-
-  const onDependencyChanged = () => {
-    if (!dirty) {
-      dirty = true;
-      for (const sub of Array.from(downstream)) sub();
-    }
-  };
-
-  return {
-    get value(): T {
-      if (currentObserver) downstream.add(currentObserver);
-      if (dirty) {
-        const prev = currentObserver;
-        currentObserver = onDependencyChanged;
-        try {
-          cached = compute();
-          dirty = false;
-        } finally {
-          currentObserver = prev;
-        }
-      }
-      return cached;
-    },
-  };
-}
-
-export function $effect(fn: (onCleanup: (cleanupFn: () => void) => void) => void): () => void {
-  let cleanup: (() => void) | null = null;
-  let disposed = false;
-
-  const run = () => {
-    if (disposed) return;
-    if (cleanup) {
-      cleanup();
-      cleanup = null;
-    }
-    const prev = currentObserver;
-    currentObserver = run;
-    try {
-      fn((cb) => {
-        cleanup = cb;
-      });
-    } finally {
-      currentObserver = prev;
-    }
-  };
-
-  run();
-
-  return () => {
-    disposed = true;
-    if (cleanup) cleanup();
-  };
-}
-
-export interface AnalyticsItem {
-  readonly id: string;
-  readonly title: string;
-  readonly score: number;
-}
-
-export function createMigratedAnalyticsStore(initialItems: readonly AnalyticsItem[]) {
-  const items = $state<readonly AnalyticsItem[]>(initialItems);
-  const query = $state<string>("");
-  const minScore = $state<number>(0);
-  const auditTrail: string[] = [];
-
-  const filtered = $derived(() => {
-    const q = query.value.trim().toLowerCase();
-    return items.value.filter(
-      (item) => item.score >= minScore.value && (q === "" || item.title.toLowerCase().includes(q)),
-    );
-  });
-
-  const summary = $derived(() => ({
-    count: filtered.value.length,
-    topScore: filtered.value.reduce((max, i) => Math.max(max, i.score), 0),
-  }));
-
-  const stopEffect = $effect((onCleanup) => {
-    const currentCount = summary.value.count;
-    auditTrail.push(\`matched:\${currentCount}\`);
-    onCleanup(() => {
-      auditTrail.push(\`cleanup:\${currentCount}\`);
-    });
-  });
-
-  return { items, query, minScore, filtered, summary, auditTrail, dispose: stopEffect };
-}`,
+    starterCode: reactSvelteVueStarter.trimEnd(),
+    solutionCode: reactSvelteVueSolution.trimEnd(),
     criteria: [
       "Replaces manual React hook dependency arrays with auto-tracking $state<T>, $derived<T>, and $effect primitives",
       "Propagates fine-grained dirty invalidation through derived chains without redundant recomputation",
@@ -3624,121 +3004,8 @@ export function createMigratedAnalyticsStore(initialItems: readonly AnalyticsIte
     tags: ["typescript", "migration", "redux", "tanstack-query", "swr-cache", "deduplication"],
     instructions:
       "A legacy Redux store uses 120 lines of FETCH_USERS_REQUEST / FETCH_USERS_SUCCESS / FETCH_USERS_FAILURE action creators and thunks without request deduplication, cache expiration, or optimistic rollback. Migrate to a TypeScript TanStack QueryClient engine featuring deterministic QueryKey serialization, concurrent in-flight Promise deduplication, staleTime SWR caching, prefix invalidation (invalidateQueries), and optimistic mutation rollback.",
-    starterCode: `// Legacy Redux Boilerplate with Duplicate Concurrent Fetches & No Stale Time
-export function legacyUsersReducer(state = { loading: false, data: null, error: null }, action: any) {
-  switch (action.type) {
-    case "FETCH_REQUEST": return { ...state, loading: true };
-    case "FETCH_SUCCESS": return { loading: false, data: action.payload, error: null };
-    case "FETCH_FAILURE": return { loading: false, data: null, error: action.error };
-    default: return state;
-  }
-}`,
-    solutionCode: `// TypeScript TanStack Query Client Engine with In-Flight Deduplication, StaleTime & Optimistic Rollback
-export type QueryKey = readonly unknown[];
-
-interface CacheEntry<TData = unknown> {
-  data: TData;
-  updatedAt: number;
-  invalidated: boolean;
-}
-
-export function hashQueryKey(queryKey: QueryKey): string {
-  return JSON.stringify(queryKey, (_key, val) =>
-    val && typeof val === "object" && !Array.isArray(val)
-      ? Object.keys(val)
-          .sort()
-          .reduce<Record<string, unknown>>((acc, k) => {
-            acc[k] = (val as Record<string, unknown>)[k];
-            return acc;
-          }, {})
-      : val,
-  );
-}
-
-export class TypedQueryClient {
-  #cache = new Map<string, CacheEntry<any>>();
-  #inFlight = new Map<string, Promise<any>>();
-
-  getQueryData<TData>(queryKey: QueryKey): TData | undefined {
-    return this.#cache.get(hashQueryKey(queryKey))?.data as TData | undefined;
-  }
-
-  setQueryData<TData>(queryKey: QueryKey, updater: TData | ((old: TData | undefined) => TData), nowMs = Date.now()): TData {
-    const keyHash = hashQueryKey(queryKey);
-    const prev = this.#cache.get(keyHash)?.data as TData | undefined;
-    const next = typeof updater === "function" ? (updater as (old: TData | undefined) => TData)(prev) : updater;
-    this.#cache.set(keyHash, { data: next, updatedAt: nowMs, invalidated: false });
-    return next;
-  }
-
-  async fetchQuery<TData>(opts: {
-    readonly queryKey: QueryKey;
-    readonly queryFn: () => Promise<TData>;
-    readonly staleTimeMs?: number;
-    readonly nowMs?: number;
-  }): Promise<TData> {
-    const keyHash = hashQueryKey(opts.queryKey);
-    const now = opts.nowMs ?? Date.now();
-    const staleTime = opts.staleTimeMs ?? 0;
-
-    const cached = this.#cache.get(keyHash);
-    if (cached && !cached.invalidated && now - cached.updatedAt <= staleTime) {
-      return cached.data as TData;
-    }
-
-    const existingPromise = this.#inFlight.get(keyHash);
-    if (existingPromise) {
-      return existingPromise as Promise<TData>;
-    }
-
-    const request = opts
-      .queryFn()
-      .then((data) => {
-        this.#cache.set(keyHash, { data, updatedAt: Date.now(), invalidated: false });
-        this.#inFlight.delete(keyHash);
-        return data;
-      })
-      .catch((err) => {
-        this.#inFlight.delete(keyHash);
-        throw err;
-      });
-
-    this.#inFlight.set(keyHash, request);
-    return request;
-  }
-
-  invalidateQueries(prefixKey: QueryKey): number {
-    let count = 0;
-    const prefixJson = JSON.stringify(prefixKey).slice(0, -1); // match array prefix
-    for (const [k, entry] of this.#cache.entries()) {
-      if (k.startsWith(prefixJson)) {
-        entry.invalidated = true;
-        count++;
-      }
-    }
-    return count;
-  }
-
-  async executeOptimisticMutation<TData, TVariables, TResult>(opts: {
-    readonly queryKey: QueryKey;
-    readonly variables: TVariables;
-    readonly optimisticUpdater: (old: TData | undefined, vars: TVariables) => TData;
-    readonly mutationFn: (vars: TVariables) => Promise<TResult>;
-  }): Promise<TResult> {
-    const snapshot = this.getQueryData<TData>(opts.queryKey);
-    this.setQueryData<TData>(opts.queryKey, (old) => opts.optimisticUpdater(old, opts.variables));
-    try {
-      const result = await opts.mutationFn(opts.variables);
-      this.invalidateQueries(opts.queryKey);
-      return result;
-    } catch (err) {
-      if (snapshot !== undefined) {
-        this.setQueryData<TData>(opts.queryKey, snapshot);
-      }
-      throw err;
-    }
-  }
-}`,
+    starterCode: reduxTanstackStarter.trimEnd(),
+    solutionCode: reduxTanstackSolution.trimEnd(),
     criteria: [
       "Canonicalizes QueryKey objects deterministically so key property order never fragments cache entries",
       "Deduplicates concurrent in-flight fetchQuery calls for the same QueryKey and respects staleTimeMs",
@@ -3753,98 +3020,8 @@ export class TypedQueryClient {
     tags: ["typescript", "migration", "nextjs", "rsc", "app-router", "suspense", "revalidate-tag"],
     instructions:
       "A legacy Next.js Pages Router page runs three sequential awaits inside getServerSideProps(ctx), blocking TTFB on the slowest API call and lacking granular cache tag invalidation. Migrate to a TypeScript App Router Server Component architecture with parallel tagged fetch caching, Suspense stream chunk resolution, and a Web-Standard POST Route Handler that selectively purges cache entries via revalidateTag().",
-    starterCode: `// Legacy Pages Router Sequential Blocking getServerSideProps Waterfall
-export async function getServerSideProps(context: any) {
-  const user = await fetchUser(context.params.id);
-  const org = await fetchOrg(user.orgId); // Sequential waterfall!
-  const metrics = await fetchMetrics(context.params.id); // Waits for org first!
-  return { props: { user, org, metrics } };
-}`,
-    solutionCode: `// Migrated Next.js App Router Tagged Cache Store, Parallel RSC Loader & Route Handler Revalidation
-export interface TaggedCacheEntry<T = unknown> {
-  readonly value: T;
-  readonly tags: readonly string[];
-  readonly cachedAt: number;
-}
-
-export class NextAppRouterCache {
-  #store = new Map<string, TaggedCacheEntry<any>>();
-
-  async fetchWithTags<T>(
-    cacheKey: string,
-    tags: readonly string[],
-    loader: () => Promise<T>,
-  ): Promise<{ data: T; cacheStatus: "HIT" | "MISS" }> {
-    const existing = this.#store.get(cacheKey);
-    if (existing) {
-      return { data: existing.value as T, cacheStatus: "HIT" };
-    }
-    const value = await loader();
-    this.#store.set(cacheKey, { value, tags: [...tags], cachedAt: Date.now() });
-    return { data: value, cacheStatus: "MISS" };
-  }
-
-  revalidateTag(tag: string): number {
-    let evicted = 0;
-    for (const [key, entry] of this.#store.entries()) {
-      if (entry.tags.includes(tag)) {
-        this.#store.delete(key);
-        evicted++;
-      }
-    }
-    return evicted;
-  }
-}
-
-export async function renderDashboardRSC<TUser, TMetrics>(opts: {
-  readonly userId: string;
-  readonly cache: NextAppRouterCache;
-  readonly loadUser: (id: string) => Promise<TUser>;
-  readonly loadMetrics: (id: string) => Promise<TMetrics>;
-}) {
-  // Parallel initiation eliminates sequential getServerSideProps waterfall
-  const [userEnvelope, metricsEnvelope] = await Promise.all([
-    opts.cache.fetchWithTags("user:" + opts.userId, ["users", "user:" + opts.userId], () =>
-      opts.loadUser(opts.userId),
-    ),
-    opts.cache.fetchWithTags("metrics:" + opts.userId, ["metrics", "user:" + opts.userId], () =>
-      opts.loadMetrics(opts.userId),
-    ),
-  ]);
-
-  return {
-    rscPayload: {
-      user: userEnvelope.data,
-      suspenseBoundary: {
-        id: "metrics-stream",
-        status: "resolved" as const,
-        data: metricsEnvelope.data,
-      },
-    },
-    telemetry: {
-      userCache: userEnvelope.cacheStatus,
-      metricsCache: metricsEnvelope.cacheStatus,
-    },
-  };
-}
-
-export async function POST_RevalidateRouteHandler(
-  req: Request,
-  cache: NextAppRouterCache,
-): Promise<Response> {
-  const body = (await req.json()) as { tag?: string };
-  if (!body?.tag || typeof body.tag !== "string") {
-    return new Response(JSON.stringify({ revalidated: false, error: "Missing tag" }), {
-      status: 400,
-      headers: { "content-type": "application/json" },
-    });
-  }
-  const evictedCount = cache.revalidateTag(body.tag);
-  return new Response(
-    JSON.stringify({ revalidated: true, tag: body.tag, evictedCount }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
-}`,
+    starterCode: nextAppRouterStarter.trimEnd(),
+    solutionCode: nextAppRouterSolution.trimEnd(),
     criteria: [
       "Eliminates sequential getServerSideProps waterfall by initiating independent RSC data fetches in parallel with Promise.all",
       "Caches Server Component fetches by tag and selectively purges stale entries via revalidateTag()",
@@ -4401,7 +3578,7 @@ export function compileSpeculationRulesTag(config: SpeculationConfig): {
       "A custom UI card component calls attachShadow({ mode: 'open' }) only after client JavaScript downloads, causing a severe Flash of Unstyled Content (FOUC) and failing to forward focus to its internal control. Refactor to a streaming-friendly SSR Declarative Shadow DOM generator (<template shadowrootmode=\"open\" shadowrootdelegatesfocus shadowrootclonable>) with named <slot> fallbacks and an idempotent client hydrator that reuses existing this.shadowRoot without throwing NotSupportedError.",
     starterCode: `// Client-Only Shadow DOM with FOUC & Duplicate attachShadow Crash on SSR
 export function renderSSRComponent(title: string) {
-  return \`<loom-card>\${title}</loom-card>\`;
+  return \`<guantlet-web-card>\${title}</guantlet-web-card>\`;
 }
 export function hydrateCard(hostEl: any) {
   // Crashes if Declarative Shadow DOM already attached hostEl.shadowRoot!
@@ -4427,7 +3604,7 @@ function escapeAttr(val: string): string {
 export function renderDeclarativeShadowCardSSR(props: DeclarativeCardProps): string {
   const focusAttr = props.delegateFocus !== false ? " shadowrootdelegatesfocus" : "";
   return [
-    \`<loom-surface-card id="\${escapeAttr(props.id)}">\`,
+    \`<guantlet-web-surface-card id="\${escapeAttr(props.id)}">\`,
     \`  <template shadowrootmode="open"\${focusAttr} shadowrootclonable>\`,
     \`    <style>:host{display:block;contain:content}::slotted([slot="badge"]){font-family:monospace}</style>\`,
     \`    <article part="surface">\`,
@@ -4438,7 +3615,7 @@ export function renderDeclarativeShadowCardSSR(props: DeclarativeCardProps): str
     \`  </template>\`,
     \`  <span slot="badge">\${escapeAttr(props.badgeText)}</span>\`,
     \`  <h2 slot="heading">\${escapeAttr(props.heading)}</h2>\`,
-    \`</loom-surface-card>\`,
+    \`</guantlet-web-surface-card>\`,
   ].join("\\n");
 }
 
@@ -7164,7 +6341,7 @@ export function buildOrderHistoryPortalViewModel(params: {
       "A web shop stores customers, carts, orders, line items, and shipments as deeply nested duplicated objects across UI slices. Updating a customer's email or a shipment tracking status leaves stale copies in 4 views and requires O(N^2) nested scans. Refactor into a NormalizedCommerceEntityStore with primary-key entity maps, O(1) foreign-key secondary indexes (ordersByCustomerId, itemsByOrderId, shipmentsByOrderId), and strict foreign-key referential integrity guards.",
     starterCode: `// Unorganized Deeply Nested E-Commerce State with Duplicated Customer & Order Objects
 export const messyShopState = {
-  orders: [{ id: "o1", customer: { id: "c1", email: "old@loom.dev" }, items: [] }],
+  orders: [{ id: "o1", customer: { id: "c1", email: "old@guantlet-web.test" }, items: [] }],
 };`,
     solutionCode: `// Normalized Commerce Entity Store with Referential Integrity & O(1) Secondary Indexes
 export interface CustomerEntity {
@@ -9467,7 +8644,7 @@ export function enforceAccessibleTextContrast(
     difficulty: "advanced",
     tags: ["design-systems", "fluid-typography", "utopia-clamp", "spatial-rhythm", "bento-grid", "typescript"],
     instructions:
-      "Signature editorial web designs (Linear, Stripe, Loom Monochrome) rely on exact fluid typographic scales where font sizes interpolate smoothly between a minimum viewport (e.g. 320px) and maximum viewport (e.g. 1440px) via CSS clamp(minRem, interceptRem + slopeVw, maxRem), paired with strict 4px/8px baseline rhythm and hole-free Bento grid card packing. Build a ProprietaryTypographyGridEngine.",
+      "Signature editorial web designs rely on exact fluid typographic scales where font sizes interpolate smoothly between a minimum viewport (e.g. 320px) and maximum viewport (e.g. 1440px) via CSS clamp(minRem, interceptRem + slopeVw, maxRem), paired with strict 4px/8px baseline rhythm and hole-free Bento grid card packing. Build a ProprietaryTypographyGridEngine.",
     starterCode: `// Hardcoded Pixel Breakpoint Jumps & Unaligned Bento Grid
 export function getHeadingSize(isMobile: boolean) {
   return isMobile ? "24px" : "48px";
@@ -9680,7 +8857,7 @@ export function compileProprietarySurfaceElevation(params: {
     difficulty: "advanced",
     tags: ["ui-ux", "keyboard-chords", "roving-tabindex", "focus-management", "ergonomics", "typescript"],
     instructions:
-      "Desktop-grade proprietary web applications (Linear, Superhuman, Loom) pair two-key sequential command chords (e.g. 'g' followed by 't' within 800ms to jump to Today) with WAI-ARIA roving tabindex (where exactly one active item in a composite toolbar/list has tabindex=0 and all siblings have tabindex=-1), while suppressing shortcuts when typing in inputs or when a modal focus-trap is active. Build a CommandChordRovingNavigator.",
+      "Desktop-grade web applications pair two-key sequential command chords (e.g. 'g' followed by 't' within 800ms to jump to Today) with WAI-ARIA roving tabindex (where exactly one active item in a composite toolbar/list has tabindex=0 and all siblings have tabindex=-1), while suppressing shortcuts when typing in inputs or when a modal focus-trap is active. Build a CommandChordRovingNavigator.",
     starterCode: `// Naive Global Key Listener Firing Shortcuts Inside Input Fields & Breaking Tab Order
 export function onKey(key: string) {
   return key;

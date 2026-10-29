@@ -14,7 +14,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://loom.test${path}`, {
+    new Request(`http://guantlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -22,7 +22,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "loom-seo-"));
+  dir = await mkdtemp(join(tmpdir(), "guantlet-web-seo-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -35,7 +35,7 @@ afterEach(async () => {
 
 describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
   test("builds connected Schema.org JSON-LD @graph with XSS-safe script serialization", async () => {
-    const graphRes = buildApplicationJsonLdGraph("https://loom.dev");
+    const graphRes = buildApplicationJsonLdGraph("https://guantlet-web.test");
     expect(graphRes.payload["@context"]).toBe("https://schema.org");
     expect(graphRes.payload["@graph"].length).toBe(5);
     expect(graphRes.scriptHtml).toContain("application/ld+json");

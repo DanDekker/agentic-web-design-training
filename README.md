@@ -10,7 +10,7 @@
 
 ---
 
-**LLM Webdev Gauntlet** is a local curriculum and evaluation workspace for web development agents. It combines code challenges, an interactive task board, automated checks, and a benchmark of the included reference solutions. The application is called **Loom** and runs on Bun with vanilla JavaScript, HTML, and CSS; it has no runtime package dependencies or build step.
+**LLM Webdev Gauntlet** is a local curriculum and evaluation workspace for web development agents. It combines code challenges, an interactive task board, automated checks, and a benchmark of the included reference solutions. The application is called **guantlet-web** and runs on Bun with vanilla JavaScript, HTML, and CSS; it has no runtime package dependencies or build step.
 
 ## Get started
 
@@ -39,7 +39,19 @@ The repository currently includes **106 exercises in 27 categories and 11 tracks
 | UI engineering | Design tokens, interaction patterns, web components |
 | Developer tooling | TypeScript frameworks, migrations, package management |
 
-Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
+Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
+
+### Frontend framework exercises
+
+| Framework | Exercise |
+| --- | --- |
+| React 19 and Next.js | [Typed server action and optimistic updates](exercises/frameworks/ts_react_nextjs_server_actions/starter.ts) |
+| Angular | [Signals and cancelable async state](exercises/frameworks/ts_angular_signals_computed_rx/starter.ts) |
+| Vue 3 and Svelte 5 | [Migrate React hooks to fine-grained reactivity](exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/starter.ts) |
+| Next.js App Router | [Migrate from Pages Router data loading](exercises/frameworks/migrate_nextjs_pages_to_app_router_rsc/starter.ts) |
+| TanStack Query | [Replace Redux thunks with a typed cache](exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/starter.ts) |
+
+GitHub's **Languages** bar counts source file types, not frameworks. These exercises contribute to **TypeScript** there; React and Angular do not appear as separate languages. The Vue and Svelte exercise models their reactive primitives in TypeScript rather than shipping `.vue` or `.svelte` components.
 
 ## How evaluation works
 
@@ -51,7 +63,8 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 
 | Path | Purpose |
 | --- | --- |
-| [`src/curriculum.js`](src/curriculum.js) | Exercise catalog, tracks, and reference solutions |
+| [`src/curriculum.js`](src/curriculum.js) | Exercise catalog and tracks |
+| [`exercises/frameworks/`](exercises/frameworks/) | TypeScript starter and reference files for framework challenges |
 | [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
 | [`src/server.js`](src/server.js) and [`src/api.js`](src/api.js) | Bun server and HTTP routes |
@@ -59,7 +72,7 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | [`public/`](public/) | Browser interface and web components |
 | [`tests/`](tests/) | Bun tests for the curriculum and application modules |
 
-The server stores local state in `data/`, which is ignored by Git. Set `PORT` to change the HTTP port or `LOOM_DATA_DIR` to move the data directory.
+The server stores local state in `data/`, which is ignored by Git. Set `PORT` to change the HTTP port or `GUANTLET_WEB_DATA_DIR` to move the data directory.
 
 ## Scope
 

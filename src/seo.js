@@ -46,28 +46,28 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
       {
         "@type": "Organization",
         "@id": orgId,
-        name: "Loom Agentic Systems",
+        name: "guantlet-web Agentic Systems",
         url: cleanOrigin,
       },
       {
         "@type": "WebSite",
         "@id": websiteId,
         url: cleanOrigin,
-        name: "Loom — Agentic 1M Curriculum & Monochrome Suite",
+        name: "guantlet-web — 106-Exercise Curriculum & Monochrome Suite",
         publisher: { "@id": orgId },
       },
       {
         "@type": "WebPage",
         "@id": webpageId,
         url: `${cleanOrigin}/`,
-        name: "Loom — Agentic Curriculum & Monochrome Task Suite",
+        name: "guantlet-web — Agentic Curriculum & Monochrome Task Suite",
         isPartOf: { "@id": websiteId },
         mainEntity: { "@id": appId },
       },
       {
         "@type": "SoftwareApplication",
         "@id": appId,
-        name: "Loom Agentic 1M Curriculum Suite",
+        name: "guantlet-web 106-Exercise Curriculum Suite",
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web, macOS, Linux, Windows",
         offers: {
@@ -87,7 +87,7 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
       {
         "@type": "ItemList",
         "@id": catalogId,
-        name: "Agentic 1M Curriculum Domain Tracks",
+        name: "106-Exercise Curriculum Domain Tracks",
         numberOfItems: trackItems.length,
         itemListElement: trackItems,
       },

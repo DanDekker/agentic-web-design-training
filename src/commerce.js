@@ -425,9 +425,9 @@ export class WebShopStore {
   #seedDefaultCatalog() {
     const defaultVariants = [
       {
-        sku: "LOOM-KB-OBS-TKL",
-        productId: "prod_loom_keyboard",
-        title: "Loom Monochrome Mechanical Keyboard (Obsidian · TKL)",
+        sku: "GUANTLET_WEB-KB-OBS-TKL",
+        productId: "prod_guantlet-web_keyboard",
+        title: "guantlet-web Monochrome Mechanical Keyboard (Obsidian · TKL)",
         attributes: { color: "obsidian", layout: "TKL" },
         unitPriceMinor: 18900,
         availableStock: 12,
@@ -435,9 +435,9 @@ export class WebShopStore {
         isDigital: false,
       },
       {
-        sku: "LOOM-KB-SLV-FULL",
-        productId: "prod_loom_keyboard",
-        title: "Loom Monochrome Mechanical Keyboard (Silver · Full)",
+        sku: "GUANTLET_WEB-KB-SLV-FULL",
+        productId: "prod_guantlet-web_keyboard",
+        title: "guantlet-web Monochrome Mechanical Keyboard (Silver · Full)",
         attributes: { color: "silver", layout: "FULL" },
         unitPriceMinor: 19900,
         availableStock: 6,
@@ -445,9 +445,9 @@ export class WebShopStore {
         isDigital: false,
       },
       {
-        sku: "LOOM-DOCK-TB5",
-        productId: "prod_loom_dock",
-        title: "Loom Thunderbolt 5 Workstation Dock",
+        sku: "GUANTLET_WEB-DOCK-TB5",
+        productId: "prod_guantlet-web_dock",
+        title: "guantlet-web Thunderbolt 5 Workstation Dock",
         attributes: { finish: "anodized-black", ports: "16-port" },
         unitPriceMinor: 29900,
         availableStock: 8,
@@ -457,7 +457,7 @@ export class WebShopStore {
       {
         sku: "POLAR-PRO-SEAT-1Y",
         productId: "prod_polar_license",
-        title: "Loom Agentic Pro License (Polar.sh MoR · 1 Year)",
+        title: "guantlet-web Agentic Pro License (Polar.sh MoR · 1 Year)",
         attributes: { tier: "pro", seats: "2-machines" },
         unitPriceMinor: 9900,
         availableStock: 999,
@@ -684,8 +684,8 @@ export class WebShopStore {
 
     // 2. Compute integer minor-unit pricing, Hamilton Largest-Remainder discount proration & tax
     const discounts = [];
-    if (promoCode === "LOOM10") {
-      discounts.push({ code: "LOOM10", kind: "PERCENT_BPS", value: 1000 });
+    if (promoCode === "GUANTLET_WEB10") {
+      discounts.push({ code: "GUANTLET_WEB10", kind: "PERCENT_BPS", value: 1000 });
     } else if (promoCode === "SAVE1500") {
       discounts.push({ code: "SAVE1500", kind: "FIXED_CART", value: 1500 });
     }

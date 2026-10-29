@@ -1,5 +1,5 @@
 /**
- * Web Component: <loom-capabilities>
+ * Web Component: <guantlet-web-capabilities>
  *
  * Live feature-detection for the 2026 web platform surface this app targets.
  * Demonstrates two bleeding-edge patterns at once:
@@ -93,7 +93,7 @@ export function probeCapabilities() {
   return results;
 }
 
-export class LoomCapabilities extends HTMLElement {
+export class GuantletWebCapabilities extends HTMLElement {
   #root;
 
   constructor() {
@@ -138,6 +138,6 @@ export class LoomCapabilities extends HTMLElement {
   }
 }
 
-if (!customElements.get("loom-capabilities")) {
-  customElements.define("loom-capabilities", LoomCapabilities);
+if (!customElements.get("guantlet-web-capabilities")) {
+  customElements.define("guantlet-web-capabilities", GuantletWebCapabilities);
 }
