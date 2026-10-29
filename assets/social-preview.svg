@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">LLM Webdev Gauntlet</title>
+  <desc id="desc">Black and white social preview for a 106-exercise web development curriculum.</desc>
+  <rect width="1280" height="640" fill="#0b0b0b"/>
+  <g fill="none" stroke="#fff">
+    <rect x="28" y="28" width="1224" height="584" opacity=".45"/>
+    <path d="M28 512h1224M834 28v484" opacity=".24"/>
+    <rect x="904" y="162" width="266" height="222" stroke-width="3"/>
+    <path d="M904 207h266" stroke-width="3"/>
+    <path d="m975 261-39 36 39 36m124-72 39 36-39 36m-34-86-34 100" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="927" cy="185" r="4"/>
+    <circle cx="946" cy="185" r="4"/>
+    <circle cx="965" cy="185" r="4"/>
+    <text x="74" y="103" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" letter-spacing="6">DANDEKKER  /  WEB DEVELOPMENT CURRICULUM</text>
+    <text x="68" y="251" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="800" letter-spacing="-3">LLM WEBDEV</text>
+    <text x="66" y="385" font-family="Arial, Helvetica, sans-serif" font-size="116" font-weight="800" letter-spacing="-5">GAUNTLET</text>
+    <text x="74" y="565" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" letter-spacing="3">106 CHALLENGES   /   27 CATEGORIES   /   11 TRACKS</text>
+    <text x="904" y="565" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" letter-spacing="3">GUANTLET-WEB</text>
+  </g>
+</svg>

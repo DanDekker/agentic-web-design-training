@@ -41,6 +41,73 @@ The repository currently includes **106 exercises in 27 categories and 11 tracks
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
+### Technology map
+
+The app uses the first row. The remaining logos show technologies covered by the curriculum. Every logo links to the project’s source repository.
+
+**Built with**
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/oven-sh/bun"><img src="assets/logos/bun.svg" alt="Bun logo" width="40" height="40"><br>Bun</a></td>
+    <td align="center"><a href="https://github.com/tc39/ecma262"><img src="assets/logos/javascript.svg" alt="JavaScript logo" width="40" height="40"><br>JavaScript</a></td>
+    <td align="center"><a href="https://github.com/whatwg/html"><img src="assets/logos/html5.svg" alt="HTML logo" width="40" height="40"><br>HTML</a></td>
+    <td align="center"><a href="https://github.com/w3c/csswg-drafts"><img src="assets/logos/css.svg" alt="CSS logo" width="40" height="40"><br>CSS</a></td>
+  </tr>
+</table>
+
+**Frameworks and UI state in the curriculum**
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/microsoft/TypeScript"><img src="assets/logos/typescript.svg" alt="TypeScript logo" width="40" height="40"><br>TypeScript</a></td>
+    <td align="center"><a href="https://github.com/react/react"><img src="assets/logos/react.svg" alt="React logo" width="40" height="40"><br>React</a></td>
+    <td align="center"><a href="https://github.com/vercel/next.js"><img src="assets/logos/nextdotjs.svg" alt="Next.js logo" width="40" height="40"><br>Next.js</a></td>
+    <td align="center"><a href="https://github.com/angular/angular"><img src="assets/logos/angular.svg" alt="Angular logo" width="40" height="40"><br>Angular</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/vuejs/core"><img src="assets/logos/vuedotjs.svg" alt="Vue logo" width="40" height="40"><br>Vue</a></td>
+    <td align="center"><a href="https://github.com/sveltejs/svelte"><img src="assets/logos/svelte.svg" alt="Svelte logo" width="40" height="40"><br>Svelte</a></td>
+    <td align="center"><a href="https://github.com/reduxjs/redux"><img src="assets/logos/redux.svg" alt="Redux logo" width="40" height="40"><br>Redux</a></td>
+    <td align="center"><a href="https://github.com/TanStack/query"><img src="assets/logos/tanstack.svg" alt="TanStack Query logo" width="40" height="40"><br>TanStack Query</a></td>
+  </tr>
+</table>
+
+**Server and API tooling in the curriculum**
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/nestjs/nest"><img src="assets/logos/nestjs.svg" alt="NestJS logo" width="40" height="40"><br>NestJS</a></td>
+    <td align="center"><a href="https://github.com/trpc/trpc"><img src="assets/logos/trpc.svg" alt="tRPC logo" width="40" height="40"><br>tRPC</a></td>
+    <td align="center"><a href="https://github.com/colinhacks/zod"><img src="assets/logos/zod.svg" alt="Zod logo" width="40" height="40"><br>Zod</a></td>
+    <td align="center"><a href="https://github.com/honojs/hono"><img src="assets/logos/hono.svg" alt="Hono logo" width="40" height="40"><br>Hono</a></td>
+    <td align="center"><a href="https://github.com/fastify/fastify"><img src="assets/logos/fastify.svg" alt="Fastify logo" width="40" height="40"><br>Fastify</a></td>
+  </tr>
+</table>
+
+**Package ecosystems in the curriculum**
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/npm/cli"><img src="assets/logos/npm.svg" alt="npm logo" width="40" height="40"><br>npm</a></td>
+    <td align="center"><a href="https://github.com/pnpm/pnpm"><img src="assets/logos/pnpm.svg" alt="pnpm logo" width="40" height="40"><br>pnpm</a></td>
+    <td align="center"><a href="https://github.com/yarnpkg/berry"><img src="assets/logos/yarn.svg" alt="Yarn logo" width="40" height="40"><br>Yarn</a></td>
+    <td align="center"><a href="https://github.com/denoland/deno"><img src="assets/logos/deno.svg" alt="Deno logo" width="40" height="40"><br>Deno</a></td>
+    <td align="center"><a href="https://github.com/jsr-io/jsr"><img src="assets/logos/jsr.svg" alt="JSR logo" width="40" height="40"><br>JSR</a></td>
+  </tr>
+</table>
+
+**Payments in the curriculum**
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/stripe/stripe-node"><img src="assets/logos/stripe.svg" alt="Stripe logo" width="40" height="40"><br>Stripe</a></td>
+    <td align="center"><a href="https://github.com/polarsource/polar"><img src="assets/logos/polar.svg" alt="Polar logo" width="40" height="40"><br>Polar</a></td>
+  </tr>
+</table>
+
+Logo sources: [Simple Icons and Polar](assets/logos/SOURCES.md).
+
 ### Frontend framework exercises
 
 | Framework | Exercise |

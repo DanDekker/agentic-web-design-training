@@ -48,12 +48,14 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(data.payload["@graph"].some((n) => n["@type"] === "ItemList")).toBe(true);
   });
 
-  test("audits public/index.html for 100% HTML5 landmarks, OpenGraph, Canonical, and JSON-LD @graph compliance", async () => {
+  test("audits public/index.html for HTML5 landmarks, sharing metadata, and valid structured data", async () => {
     const indexHtml = await readFile(join(process.cwd(), "public", "index.html"), "utf8");
     const report = auditHtmlSeoAndStructuredData(indexHtml);
     expect(report.passed).toBe(true);
     expect(report.score).toBe(100);
     expect(report.jsonLdBlocks.length).toBeGreaterThanOrEqual(1);
+    expect(report.jsonLdBlocks[0].codeRepository).toBe("https://github.com/DanDekker/llm-webdev-gauntlet");
+    expect(indexHtml).not.toContain('href="http://localhost:3000/"');
 
     const apiAudit = await call("POST", "/api/seo/audit", { html: indexHtml });
     expect(apiAudit.status).toBe(200);

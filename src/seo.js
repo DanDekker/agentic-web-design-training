@@ -130,35 +130,33 @@ export function auditHtmlSeoAndStructuredData(html) {
     detail: `main=${hasMain}, header=${hasHeader}, search=${hasSearch}`,
   });
 
-  // 3. Technical SEO Metadata (<title>, meta description, canonical, OpenGraph)
+  // 3. Technical metadata; a canonical is optional until there is a public URL.
   const hasTitle = /<title>[^<]+<\/title>/i.test(source);
   const hasDescription = /<meta\s+name=["']description["']\s+content=["'][^"']+["']/i.test(source);
-  const hasCanonical = /<link\s+rel=["']canonical["']\s+href=["'][^"']+["']/i.test(source);
+  const canonicalHref = source.match(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i)?.[1] ?? null;
+  const canonicalValid = !canonicalHref || /^https?:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(canonicalHref);
   const hasOgTitle = /<meta\s+property=["']og:title["']\s+content=["'][^"']+["']/i.test(source);
   checks.push({
     id: "technical_seo_head",
-    passed: hasTitle && hasDescription && hasCanonical && hasOgTitle,
-    detail: `title=${hasTitle}, description=${hasDescription}, canonical=${hasCanonical}, og:title=${hasOgTitle}`,
+    passed: hasTitle && hasDescription && canonicalValid && hasOgTitle,
+    detail: `title=${hasTitle}, description=${hasDescription}, canonical=${canonicalHref ?? "omitted"}, og:title=${hasOgTitle}`,
   });
 
-  // 4. Schema.org JSON-LD @graph validity
+  // 4. Schema.org JSON-LD validity, either a graph or one typed entity.
   const jsonLdBlocks = [];
   const ldRegex = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let ldMatch;
   let jsonLdValid = false;
-  let graphEntityCount = 0;
+  let entityCount = 0;
 
   while ((ldMatch = ldRegex.exec(source)) !== null) {
     try {
       const parsed = JSON.parse(ldMatch[1].trim());
       jsonLdBlocks.push(parsed);
-      if (
-        parsed["@context"] === "https://schema.org" &&
-        Array.isArray(parsed["@graph"]) &&
-        parsed["@graph"].every((node) => Boolean(node["@type"] && node["@id"]))
-      ) {
+      const nodes = Array.isArray(parsed["@graph"]) ? parsed["@graph"] : [parsed];
+      if (parsed["@context"] === "https://schema.org" && nodes.length > 0 && nodes.every((node) => Boolean(node["@type"]))) {
         jsonLdValid = true;
-        graphEntityCount += parsed["@graph"].length;
+        entityCount += nodes.length;
       }
     } catch {
       jsonLdValid = false;
@@ -166,9 +164,9 @@ export function auditHtmlSeoAndStructuredData(html) {
   }
 
   checks.push({
-    id: "schema_org_json_ld_graph",
-    passed: jsonLdValid && graphEntityCount >= 3,
-    detail: `blocks=${jsonLdBlocks.length}, graphEntities=${graphEntityCount}`,
+    id: "schema_org_json_ld",
+    passed: jsonLdValid && entityCount > 0,
+    detail: `blocks=${jsonLdBlocks.length}, entities=${entityCount}`,
   });
 
   const passedCount = checks.filter((c) => c.passed).length;
