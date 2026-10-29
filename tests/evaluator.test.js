@@ -151,4 +151,19 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       expect(result.score).toBe(100);
     }
   });
+
+  test("evaluates web-cybersec tasks (SSRF DNS Rebind, Trusted Types CSP, Timing-Safe Webhook/CSRF) in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_cybersec_ssrf_dns_rebind",
+      "task_cybersec_csp_trusted_types_dom",
+      "task_cybersec_timing_safe_webhook_csrf",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
 });

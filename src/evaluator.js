@@ -300,6 +300,39 @@ export class Evaluator {
         passed: code.includes("farbleCanvasPixels") || (code.includes("Uint8Array") && code.includes("^")),
         detail: "Applies deterministic per-origin LSB perturbation to break cross-site fingerprint linking",
       });
+    } else if (id === "task_cybersec_ssrf_dns_rebind") {
+      results.push({
+        name: "Private CIDR & Cloud Metadata Blocking",
+        passed: code.includes("169") && code.includes("254") && code.includes("::ffff:") && code.includes("127"),
+        detail: "Blocks 169.254.169.254 metadata, RFC 1918 ranges, IPv6 loopback, and ::ffff: mapped IPs",
+      });
+      results.push({
+        name: "DNS Resolution Pinning",
+        passed: code.includes("pinnedIp") && code.includes("Host") && code.includes("manual"),
+        detail: "Pins validated DNS IP address and disables automatic redirect following",
+      });
+    } else if (id === "task_cybersec_csp_trusted_types_dom") {
+      results.push({
+        name: "Event Handler & Dangerous URI Stripping",
+        passed: code.includes("javascript:") && code.includes("on") && code.includes("iframe"),
+        detail: "Removes forbidden tags, inline on* handlers, and obfuscated javascript:/data: URIs",
+      });
+      results.push({
+        name: "Nonce-Strict CSP with Trusted Types",
+        passed: code.includes("strict-dynamic") && code.includes("require-trusted-types-for") && code.includes("base-uri 'none'"),
+        detail: "Builds strict nonce CSP enforcing Trusted Types and disabling object-src/base-uri",
+      });
+    } else if (id === "task_cybersec_timing_safe_webhook_csrf") {
+      results.push({
+        name: "Constant-Time Bitwise Comparison",
+        passed: code.includes("^") && code.includes("|=") && code.includes("charCodeAt"),
+        detail: "Uses bitwise XOR accumulator for constant-time secret comparison",
+      });
+      results.push({
+        name: "Replay Window & Fetch-Metadata CSRF Guard",
+        passed: code.includes("same-origin") && code.includes("toleranceSec") && code.includes("seenNonces"),
+        detail: "Enforces timestamp tolerance, nonce deduplication, and Sec-Fetch-Site CSRF checks",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -738,6 +771,112 @@ export class Evaluator {
         name: "Deterministic Farbling & Privacy Budget Enforcement",
         passed: Boolean(res?.deterministicSameOrigin && res?.budgetBlocked && res?.validLength),
         detail: "Applies deterministic per-origin pixel farbling and blocks reads exceeding privacy budget",
+      });
+    } else if (taskId === "task_cybersec_ssrf_dns_rebind") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const checkIp = typeof isPrivateOrReservedIp === "function" ? isPrivateOrReservedIp : exports.isPrivateOrReservedIp;
+          const pinFn = typeof validateAndPinOutboundUrl === "function" ? validateAndPinOutboundUrl : exports.validateAndPinOutboundUrl;
+
+          const blocksMetadata = checkIp("169.254.169.254");
+          const blocksMappedLoopback = checkIp("::ffff:127.0.0.1");
+          const blocksRfc1918 = checkIp("172.20.0.1") && checkIp("10.0.0.1") && checkIp("192.168.1.1");
+          const allowsPublic = !checkIp("93.184.216.34");
+
+          let rebindBlocked = false;
+          try {
+            await pinFn("https://evil.example.com/hook", async () => ["93.184.216.34", "169.254.169.254"]);
+          } catch {
+            rebindBlocked = true;
+          }
+
+          const pinned = await pinFn("https:// hooks.example.com/ok".replace(" ", ""), async () => ["93.184.216.34"]);
+          return {
+            blocksMetadata,
+            blocksMappedLoopback,
+            blocksRfc1918,
+            allowsPublic,
+            rebindBlocked,
+            pinnedOk: pinned.pinnedIp === "93.184.216.34" && pinned.redirect === "manual",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "SSRF CIDR Blocking & DNS Pinning Verification",
+        passed: Boolean(
+          res?.blocksMetadata &&
+            res?.blocksMappedLoopback &&
+            res?.blocksRfc1918 &&
+            res?.allowsPublic &&
+            res?.rebindBlocked &&
+            res?.pinnedOk
+        ),
+        detail: "Blocks cloud metadata, RFC 1918, IPv6-mapped loopback, and dual-record DNS rebinding",
+      });
+    } else if (taskId === "task_cybersec_csp_trusted_types_dom") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const sanitize = typeof sanitizeHtmlFragment === "function" ? sanitizeHtmlFragment : exports.sanitizeHtmlFragment;
+          const buildCsp = typeof buildStrictCspHeader === "function" ? buildStrictCspHeader : exports.buildStrictCspHeader;
+
+          const dirty = '<p onclick="steal()">Hello</p><img src=x onerror="alert(1)"><a href="&#106;avascript:evil()">Link</a><script>pwn()</script>';
+          const clean = sanitize(dirty);
+          const csp = buildCsp("rAnd0mN0nce_2026_xyz");
+
+          return {
+            noScript: !clean.includes("<script") && !clean.includes("onerror") && !clean.includes("onclick"),
+            noJsUri: !clean.toLowerCase().includes("javascript:"),
+            keepsSafeText: clean.includes("Hello") && clean.includes("Link"),
+            strictCsp: csp.includes("'nonce-rAnd0mN0nce_2026_xyz'") && csp.includes("'strict-dynamic'") && csp.includes("require-trusted-types-for 'script'"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "DOM XSS Payload Neutralization & Strict CSP",
+        passed: Boolean(res?.noScript && res?.noJsUri && res?.keepsSafeText && res?.strictCsp),
+        detail: "Neutralizes onerror/onclick/entity-encoded javascript: URIs and emits strict nonce CSP",
+      });
+    } else if (taskId === "task_cybersec_timing_safe_webhook_csrf") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const verify = typeof verifyWebhookAndCsrf === "function" ? verifyWebhookAndCsrf : exports.verifyWebhookAndCsrf;
+          const seenNonces = new Set();
+          const base = {
+            signature: "hmac_sha256_deadbeef1234",
+            expectedSignature: "hmac_sha256_deadbeef1234",
+            timestampSec: 1700000100,
+            nowSec: 1700000120,
+            toleranceSec: 300,
+            nonce: "n_101",
+            seenNonces,
+            secFetchSite: "same-origin",
+            origin: "https://app.example.com",
+            expectedOrigin: "https://app.example.com",
+            csrfCookie: "csrf_tok_abc",
+            csrfHeader: "csrf_tok_abc",
+          };
+          const first = verify(base);
+          const replay = verify(base); // Same nonce n_101 -> must fail!
+          const crossSite = verify({ ...base, nonce: "n_102", secFetchSite: "cross-site" });
+          const expired = verify({ ...base, nonce: "n_103", timestampSec: 1700000120 - 900 });
+          return {
+            firstOk: first.allowed === true,
+            replayBlocked: replay.allowed === false && replay.reason === "replayed_nonce",
+            crossSiteBlocked: crossSite.allowed === false,
+            expiredBlocked: expired.allowed === false,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Timing-Safe HMAC, Replay & Cross-Site CSRF Defense",
+        passed: Boolean(res?.firstOk && res?.replayBlocked && res?.crossSiteBlocked && res?.expiredBlocked),
+        detail: "Verifies constant-time secrets and blocks nonce replays, expired timestamps, and cross-site fetches",
       });
     } else {
       // General syntax evaluation

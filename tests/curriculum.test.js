@@ -168,4 +168,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
       expect(body.score).toBe(100);
     }
   });
+
+  test("verifies web-cybersec curriculum tasks (SSRF DNS Rebind, Trusted Types CSP, Timing-Safe CSRF)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks");
+    const { tasks } = await tasksRes.json();
+    const secTasks = tasks.filter((t) => t.category === "web-cybersec");
+    expect(secTasks.length).toBeGreaterThanOrEqual(3);
+
+    for (const secTask of secTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: secTask.id,
+        code: secTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
 });

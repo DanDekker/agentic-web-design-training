@@ -526,6 +526,18 @@ const benchmarkSuite = new BenchmarkSuite();
           const hasBudget = cleanSubmitted.includes("maxBudgetBits") && cleanSubmitted.includes("farbleCanvasPixels");
           if (hasBudget) passedCriteria.push("Enforces per-origin entropy budget and deterministic canvas farbling");
           else failedCriteria.push("Missing per-origin entropy budget or deterministic pixel farbling");
+        } else if (taskId === "task_cybersec_ssrf_dns_rebind") {
+          const hasSsrf = cleanSubmitted.includes("169") && cleanSubmitted.includes("254") && cleanSubmitted.includes("pinnedIp");
+          if (hasSsrf) passedCriteria.push("Blocks private/metadata CIDRs and pins resolved IP against DNS rebinding");
+          else failedCriteria.push("Missing cloud metadata CIDR check or DNS IP pinning");
+        } else if (taskId === "task_cybersec_csp_trusted_types_dom") {
+          const hasCsp = cleanSubmitted.includes("strict-dynamic") && cleanSubmitted.includes("require-trusted-types-for") && cleanSubmitted.includes("javascript:");
+          if (hasCsp) passedCriteria.push("Sanitizes DOM XSS vectors and builds nonce-strict Trusted Types CSP");
+          else failedCriteria.push("Missing XSS attribute/URI sanitization or Trusted Types CSP directives");
+        } else if (taskId === "task_cybersec_timing_safe_webhook_csrf") {
+          const hasTiming = cleanSubmitted.includes("charCodeAt") && cleanSubmitted.includes("^") && cleanSubmitted.includes("same-origin");
+          if (hasTiming) passedCriteria.push("Uses constant-time XOR comparison, replay window, and Sec-Fetch-Site CSRF defense");
+          else failedCriteria.push("Missing constant-time comparison or Fetch-Metadata CSRF check");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");

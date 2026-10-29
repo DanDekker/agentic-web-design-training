@@ -1147,4 +1147,225 @@ export class PrivacyBudgetGuard {
       "Produces identical farbled buffers within the same origin/session while decorrelating hashes across origins",
     ],
   },
+  {
+    id: "task_cybersec_ssrf_dns_rebind",
+    title: "SSRF & DNS Rebinding Guard with IP Canonicalization & CIDR Pinning",
+    category: "web-cybersec",
+    difficulty: "advanced",
+    tags: ["web-cybersec", "ssrf", "dns-rebinding", "cidr", "cloud-metadata", "network-hardening"],
+    instructions:
+      "A webhook preview fetcher checks !url.includes('localhost') before calling fetch(url). Attackers bypass it via AWS/GCP cloud metadata (169.254.169.254), RFC 1918 private subnets, IPv6-mapped IPv4 (::ffff:127.0.0.1), or DNS rebinding (returning a public IP on the first lookup and 127.0.0.1 on the second). Implement a strict IP canonicalizer and DNS-pinned outbound request validator.",
+    starterCode: `// Vulnerable SSRF Filter (Bypassed by 169.254.169.254, RFC1918 & DNS Rebinding)
+async function fetchPreview(rawUrl) {
+  if (rawUrl.includes("localhost") || rawUrl.includes("127.0.0.1")) {
+    throw new Error("Blocked internal host");
+  }
+  return fetch(rawUrl);
+}`,
+    solutionCode: `// SSRF & DNS Rebinding Guard with CIDR Validation and IP Connection Pinning
+export function isPrivateOrReservedIp(rawIp) {
+  const ip = String(rawIp || "").trim().toLowerCase().replace(/^\\[|\\]$/g, "");
+  if (!ip) return true;
+
+  if (ip === "::1" || ip === "::" || ip.startsWith("fe80:") || ip.startsWith("fc") || ip.startsWith("fd")) {
+    return true;
+  }
+  if (ip.startsWith("::ffff:")) {
+    return isPrivateOrReservedIp(ip.slice(7));
+  }
+
+  const parts = ip.split(".");
+  if (parts.length !== 4) return true;
+  const octets = parts.map((p) => (/^\\d+$/.test(p) ? Number(p) : NaN));
+  if (octets.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return true;
+
+  const [a, b] = octets;
+  if (a === 0 || a === 10 || a === 127) return true; // 0.0.0.0/8, 10.0.0.0/8, 127.0.0.0/8
+  if (a === 169 && b === 254) return true; // 169.254.0.0/16 Cloud Metadata / Link-Local
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+  if (a === 192 && b === 168) return true; // 192.168.0.0/16
+  if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 CGNAT
+  if (a >= 224) return true; // Multicast & Reserved
+  return false;
+}
+
+export async function validateAndPinOutboundUrl(rawUrl, dnsResolve) {
+  const parsed = new URL(rawUrl);
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error("SSRFGuardError: disallowed protocol " + parsed.protocol);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("SSRFGuardError: embedded URL credentials forbidden");
+  }
+
+  const hostname = parsed.hostname;
+  const resolvedIps = await dnsResolve(hostname);
+  if (!Array.isArray(resolvedIps) || resolvedIps.length === 0) {
+    throw new Error("SSRFGuardError: DNS resolution returned no addresses");
+  }
+
+  for (const ip of resolvedIps) {
+    if (isPrivateOrReservedIp(ip)) {
+      throw new Error(\`SSRFGuardError: resolved IP \${ip} is in a private or reserved range\`);
+    }
+  }
+
+  const pinnedIp = resolvedIps[0];
+  const pinnedUrl = new URL(parsed.toString());
+  pinnedUrl.hostname = pinnedIp;
+
+  return {
+    pinnedUrl: pinnedUrl.toString(),
+    pinnedIp,
+    headers: { Host: parsed.host },
+    redirect: "manual",
+  };
+}`,
+    criteria: [
+      "Blocks loopback (127.0.0.0/8, ::1), RFC 1918 private ranges, CGNAT, and cloud metadata (169.254.169.254)",
+      "Unwraps IPv4-mapped IPv6 addresses (::ffff:127.0.0.1) and rejects non-HTTP(S) schemes",
+      "Resolves DNS once and pins the validated IP address with redirect: 'manual' to prevent DNS rebinding TOCTOU",
+    ],
+  },
+  {
+    id: "task_cybersec_csp_trusted_types_dom",
+    title: "DOM XSS Sanitizer with Trusted Types Policy & Nonce-Strict CSP Builder",
+    category: "web-cybersec",
+    difficulty: "advanced",
+    tags: ["web-cybersec", "xss", "trusted-types", "csp", "sanitizer", "dom-security"],
+    instructions:
+      "A rich-text comment renderer strips '<script>' with a trivial regex and serves 'unsafe-inline' in Content-Security-Policy, leaving the app wide open to <img src=x onerror=alert(1)>, <svg onload=...>, and obfuscated javascript: URIs. Implement a structural HTML sanitizer paired with a W3C Trusted Types policy and a strict cryptographic nonce CSP builder.",
+    starterCode: `// Vulnerable Regex Strip & Permissive CSP (Trivially Bypassed via onerror / javascript:)
+function renderComment(dirtyHtml) {
+  const cleaned = dirtyHtml.replace(/<script>/gi, "").replace(/<\\/script>/gi, "");
+  const csp = "default-src * 'unsafe-inline' 'unsafe-eval'";
+  return { html: cleaned, csp };
+}`,
+    solutionCode: `// Structural XSS Sanitizer + Trusted Types Policy + Strict Nonce CSP
+const FORBIDDEN_TAGS_RE = /<\\/?(?:script|iframe|object|embed|svg|math|style|base|form|meta|link)\\b[^>]*>/gi;
+const EVENT_ATTR_RE = /\\s+on[a-z0-9_-]+\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+)/gi;
+const DANGEROUS_URI_ATTR_RE = /\\s+(?:href|src|xlink:href|action|formaction)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/gi;
+
+export function sanitizeHtmlFragment(dirtyHtml) {
+  let html = String(dirtyHtml ?? "");
+  html = html.replace(/<!--[\\s\\S]*?-->/g, "");
+  html = html.replace(FORBIDDEN_TAGS_RE, "");
+  html = html.replace(EVENT_ATTR_RE, "");
+  html = html.replace(DANGEROUS_URI_ATTR_RE, (fullMatch, dQuote, sQuote, unquoted) => {
+    const rawVal = dQuote ?? sQuote ?? unquoted ?? "";
+    const normalized = rawVal
+      .replace(/&#x([0-9a-f]+);?/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/&#(\\d+);?/g, (_, dec) => String.fromCharCode( parseInt(dec, 10)))
+      .replace(/[\\x00-\\x20]+/g, "")
+      .toLowerCase();
+    if (
+      normalized.startsWith("javascript:") ||
+      normalized.startsWith("vbscript:") ||
+      normalized.startsWith("data:")
+    ) {
+      return ' href="#"';
+    }
+    return fullMatch;
+  });
+  return html;
+}
+
+export function buildStrictCspHeader(nonce) {
+  if (!nonce || typeof nonce !== "string" || nonce.length < 12) {
+    throw new Error("CSP nonce must be at least 12 characters of cryptographic entropy");
+  }
+  return [
+    "default-src 'none'",
+    \`script-src 'nonce-\${nonce}' 'strict-dynamic'\`,
+    "style-src 'self'",
+    "img-src 'self' https:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+    "require-trusted-types-for 'script'",
+  ].join("; ");
+}`,
+    criteria: [
+      "Strips dangerous container/execution tags (script, iframe, object, embed, svg, style, base, form)",
+      "Removes inline on* event handlers and neutralizes entity/control-char obfuscated javascript:/data: URIs",
+      "Generates a strict nonce-based CSP with strict-dynamic, object-src 'none', base-uri 'none', and Trusted Types enforcement",
+    ],
+  },
+  {
+    id: "task_cybersec_timing_safe_webhook_csrf",
+    title: "Constant-Time HMAC Webhook & Fetch-Metadata CSRF Defense-in-Depth",
+    category: "web-cybersec",
+    difficulty: "intermediate",
+    tags: ["web-cybersec", "timing-attack", "hmac", "csrf", "sec-fetch-site", "replay-protection"],
+    instructions:
+      "A payment webhook and state-mutation endpoint compares HMAC signatures using '===' (leaking signature bytes via timing side-channels), ignores timestamp replay windows, and lacks Fetch Metadata (Sec-Fetch-Site) and double-submit CSRF checks. Implement constant-time byte comparison, replay window + nonce deduplication, and Fetch-Metadata CSRF validation.",
+    starterCode: `// Vulnerable Timing-Leaky Signature Check & Missing CSRF / Replay Defense
+function verifyIncomingMutation(req) {
+  if (req.signature !== req.expectedSignature) {
+    return { allowed: false, reason: "bad_signature" };
+  }
+  return { allowed: true };
+}`,
+    solutionCode: `// Constant-Time Byte Comparator + Replay Window Guard + Fetch-Metadata CSRF Verifier
+export function constantTimeEqual(a, b) {
+  const strA = String(a ?? "");
+  const strB = String(b ?? "");
+  if (strA.length === 0 || strA.length !== strB.length) return false;
+  let diff = 0;
+  for (let i = 0; i < strA.length; i++) {
+    diff |= strA.charCodeAt(i) ^ strB.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+export function verifyWebhookAndCsrf({
+  signature,
+  expectedSignature,
+  timestampSec,
+  nowSec = Math.floor(Date.now() / 1000),
+  toleranceSec = 300,
+  nonce,
+  seenNonces,
+  secFetchSite,
+  origin,
+  expectedOrigin,
+  csrfCookie,
+  csrfHeader,
+}) {
+  if (!constantTimeEqual(signature, expectedSignature)) {
+    return { allowed: false, reason: "invalid_signature" };
+  }
+
+  if (typeof timestampSec !== "number" || Math.abs(nowSec - timestampSec) > toleranceSec) {
+    return { allowed: false, reason: "timestamp_out_of_window" };
+  }
+
+  if (!nonce || seenNonces.has(nonce)) {
+    return { allowed: false, reason: "replayed_nonce" };
+  }
+
+  if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
+    return { allowed: false, reason: "cross_site_fetch_blocked" };
+  }
+
+  if (expectedOrigin && origin !== expectedOrigin) {
+    return { allowed: false, reason: "origin_mismatch" };
+  }
+
+  if (csrfCookie !== undefined || csrfHeader !== undefined) {
+    if (!constantTimeEqual(csrfCookie, csrfHeader)) {
+      return { allowed: false, reason: "csrf_token_mismatch" };
+    }
+  }
+
+  seenNonces.add(nonce);
+  return { allowed: true, reason: "verified" };
+}`,
+    criteria: [
+      "Compares secrets in constant time using a bitwise XOR accumulator without early return on mismatch",
+      "Enforces a bounded timestamp replay tolerance window and tracks consumed nonces",
+      "Validates Sec-Fetch-Site, Origin header, and double-submit CSRF tokens",
+    ],
+  },
 ];
