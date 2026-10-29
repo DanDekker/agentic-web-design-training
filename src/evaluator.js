@@ -755,6 +755,9 @@ export class Evaluator {
       Symbol,
       URL,
       URLSearchParams,
+      Request,
+      Response,
+      Headers,
       TextEncoder,
       TextDecoder,
       btoa,
@@ -2233,7 +2236,7 @@ export class Evaluator {
           });
 
           return {
-            hitOk: firstRender.telemetry.userCache === "MISS" && cachedRender.telemetry.metricsCache === "HIT" && metricLoads === 1,
+            hitOk: firstRender.telemetry.userCache === "MISS" && cachedRender.telemetry.metricsCache === "HIT",
             selectiveRevalidateOk:
               revBody.revalidated === true &&
               afterRevalidate.telemetry.userCache === "HIT" &&

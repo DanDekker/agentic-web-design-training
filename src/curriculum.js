@@ -3767,10 +3767,10 @@ export async function renderDashboardRSC<TUser, TMetrics>(opts: {
 }) {
   // Parallel initiation eliminates sequential getServerSideProps waterfall
   const [userEnvelope, metricsEnvelope] = await Promise.all([
-    opts.cache.fetchWithTags(\`user:\${opts.userId}\`, ["users", \`user:\${opts.userId}\`], () =>
+    opts.cache.fetchWithTags("user:" + opts.userId, ["users", "user:" + opts.userId], () =>
       opts.loadUser(opts.userId),
     ),
-    opts.cache.fetchWithTags(\`metrics:\${opts.userId}\`, ["metrics", \`user:\${opts.userId}\`], () =>
+    opts.cache.fetchWithTags("metrics:" + opts.userId, ["metrics", "user:" + opts.userId], () =>
       opts.loadMetrics(opts.userId),
     ),
   ]);
