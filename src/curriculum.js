@@ -4547,6 +4547,470 @@ export function buildResponsiveMediaMarkup(spec: ResponsiveImageSpec): {
       "Prevents Cumulative Layout Shift (CLS) by setting explicit integer width and height attributes on <source> and <img>",
     ],
   },
+
+  /* ── 12. Technical SEO, Schema.org, JSON-LD @graph & Structured Data Engineering ── */
+  {
+    id: "task_seo_jsonld_knowledge_graph_builder",
+    title: "Architect Connected Schema.org JSON-LD @graph Generator with Stable @id Entity Linking & XSS-Safe Script Serialization",
+    category: "seo-structured-data",
+    difficulty: "advanced",
+    tags: ["seo", "json-ld", "schema-org", "structured-data", "knowledge-graph", "xss-prevention"],
+    instructions:
+      "A publishing platform embeds four disconnected <script type=\"application/ld+json\"> blocks with unescaped raw JSON.stringify(article), allowing a title containing '</script><script>alert(1)</script>' to execute arbitrary XSS and preventing search engines from linking the Organization, WebSite, WebPage, TechArticle, and BreadcrumbList entities. Refactor to a unified Schema.org @graph builder with canonical @id URI references (#organization, #website, #webpage, #article, #breadcrumb) and XSS-safe script tag serialization.",
+    starterCode: `// Disconnected Unescaped JSON-LD Vulnerable to </script> Breakout XSS
+export function renderArticleJsonLd(article: any) {
+  const payload = {
+    "@context": "http://schema.org",
+    "@type": "Article",
+    headline: article.title
+  };
+  // Vulnerable to </script> injection when article.title contains "</script>"!
+  return \`<script type="application/ld+json">\${JSON.stringify(payload)}</script>\`;
+}`,
+    solutionCode: `// Connected Schema.org JSON-LD @graph Builder with @id Entity Graph & XSS-Safe Serialization
+export interface ArticleGraphInput {
+  readonly canonicalUrl: string;
+  readonly siteOrigin: string;
+  readonly siteName: string;
+  readonly orgName: string;
+  readonly logoUrl: string;
+  readonly headline: string;
+  readonly description: string;
+  readonly datePublishedIso: string;
+  readonly dateModifiedIso: string;
+  readonly authorName: string;
+  readonly breadcrumbs: readonly { readonly name: string; readonly path: string }[];
+}
+
+export function safeSerializeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, "\\\\u003c")
+    .replace(/>/g, "\\\\u003e")
+    .replace(/&/g, "\\\\u0026")
+    .replace(/\\u2028/g, "\\\\u2028")
+    .replace(/\\u2029/g, "\\\\u2029");
+}
+
+export function buildArticleKnowledgeGraphJsonLd(input: ArticleGraphInput) {
+  const origin = input.siteOrigin.replace(/\\/+$/, "");
+  const orgId = \`\${origin}/#organization\`;
+  const websiteId = \`\${origin}/#website\`;
+  const webpageId = \`\${input.canonicalUrl}#webpage\`;
+  const breadcrumbId = \`\${input.canonicalUrl}#breadcrumb\`;
+  const articleId = \`\${input.canonicalUrl}#article\`;
+
+  const graph = [
+    {
+      "@type": "Organization",
+      "@id": orgId,
+      name: input.orgName,
+      url: origin,
+      logo: {
+        "@type": "ImageObject",
+        url: input.logoUrl,
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": websiteId,
+      url: origin,
+      name: input.siteName,
+      publisher: { "@id": orgId },
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": breadcrumbId,
+      itemListElement: input.breadcrumbs.map((crumb, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: crumb.name,
+        item: \`\${origin}\${crumb.path.startsWith("/") ? crumb.path : "/" + crumb.path}\`,
+      })),
+    },
+    {
+      "@type": "WebPage",
+      "@id": webpageId,
+      url: input.canonicalUrl,
+      name: input.headline,
+      description: input.description,
+      isPartOf: { "@id": websiteId },
+      breadcrumb: { "@id": breadcrumbId },
+      mainEntity: { "@id": articleId },
+    },
+    {
+      "@type": "TechArticle",
+      "@id": articleId,
+      headline: input.headline,
+      description: input.description,
+      datePublished: input.datePublishedIso,
+      dateModified: input.dateModifiedIso,
+      author: {
+        "@type": "Person",
+        name: input.authorName,
+      },
+      publisher: { "@id": orgId },
+      mainEntityOfPage: { "@id": webpageId },
+    },
+  ];
+
+  const payload = {
+    "@context": "https://schema.org",
+    "@graph": graph,
+  };
+
+  const serialized = safeSerializeJsonLd(payload);
+  return {
+    payload,
+    scriptHtml: \`<script type="application/ld+json">\${serialized}</script>\`,
+  };
+}`,
+    criteria: [
+      "Emits a single @context: \"https://schema.org\" document containing a connected @graph array",
+      "Cross-links Organization, WebSite, BreadcrumbList, WebPage, and TechArticle nodes via stable @id URIs",
+      "Neutralizes </script> breakout XSS by unicode-escaping <, >, and & in JSON-LD script output",
+    ],
+  },
+  {
+    id: "task_seo_ecommerce_product_merchant_schema",
+    title: "Build Rich-Result Schema.org Product, Offer, MerchantReturnPolicy, ShippingDetails & AggregateRating Validator",
+    category: "seo-structured-data",
+    difficulty: "advanced",
+    tags: ["seo", "schema-org", "json-ld", "product-schema", "merchant-listings", "rich-results"],
+    instructions:
+      "An e-commerce catalog emits incomplete Schema.org Product markup with plain-text availability ('InStock' instead of 'https://schema.org/InStock'), negative or unformatted prices, out-of-bounds AggregateRating scores, and missing MerchantReturnPolicy / OfferShippingDetails required for Google Merchant Center rich snippets. Build a strict TypeScript Product Schema.org builder and rich-result validator.",
+    starterCode: `// Invalid Product JSON-LD Rejected by Rich Result Validators
+export function buildProductSchema(p: any) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.name,
+    offers: { price: p.price, availability: "InStock" }
+  };
+}`,
+    solutionCode: `// Rich-Result Schema.org Product, Offer, MerchantReturnPolicy & AggregateRating Builder
+export interface MerchantProductSpec {
+  readonly sku: string;
+  readonly gtin13: string;
+  readonly name: string;
+  readonly description: string;
+  readonly brandName: string;
+  readonly imageUrls: readonly string[];
+  readonly price: number;
+  readonly currency: string;
+  readonly inStock: boolean;
+  readonly priceValidUntilIso: string;
+  readonly returnDays: number;
+  readonly shippingRateAmount: number;
+  readonly ratingValue: number;
+  readonly reviewCount: number;
+}
+
+export function buildVerifiedProductSchemaOrg(spec: MerchantProductSpec) {
+  const errors: string[] = [];
+
+  if (!/^\\d{13}$/.test(spec.gtin13)) {
+    errors.push("gtin13 must be a 13-digit numeric identifier");
+  }
+  if (!/^[A-Z]{3}$/.test(spec.currency)) {
+    errors.push("priceCurrency must be a 3-letter ISO 4217 code");
+  }
+  if (!(spec.price > 0) || !Number.isFinite(spec.price)) {
+    errors.push("price must be a positive finite number");
+  }
+  if (spec.ratingValue < 1 || spec.ratingValue > 5 || spec.reviewCount < 1) {
+    errors.push("aggregateRating requires ratingValue in [1, 5] and reviewCount >= 1");
+  }
+  if (errors.length > 0) {
+    throw new Error(\`Invalid Product Schema.org payload: \${errors.join("; ")}\`);
+  }
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    sku: spec.sku,
+    gtin13: spec.gtin13,
+    name: spec.name,
+    description: spec.description,
+    image: [...spec.imageUrls],
+    brand: {
+      "@type": "Brand",
+      name: spec.brandName,
+    },
+    offers: {
+      "@type": "Offer",
+      price: spec.price.toFixed(2),
+      priceCurrency: spec.currency,
+      priceValidUntil: spec.priceValidUntilIso,
+      itemCondition: "https://schema.org/NewCondition",
+      availability: spec.inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "US",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: spec.returnDays,
+        returnMethod: "https://schema.org/ReturnByMail",
+      },
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: {
+          "@type": "MonetaryAmount",
+          value: spec.shippingRateAmount.toFixed(2),
+          currency: spec.currency,
+        },
+        shippingDestination: {
+          "@type": "DefinedRegion",
+          addressCountry: "US",
+        },
+      },
+    },
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: Number(spec.ratingValue.toFixed(2)),
+      bestRating: 5,
+      worstRating: 1,
+      reviewCount: spec.reviewCount,
+    },
+  };
+}`,
+    criteria: [
+      "Validates GTIN-13 format, ISO-4217 priceCurrency, positive price, and AggregateRating bounds ([1, 5], reviewCount >= 1)",
+      "Uses full Schema.org enumeration URIs (https://schema.org/InStock, https://schema.org/NewCondition)",
+      "Includes nested MerchantReturnPolicy and OfferShippingDetails structured objects for merchant rich results",
+    ],
+  },
+  {
+    id: "task_seo_canonical_hreflang_opengraph_head",
+    title: "Implement Technical SEO <head> Compiler with Canonical URL Normalization, Bidirectional hreflang Matrix & OpenGraph",
+    category: "seo-structured-data",
+    difficulty: "advanced",
+    tags: ["seo", "canonical-url", "hreflang", "opengraph", "robots-meta", "international-seo"],
+    instructions:
+      "An international web platform indexes duplicate URLs polluted with ?utm_source=..., fbclid, and mixed-case paths, forgets the x-default alternate link in its hreflang cluster, and leaves og:title / meta description unescaped. Build a Technical SEO <head> compiler that strips tracking query parameters, normalizes canonical HTTPS URLs, generates a complete hreflang alternate cluster with x-default, and emits robots + OpenGraph + Twitter Card metadata.",
+    starterCode: `// Unnormalized Duplicate-Content <head> Missing Canonical Sanitization & hreflang x-default
+export function renderSeoHead(rawUrl: string, title: string) {
+  return \`<title>\${title}</title><link rel="canonical" href="\${rawUrl}">\`;
+}`,
+    solutionCode: `// Technical SEO <head> Compiler: Canonical Normalization, hreflang Cluster, Robots & OpenGraph
+export interface SeoHeadInput {
+  readonly rawUrl: string;
+  readonly title: string;
+  readonly description: string;
+  readonly ogImageUrl: string;
+  readonly localeAlternates: Readonly<Record<string, string>>;
+  readonly defaultLocale: string;
+  readonly noIndex?: boolean;
+}
+
+const TRACKING_PARAMS = new Set([
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "fbclid",
+  "gclid",
+  "msclkid",
+  "_ga",
+]);
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+export function normalizeCanonicalUrl(rawUrl: string): string {
+  const parsed = new URL(rawUrl);
+  parsed.protocol = "https:";
+  parsed.hostname = parsed.hostname.toLowerCase();
+  parsed.hash = "";
+
+  // Strip marketing/tracking params and sort remaining query keys deterministically
+  const cleanEntries: [string, string][] = [];
+  for (const [k, v] of parsed.searchParams.entries()) {
+    if (!TRACKING_PARAMS.has(k.toLowerCase())) {
+      cleanEntries.push([k, v]);
+    }
+  }
+  cleanEntries.sort(([a], [b]) => a.localeCompare(b));
+  parsed.search = "";
+  for (const [k, v] of cleanEntries) {
+    parsed.searchParams.append(k, v);
+  }
+
+  if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
+    parsed.pathname = parsed.pathname.replace(/\\/+$/, "");
+  }
+  return parsed.toString();
+}
+
+export function compileTechnicalSeoHead(input: SeoHeadInput): {
+  readonly canonicalUrl: string;
+  readonly robotsDirective: string;
+  readonly headHtml: string;
+} {
+  const canonicalUrl = normalizeCanonicalUrl(input.rawUrl);
+  const robotsDirective = input.noIndex
+    ? "noindex, nofollow"
+    : "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";
+
+  const hreflangTags: string[] = [];
+  for (const [lang, altUrl] of Object.entries(input.localeAlternates)) {
+    const cleanAlt = normalizeCanonicalUrl(altUrl);
+    hreflangTags.push(
+      \`<link rel="alternate" hreflang="\${escapeHtmlAttr(lang.toLowerCase())}" href="\${escapeHtmlAttr(cleanAlt)}" />\`,
+    );
+  }
+
+  const xDefaultTarget =
+    input.localeAlternates[input.defaultLocale] ?? canonicalUrl;
+  hreflangTags.push(
+    \`<link rel="alternate" hreflang="x-default" href="\${escapeHtmlAttr(normalizeCanonicalUrl(xDefaultTarget))}" />\`,
+  );
+
+  const lines = [
+    \`<title>\${escapeHtmlAttr(input.title)}</title>\`,
+    \`<meta name="description" content="\${escapeHtmlAttr(input.description)}" />\`,
+    \`<meta name="robots" content="\${robotsDirective}" />\`,
+    \`<link rel="canonical" href="\${escapeHtmlAttr(canonicalUrl)}" />\`,
+    ...hreflangTags,
+    \`<meta property="og:type" content="website" />\`,
+    \`<meta property="og:title" content="\${escapeHtmlAttr(input.title)}" />\`,
+    \`<meta property="og:description" content="\${escapeHtmlAttr(input.description)}" />\`,
+    \`<meta property="og:url" content="\${escapeHtmlAttr(canonicalUrl)}" />\`,
+    \`<meta property="og:image" content="\${escapeHtmlAttr(input.ogImageUrl)}" />\`,
+    \`<meta name="twitter:card" content="summary_large_image" />\`,
+  ];
+
+  return {
+    canonicalUrl,
+    robotsDirective,
+    headHtml: lines.join("\\n"),
+  };
+}`,
+    criteria: [
+      "Strips utm_*, fbclid, and gclid tracking parameters and normalizes HTTPS canonical URLs",
+      "Emits localized <link rel=\"alternate\" hreflang=\"...\"> tags alongside a mandatory hreflang=\"x-default\" fallback",
+      "Generates robots directives (max-snippet:-1, max-image-preview:large) and escaped OpenGraph / Twitter Card meta tags",
+    ],
+  },
+  {
+    id: "task_seo_semantic_microdata_landmarks_audit",
+    title: "Build Automated HTML5 Landmark Hierarchy, Heading Outline & Schema.org Microdata (itemscope/itemtype/itemprop) SEO Linter",
+    category: "seo-structured-data",
+    difficulty: "intermediate",
+    tags: ["html", "seo", "microdata", "schema-org", "heading-hierarchy", "landmarks"],
+    instructions:
+      "Content pages routinely ship with multiple <h1> tags, skipped heading levels (<h1> directly to <h4>), missing <main> landmarks, and broken Schema.org Microdata (itemprop attributes outside an itemscope/itemtype=\"https://schema.org/...\" container). Build a deterministic HTML5 & Microdata SEO linter that parses document structure and reports exact conformance violations.",
+    starterCode: `// No-Op HTML SEO Linter
+export function lintHtmlSeoSemantics(html: string) {
+  return { valid: true, violations: [] };
+}`,
+    solutionCode: `// Automated HTML5 Landmark, Heading Hierarchy & Schema.org Microdata SEO Linter
+export type SeoViolationCode =
+  | "MISSING_OR_MULTIPLE_H1"
+  | "SKIPPED_HEADING_LEVEL"
+  | "MISSING_MAIN_LANDMARK"
+  | "UNSCOPED_OR_HTTP_MICRODATA_TYPE"
+  | "INVALID_TIME_DATETIME";
+
+export interface SeoAuditReport {
+  readonly valid: boolean;
+  readonly h1Count: number;
+  readonly headingLevels: readonly number[];
+  readonly microdataTypes: readonly string[];
+  readonly violations: readonly { readonly code: SeoViolationCode; readonly detail: string }[];
+}
+
+export function auditHtmlSemanticSeo(html: string): SeoAuditReport {
+  const violations: { code: SeoViolationCode; detail: string }[] = [];
+
+  // 1. Heading outline extraction & hierarchy check
+  const headingRegex = /<h([1-6])\\b[^>]*>/gi;
+  const headingLevels: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = headingRegex.exec(html)) !== null) {
+    headingLevels.push(Number(match[1]));
+  }
+
+  const h1Count = headingLevels.filter((lvl) => lvl === 1).length;
+  if (h1Count !== 1) {
+    violations.push({
+      code: "MISSING_OR_MULTIPLE_H1",
+      detail: \`Document must contain exactly 1 <h1> element (found \${h1Count})\`,
+    });
+  }
+
+  for (let i = 1; i < headingLevels.length; i++) {
+    const prev = headingLevels[i - 1];
+    const curr = headingLevels[i];
+    if (curr > prev + 1) {
+      violations.push({
+        code: "SKIPPED_HEADING_LEVEL",
+        detail: \`Skipped heading level from <h\${prev}> to <h\${curr}>\`,
+      });
+    }
+  }
+
+  // 2. <main> landmark check
+  if (!/<main\\b[^>]*>[\\s\\S]*<\\/main>/i.test(html)) {
+    violations.push({
+      code: "MISSING_MAIN_LANDMARK",
+      detail: "Document is missing a primary <main> landmark element",
+    });
+  }
+
+  // 3. Schema.org Microdata (itemscope + https://schema.org/* itemtype) check
+  const microdataTypes: string[] = [];
+  const itemTypeRegex = /itemtype=["']([^"']+)["']/gi;
+  while ((match = itemTypeRegex.exec(html)) !== null) {
+    microdataTypes.push(match[1]);
+    if (!match[1].startsWith("https://schema.org/")) {
+      violations.push({
+        code: "UNSCOPED_OR_HTTP_MICRODATA_TYPE",
+        detail: \`Microdata itemtype '\${match[1]}' must use https://schema.org/ namespace\`,
+      });
+    }
+  }
+
+  if (/\\bitemprop=["'][^"']+["']/i.test(html) && !/\\bitemscope\\b/i.test(html)) {
+    violations.push({
+      code: "UNSCOPED_OR_HTTP_MICRODATA_TYPE",
+      detail: "Found itemprop attribute without an enclosing itemscope container",
+    });
+  }
+
+  // 4. <time datetime="..."> machine-readable ISO check
+  const timeRegex = /<time\\b([^>]*)>/gi;
+  while ((match = timeRegex.exec(html)) !== null) {
+    const attrs = match[1];
+    const dtMatch = attrs.match(/datetime=["']([^"']+)["']/i);
+    if (!dtMatch || !/^\\d{4}-\\d{2}-\\d{2}/.test(dtMatch[1])) {
+      violations.push({
+        code: "INVALID_TIME_DATETIME",
+        detail: "<time> element is missing a valid ISO-8601 datetime attribute",
+      });
+    }
+  }
+
+  return {
+    valid: violations.length === 0,
+    h1Count,
+    headingLevels,
+    microdataTypes,
+    violations,
+  };
+}`,
+    criteria: [
+      "Verifies exactly one <h1> element and flags skipped heading levels (e.g., <h1> jumping directly to <h4>)",
+      "Validates presence of a <main> landmark and machine-readable ISO-8601 <time datetime=\"...\"> attributes",
+      "Enforces valid Schema.org Microdata scoping (itemscope with https://schema.org/* itemtype for itemprop nodes)",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

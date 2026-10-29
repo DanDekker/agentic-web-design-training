@@ -807,6 +807,73 @@ export class Evaluator {
           code.includes('loading="eager"'),
         detail: "Prioritizes above-the-fold LCP media with fetchpriority=high, eager loading, and preload hint",
       });
+    } else if (id === "task_seo_jsonld_knowledge_graph_builder") {
+      results.push({
+        name: "Connected Schema.org @graph & @id Entity References",
+        passed:
+          code.includes("https://schema.org") &&
+          code.includes('"@graph"') &&
+          code.includes("#organization") &&
+          code.includes("#website") &&
+          code.includes("BreadcrumbList"),
+        detail: "Emits https://schema.org @graph linking Organization, WebSite, BreadcrumbList, WebPage, and TechArticle via @id",
+      });
+      results.push({
+        name: "XSS-Safe JSON-LD Script Serialization",
+        passed: code.includes("u003c") && code.includes("application/ld+json"),
+        detail: "Escapes <, >, and & in JSON-LD script blocks to prevent </script> breakout XSS",
+      });
+    } else if (id === "task_seo_ecommerce_product_merchant_schema") {
+      results.push({
+        name: "Rich-Result Product, MerchantReturnPolicy & OfferShippingDetails",
+        passed:
+          code.includes("https://schema.org/InStock") &&
+          code.includes("MerchantReturnPolicy") &&
+          code.includes("OfferShippingDetails"),
+        detail: "Includes full Schema.org availability URIs, MerchantReturnPolicy, and OfferShippingDetails",
+      });
+      results.push({
+        name: "GTIN-13, ISO-4217 Currency & AggregateRating Bounds Validation",
+        passed:
+          code.includes("gtin13") &&
+          code.includes("AggregateRating") &&
+          code.includes("reviewCount"),
+        detail: "Validates 13-digit GTIN, currency code, and ratingValue/reviewCount boundaries",
+      });
+    } else if (id === "task_seo_canonical_hreflang_opengraph_head") {
+      results.push({
+        name: "Canonical URL Tracking Parameter Sanitization",
+        passed:
+          code.includes("utm_source") &&
+          code.includes("fbclid") &&
+          code.includes('rel="canonical"'),
+        detail: "Strips utm_*, fbclid, and gclid parameters and normalizes HTTPS canonical URLs",
+      });
+      results.push({
+        name: "Reciprocal hreflang Cluster (x-default), Robots & OpenGraph",
+        passed:
+          code.includes('hreflang="x-default"') &&
+          code.includes("max-image-preview:large") &&
+          code.includes('property="og:title"'),
+        detail: "Emits localized hreflang alternates with x-default, robots directives, and OpenGraph tags",
+      });
+    } else if (id === "task_seo_semantic_microdata_landmarks_audit") {
+      results.push({
+        name: "Heading Outline Hierarchy & <main> Landmark Auditor",
+        passed:
+          code.includes("SKIPPED_HEADING_LEVEL") &&
+          code.includes("MISSING_OR_MULTIPLE_H1") &&
+          code.includes("MISSING_MAIN_LANDMARK"),
+        detail: "Audits single <h1>, sequential heading hierarchy, and <main> landmark presence",
+      });
+      results.push({
+        name: "Schema.org Microdata (itemscope/itemtype/itemprop) & <time datetime> Linter",
+        passed:
+          code.includes("https://schema.org/") &&
+          code.includes("itemscope") &&
+          code.includes("INVALID_TIME_DATETIME"),
+        detail: "Verifies https://schema.org/ Microdata scoping and machine-readable ISO <time datetime>",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -2740,6 +2807,209 @@ export class Evaluator {
         name: "LCP Priority, Preload Hint & Zero-CLS Responsive <picture>",
         passed: Boolean(res?.heroPriorityOk && res?.belowFoldLazyOk && res?.clsGuardedOk),
         detail: "Sets eager+fetchpriority=high+preload for LCP images, lazy for below-the-fold, and explicit dimensions",
+      });
+    } else if (taskId === "task_seo_jsonld_knowledge_graph_builder") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const buildGraph = typeof buildArticleKnowledgeGraphJsonLd === "function"
+            ? buildArticleKnowledgeGraphJsonLd
+            : exports.buildArticleKnowledgeGraphJsonLd;
+
+          const out = buildGraph({
+            canonicalUrl: "https://loom.dev/guides/json-ld",
+            siteOrigin: "https://loom.dev/",
+            siteName: "Loom Engineering",
+            orgName: "Loom Labs",
+            logoUrl: "https://loom.dev/logo.png",
+            headline: "Attack </script><script>alert(1)</script>",
+            description: "Connected Schema.org Graph",
+            datePublishedIso: "2026-10-29T00:00:00Z",
+            dateModifiedIso: "2026-10-29T06:00:00Z",
+            authorName: "pp",
+            breadcrumbs: [
+              { name: "Home", path: "/" },
+              { name: "Guides", path: "/guides" },
+            ],
+          });
+
+          const nodes = out.payload["@graph"];
+          const articleNode = nodes.find((n) => n["@type"] === "TechArticle");
+          const pageNode = nodes.find((n) => n["@type"] === "WebPage");
+
+          return {
+            graphLinkedOk:
+              out.payload["@context"] === "https://schema.org" &&
+              nodes.length === 5 &&
+              articleNode?.publisher?.["@id"] === "https://loom.dev/#organization" &&
+              pageNode?.breadcrumb?.["@id"] === "https://loom.dev/guides/json-ld#breadcrumb",
+            xssNeutralizedOk:
+              !out.scriptHtml.includes("</script><script>") &&
+              out.scriptHtml.includes("\\\\u003c/script\\\\u003e"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Connected JSON-LD @graph Entity Linking & XSS-Safe Serialization",
+        passed: Boolean(res?.graphLinkedOk && res?.xssNeutralizedOk),
+        detail: "Links 5 Schema.org @graph entities via @id URIs and neutralizes </script> breakout payloads",
+      });
+    } else if (taskId === "task_seo_ecommerce_product_merchant_schema") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const buildProd = typeof buildVerifiedProductSchemaOrg === "function"
+            ? buildVerifiedProductSchemaOrg
+            : exports.buildVerifiedProductSchemaOrg;
+
+          const valid = buildProd({
+            sku: "LOOM-ENT-01",
+            gtin13: "0012345678905",
+            name: "Loom Enterprise Workstation",
+            description: "Monochrome hardware kit",
+            brandName: "Loom",
+            imageUrls: ["https://loom.dev/img/hw.avif"],
+            price: 1299.5,
+            currency: "USD",
+            inStock: true,
+            priceValidUntilIso: "2027-12-31",
+            returnDays: 30,
+            shippingRateAmount: 0,
+            ratingValue: 4.9,
+            reviewCount: 128,
+          });
+
+          let invalidRejected = false;
+          try {
+            buildProd({
+              sku: "BAD",
+              gtin13: "123", // invalid GTIN-13
+              name: "Bad",
+              description: "Bad",
+              brandName: "Loom",
+              imageUrls: [],
+              price: -5,
+              currency: "usd",
+              inStock: true,
+              priceValidUntilIso: "2027-01-01",
+              returnDays: 30,
+              shippingRateAmount: 0,
+              ratingValue: 6.5, // out of bounds
+              reviewCount: 0,
+            });
+          } catch {
+            invalidRejected = true;
+          }
+
+          return {
+            merchantRichResultOk:
+              valid.offers.availability === "https://schema.org/InStock" &&
+              valid.offers.price === "1299.50" &&
+              valid.offers.hasMerchantReturnPolicy.merchantReturnDays === 30 &&
+              valid.aggregateRating.reviewCount === 128,
+            invalidRejected,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Merchant Center Product Schema & Boundary Validation",
+        passed: Boolean(res?.merchantRichResultOk && res?.invalidRejected),
+        detail: "Emits compliant Product/Offer/MerchantReturnPolicy/AggregateRating schema and rejects invalid GTIN/ratings",
+      });
+    } else if (taskId === "task_seo_canonical_hreflang_opengraph_head") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const compileHead = typeof compileTechnicalSeoHead === "function"
+            ? compileTechnicalSeoHead
+            : exports.compileTechnicalSeoHead;
+
+          const res = compileHead({
+            rawUrl: "http://LOOM.dev/docs/guide/?utm_source=newsletter&b=2&fbclid=xyz123&a=1#section",
+            title: "Loom SEO & <Graph> Guide",
+            description: "Technical SEO canonicalization",
+            ogImageUrl: "https://loom.dev/og.png",
+            localeAlternates: {
+              "en-US": "https://loom.dev/docs/guide?b=2&a=1&utm_medium=social",
+              "de-DE": "https://loom.dev/de/docs/guide/?b=2&a=1",
+            },
+            defaultLocale: "en-US",
+            noIndex: false,
+          });
+
+          return {
+            canonicalNormalizedOk: res.canonicalUrl === "https://loom.dev/docs/guide?a=1&b=2",
+            hreflangClusterOk:
+              res.headHtml.includes('hreflang="en-us" href="https://loom.dev/docs/guide?a=1&amp;b=2"') &&
+              res.headHtml.includes('hreflang="de-de" href="https://loom.dev/de/docs/guide?a=1&amp;b=2"') &&
+              res.headHtml.includes('hreflang="x-default"'),
+            metaEscapedOk:
+              res.headHtml.includes("Loom SEO &amp; &lt;Graph&gt; Guide") &&
+              res.headHtml.includes("max-image-preview:large"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Canonical URL Sanitization, hreflang x-default & OpenGraph Compilation",
+        passed: Boolean(res?.canonicalNormalizedOk && res?.hreflangClusterOk && res?.metaEscapedOk),
+        detail: "Strips utm/fbclid params, sorts query params, emits hreflang + x-default, and escapes OpenGraph tags",
+      });
+    } else if (taskId === "task_seo_semantic_microdata_landmarks_audit") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const audit = typeof auditHtmlSemanticSeo === "function"
+            ? auditHtmlSemanticSeo
+            : exports.auditHtmlSemanticSeo;
+
+          const validHtml = \`
+            <main>
+              <article itemscope itemtype="https://schema.org/TechArticle">
+                <h1 itemprop="headline">Architecture Overview</h1>
+                <time datetime="2026-10-29">Oct 29, 2026</time>
+                <h2>Section 1</h2>
+                <h3>Subsection 1.1</h3>
+              </article>
+            </main>
+          \`;
+
+          const brokenHtml = \`
+            <div>
+              <h1>First Title</h1>
+              <h1>Duplicate H1</h1>
+              <h4>Skipped H2 and H3</h4>
+              <time datetime="Oct 29">Invalid ISO</time>
+              <span itemprop="name">Unscoped Microdata</span>
+            </div>
+          \`;
+
+          const goodReport = audit(validHtml);
+          const badReport = audit(brokenHtml);
+          const codes = badReport.violations.map((v) => v.code);
+
+          return {
+            goodValid: goodReport.valid === true && goodReport.microdataTypes.includes("https://schema.org/TechArticle"),
+            caughtMultipleH1: codes.includes("MISSING_OR_MULTIPLE_H1"),
+            caughtSkippedHeading: codes.includes("SKIPPED_HEADING_LEVEL"),
+            caughtMissingMain: codes.includes("MISSING_MAIN_LANDMARK"),
+            caughtMicrodataAndTime: codes.includes("UNSCOPED_OR_HTTP_MICRODATA_TYPE") && codes.includes("INVALID_TIME_DATETIME"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "HTML5 Landmark, Heading Outline & Schema.org Microdata Audit",
+        passed: Boolean(
+          res?.goodValid &&
+            res?.caughtMultipleH1 &&
+            res?.caughtSkippedHeading &&
+            res?.caughtMissingMain &&
+            res?.caughtMicrodataAndTime,
+        ),
+        detail: "Validates clean HTML5/Microdata documents and catches heading skips, missing <main>, and unscoped itemprop",
       });
     } else {
       // General syntax evaluation
