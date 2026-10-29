@@ -17,8 +17,8 @@
 Requires [Bun](https://bun.sh/).
 
 ```bash
-git clone https://github.com/DanDekker/llm-webdev-gauntlet.git
-cd llm-webdev-gauntlet
+git clone https://github.com/DanDekker/webdev-gauntlet.git
+cd webdev-gauntlet
 bun run dev
 ```
 

@@ -54,7 +54,7 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(report.passed).toBe(true);
     expect(report.score).toBe(100);
     expect(report.jsonLdBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(report.jsonLdBlocks[0].codeRepository).toBe("https://github.com/DanDekker/llm-webdev-gauntlet");
+    expect(report.jsonLdBlocks[0].codeRepository).toBe("https://github.com/DanDekker/webdev-gauntlet");
     expect(indexHtml).not.toContain('href="http://localhost:3000/"');
 
     const apiAudit = await call("POST", "/api/seo/audit", { html: indexHtml });
