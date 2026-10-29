@@ -9669,6 +9669,466 @@ export function compileProprietarySurfaceElevation(params: {
       "Emits a prefers-reduced-motion accessibility fallback alongside glassmorphic backdrop-filter rules",
     ],
   },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 18: UI/UX INTERACTION CRAFT, ANCHOR POSITIONING & VIEW TRANSITIONS (ui-ux-interaction)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_ui_roving_tabindex_command_chord_ergonomics",
+    title: "Build Linear-Style Command-First Keyboard Chord Engine (G then T), Roving tabindex Composite Navigator & Focus-Trap Stack",
+    category: "ui-ux-interaction",
+    difficulty: "advanced",
+    tags: ["ui-ux", "keyboard-chords", "roving-tabindex", "focus-management", "ergonomics", "typescript"],
+    instructions:
+      "Desktop-grade proprietary web applications (Linear, Superhuman, Loom) pair two-key sequential command chords (e.g. 'g' followed by 't' within 800ms to jump to Today) with WAI-ARIA roving tabindex (where exactly one active item in a composite toolbar/list has tabindex=0 and all siblings have tabindex=-1), while suppressing shortcuts when typing in inputs or when a modal focus-trap is active. Build a CommandChordRovingNavigator.",
+    starterCode: `// Naive Global Key Listener Firing Shortcuts Inside Input Fields & Breaking Tab Order
+export function onKey(key: string) {
+  return key;
+}`,
+    solutionCode: `// Linear-Style Sequential Keyboard Chord Engine & WAI-ARIA Roving tabindex Controller
+export interface RovingItemState {
+  readonly id: string;
+  readonly disabled?: boolean;
+  readonly tabIndex: 0 | -1;
+  readonly ariaSelected: boolean;
+}
+
+export class CommandChordRovingNavigator {
+  #chords = new Map<string, string>(); // "g>t" -> "GO_TODAY"
+  #pendingPrefix: { key: string; expiresAtMs: number } | null = null;
+  #items: { id: string; disabled: boolean }[] = [];
+  #activeIndex = 0;
+
+  registerChord(firstKey: string, secondKey: string, commandId: string): void {
+    this.#chords.set(\`\${firstKey.toLowerCase()}>\${secondKey.toLowerCase()}\`, commandId);
+  }
+
+  setCompositeItems(items: readonly { readonly id: string; readonly disabled?: boolean }[]): void {
+    this.#items = items.map((i) => ({ id: i.id, disabled: Boolean(i.disabled) }));
+    const firstEnabled = this.#items.findIndex((i) => !i.disabled);
+    this.#activeIndex = firstEnabled === -1 ? 0 : firstEnabled;
+  }
+
+  handleKeyEvent(params: {
+    readonly key: string;
+    readonly nowMs: number;
+    readonly isEditableTarget?: boolean;
+    readonly chordTimeoutMs?: number;
+  }): {
+    readonly matchedCommandId: string | null;
+    readonly awaitingSecondKey: boolean;
+    readonly activeItemId: string | null;
+    readonly rovingStates: readonly RovingItemState[];
+  } {
+    if (params.isEditableTarget) {
+      this.#pendingPrefix = null;
+      return {
+        matchedCommandId: null,
+        awatingSecondKey: false,
+        awaitingSecondKey: false,
+        activeItemId: this.#items[this.#activeIndex]?.id ?? null,
+        rovingStates: this.getRovingStates(),
+      } as any;
+    }
+
+    const k = params.key;
+    const enabledCount = this.#items.filter((i) => !i.disabled).length;
+
+    // 1. Handle Roving tabindex Arrow / Home / End navigation
+    if (enabledCount > 0 && (k === "ArrowDown" || k === "ArrowRight" || k === "ArrowUp" || k === "ArrowLeft" || k === "Home" || k === "End")) {
+      this.#pendingPrefix = null;
+      if (k === "Home") {
+        this.#activeIndex = this.#items.findIndex((i) => !i.disabled);
+      } else if (k === "End") {
+        for (let i = this.#items.length - 1; i >= 0; i--) {
+          if (!this.#items[i].disabled) {
+            this.#activeIndex = i;
+            break;
+          }
+        }
+      } else {
+        const dir = k === "ArrowDown" || k === "ArrowRight" ? 1 : -1;
+        let idx = this.#activeIndex;
+        for (let step = 0; step < this.#items.length; step++) {
+          idx = (idx + dir + this.#items.length) % this.#items.length;
+          if (!this.#items[idx].disabled) {
+            this.#activeIndex = idx;
+            break;
+          }
+        }
+      }
+
+      return {
+        matchedCommandId: null,
+        awaitingSecondKey: false,
+        activeItemId: this.#items[this.#activeIndex]?.id ?? null,
+        rovingStates: this.getRovingStates(),
+      };
+    }
+
+    // 2. Handle Two-Key Sequential Chord State Machine
+    const lower = k.toLowerCase();
+    const timeout = params.chordTimeoutMs ?? 800;
+
+    if (this.#pendingPrefix && params.nowMs <= this.#pendingPrefix.expiresAtMs) {
+      const chordKey = \`\${this.#pendingPrefix.key}>\${lower}\`;
+      this.#pendingPrefix = null;
+      const cmd = this.#chords.get(chordKey) ?? null;
+      return {
+        matchedCommandId: cmd,
+        awaitingSecondKey: false,
+        activeItemId: this.#items[this.#activeIndex]?.id ?? null,
+        rovingStates: this.getRovingStates(),
+      };
+    }
+
+    const hasPrefix = Array.from(this.#chords.keys()).some((ck) => ck.startsWith(\`\${lower}>\`));
+    if (hasPrefix) {
+      this.#pendingPrefix = { key: lower, expiresAtMs: params.nowMs + timeout };
+      return {
+        matchedCommandId: null,
+        awaitingSecondKey: true,
+        activeItemId: this.#items[this.#activeIndex]?.id ?? null,
+        rovingStates: this.getRovingStates(),
+      };
+    }
+
+    this.#pendingPrefix = null;
+    return {
+      matchedCommandId: null,
+      awaitingSecondKey: false,
+      activeItemId: this.#items[this.#activeIndex]?.id ?? null,
+      rovingStates: this.getRovingStates(),
+    };
+  }
+
+  getRovingStates(): readonly RovingItemState[] {
+    return this.#items.map((item, idx) => ({
+      id: item.id,
+      disabled: item.disabled,
+      tabIndex: idx === this.#activeIndex && !item.disabled ? 0 : -1,
+      ariaSelected: idx === this.#activeIndex && !item.disabled,
+    }));
+  }
+}`,
+    criteria: [
+      "Maintains WAI-ARIA roving tabindex invariant (exactly one enabled item has tabIndex=0, all others tabIndex=-1) while skipping disabled items on Arrow wrap-around",
+      "Resolves two-key sequential command chords (e.g. 'g' -> 't') within a configurable timeout window",
+      "Suppresses chord triggers when the event originates from an editable input/textarea/contenteditable target",
+    ],
+  },
+  {
+    id: "task_ui_css_anchor_positioning_collision_flip_solver",
+    title: "Architect CSS Anchor Positioning (anchor-name, position-anchor, @position-try Fallback Flip) & Viewport Collision Solver",
+    category: "ui-ux-interaction",
+    difficulty: "advanced",
+    tags: ["ui-ux", "css-anchor-positioning", "position-try", "popover-positioning", "collision-detection", "typescript"],
+    instructions:
+      "Floating UI popovers, tooltips, and context menus traditionally required heavy JavaScript scroll listeners to stay attached to trigger buttons. Modern CSS Anchor Positioning binds floating elements declaratively via anchor-name, position-anchor, position-area, and @position-try-fallbacks (flip-block, flip-inline), while fallback engines compute exact bounding-box flips when an anchored popover overflows viewport edges. Build a CssAnchorPositioningSolver.",
+    starterCode: `// Unbounded Absolute Tooltip Overflowing Viewport Bottom/Right Edges
+export function placeTooltip(anchorRect: { bottom: number; left: number }) {
+  return { top: anchorRect.bottom, left: anchorRect.left };
+}`,
+    solutionCode: `// CSS Anchor Positioning (@position-try) Compiler & Viewport Collision Flip Solver
+export interface BoxRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export type PlacementArea = "bottom-span-right" | "top-span-right" | "bottom-span-left" | "top-span-left";
+
+export function compileCssAnchorPositioningRules(params: {
+  readonly anchorId: string;
+  readonly popoverClass: string;
+  readonly gapPx?: number;
+}): string {
+  const cleanName = \`--\${params.anchorId.replace(/[^a-zA-Z0-9_-]/g, "-")}\`;
+  const gap = params.gapPx ?? 8;
+
+  return [
+    \`[data-anchor-id="\${params.anchorId}"] { anchor-name: \${cleanName}; }\`,
+    \`.\${params.popoverClass} {\`,
+    \`  position: fixed;\`,
+    \`  position-anchor: \${cleanName};\`,
+    \`  position-area: bottom span-right;\`,
+    \`  margin-block-start: \${gap}px;\`,
+    \`  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;\`,
+    \`}\`,
+  ].join("\\n");
+}
+
+export function solveAnchoredViewportCollision(params: {
+  readonly anchorRect: BoxRect;
+  readonly floatingSize: { readonly width: number; readonly height: number };
+  readonly viewport: { readonly width: number; readonly height: number };
+  readonly offsetPx?: number;
+  readonly marginPx?: number;
+}): {
+  readonly chosenPlacement: PlacementArea;
+  readonly x: number;
+  readonly y: number;
+  readonly flippedBlock: boolean;
+  readonly flippedInline: boolean;
+} {
+  const offset = params.offsetPx ?? 8;
+  const margin = params.marginPx ?? 8;
+  const { anchorRect, floatingSize, viewport } = params;
+
+  // Candidate 1: bottom (below anchor) vs top (above anchor)
+  const bottomY = anchorRect.y + anchorRect.height + offset;
+  const topY = anchorRect.y - floatingSize.height - offset;
+
+  const overflowsBottom = bottomY + floatingSize.height > viewport.height - margin;
+  const fitsTop = topY >= margin;
+  const flippedBlock = overflowsBottom && fitsTop;
+  const rawY = flippedBlock ? topY : bottomY;
+
+  // Candidate 2: span-right (left-aligned with anchor) vs span-left (right-aligned with anchor)
+  const rightAlignedX = anchorRect.x;
+  const leftAlignedX = anchorRect.x + anchorRect.width - floatingSize.width;
+
+  const overflowsRight = rightAlignedX + floatingSize.width > viewport.width - margin;
+  const fitsLeft = leftAlignedX >= margin;
+  const flippedInline = overflowsRight && fitsLeft;
+  const rawX = flippedInline ? leftAlignedX : rightAlignedX;
+
+  const clampedX = Math.max(margin, Math.min(rawX, viewport.width - floatingSize.width - margin));
+  const clampedY = Math.max(margin, Math.min(rawY, viewport.height - floatingSize.height - margin));
+
+  const chosenPlacement: PlacementArea = flippedBlock
+    ? flippedInline
+      ? "top-span-left"
+      : "top-span-right"
+    : flippedInline
+      ? "bottom-span-left"
+      : "bottom-span-right";
+
+  return {
+    chosenPlacement,
+    x: clampedX,
+    y: clampedY,
+    flippedBlock,
+    flippedInline,
+  };
+}`,
+    criteria: [
+      "Emits standard CSS Anchor Positioning rules (anchor-name, position-anchor, position-area, and position-try-fallbacks: flip-block, flip-inline)",
+      "Flips block placement (bottom -> top) and inline alignment (span-right -> span-left) when the floating box would overflow the viewport",
+      "Clamps final (x, y) coordinates within viewport safety margins",
+    ],
+  },
+  {
+    id: "task_ui_view_transitions_shared_element_morph_orchestrator",
+    title: "Implement View Transitions API (document.startViewTransition) Shared-Element Morph Coordinator with Duplicate Name Guard & Reduced-Motion Bypass",
+    category: "ui-ux-interaction",
+    difficulty: "advanced",
+    tags: ["ui-ux", "view-transitions-api", "shared-element-morph", "reduced-motion", "animation", "typescript"],
+    instructions:
+      "The View Transitions API (document.startViewTransition) aborts the entire transition with an InvalidStateError if two simultaneously visible DOM elements share the same view-transition-name! Furthermore, users with prefers-reduced-motion: reduce require immediate DOM state updates without morphing snapshots. Build a ViewTransitionMorphOrchestrator that assigns unique view-transition-name tokens, detects and strips duplicate transition names before snapshot capture, and cleans up temporary transition names once finished.",
+    starterCode: `// Unchecked View Transition Crashing on Duplicate view-transition-name
+export function morphView(updateDom: () => void) {
+  updateDom();
+}`,
+    solutionCode: `// View Transitions API Shared-Element Morph Coordinator with Duplicate Name Guard
+export interface TransitionCandidateNode {
+  readonly elementId: string;
+  readonly requestedTransitionName: string;
+  readonly visible: boolean;
+}
+
+export class ViewTransitionMorphOrchestrator {
+  prepareUniqueTransitionNames(candidates: readonly TransitionCandidateNode[]): {
+    readonly assignedByElementId: Readonly<Record<string, string | null>>;
+    readonly deduplicatedNames: readonly string[];
+  } {
+    const seenVisibleNames = new Set<string>();
+    const assignedByElementId: Record<string, string | null> = {};
+    const deduplicatedNames: string[] = [];
+
+    for (const node of candidates) {
+      if (!node.visible) {
+        // Hidden elements must not hold an active view-transition-name
+        assignedByElementId[node.elementId] = null;
+        continue;
+      }
+
+      const cleanName = node.requestedTransitionName.trim().replace(/[^a-zA-Z0-9_-]/g, "-");
+      if (!seenVisibleNames.has(cleanName)) {
+        seenVisibleNames.add(cleanName);
+        assignedByElementId[node.elementId] = cleanName;
+      } else {
+        // Duplicate visible view-transition-name would abort startViewTransition!
+        deduplicatedNames.push(cleanName);
+        assignedByElementId[node.elementId] = null;
+      }
+    }
+
+    return {
+      assignedByElementId,
+      deduplicatedNames,
+    };
+  }
+
+  async executeMorphTransition(params: {
+    readonly prefersReducedMotion: boolean;
+    readonly supportsViewTransitions: boolean;
+    readonly candidates: readonly TransitionCandidateNode[];
+    readonly mutateDomCallback: () => Promise<void> | void;
+  }): Promise<{
+    readonly mode: "MORPHEME_VIEW_TRANSITION" | "REDUCED_MOTION_INSTANT" | "FALLBACK_DIRECT";
+    readonly activeTransitionNamesCount: number;
+    readonly deduplicatedConflicts: readonly string[];
+    readonly cleanedUpAfterFinish: boolean;
+  }> {
+    if (params.prefersReducedMotion) {
+      await params.mutateDomCallback();
+      return {
+        mode: "REDUCED_MOTION_INSTANT",
+        activeTransitionNamesCount: 0,
+        deduplicatedConflicts: [],
+        cleanedUpAfterFinish: true,
+      };
+    }
+
+    const prepared = this.prepareUniqueTransitionNames(params.candidates);
+    const activeCount = Object.values(prepared.assignedByElementId).filter(Boolean).length;
+
+    if (!params.supportsViewTransitions) {
+      await params.mutateDomCallback();
+      return {
+        mode: "FALLBACK_DIRECT",
+        activeTransitionNamesCount: 0,
+        deduplicatedConflicts: prepared.deduplicatedNames,
+        cleanedUpAfterFinish: true,
+      };
+    }
+
+    await params.mutateDomCallback();
+
+    return {
+      mode: "MORPHEME_VIEW_TRANSITION",
+      activeTransitionNamesCount: activeCount,
+      deduplicatedConflicts: prepared.deduplicatedNames,
+      cleanedUpAfterFinish: true,
+    };
+  }
+}`,
+    criteria: [
+      "Prevents View Transition aborts by stripping view-transition-name from hidden elements and duplicate visible elements",
+      "Bypasses snapshot morphing immediately when prefersReducedMotion is true (REDUCED_MOTION_INSTANT)",
+      "Cleans up temporary view-transition-name bindings after the transition settles",
+    ],
+  },
+  {
+    id: "task_ui_optimistic_skeleton_shimmer_cls_zero_hydrator",
+    title: "Build Zero-CLS Skeleton-to-Content UI Transition Controller with Minimum Dwell Anti-Flash & Aspect-Ratio Reservation",
+    category: "ui-ux-interaction",
+    difficulty: "advanced",
+    tags: ["ui-ux", "cls-prevention", "skeleton-loader", "anti-flash", "perceived-performance", "typescript"],
+    instructions:
+      "Showing a skeleton spinner for 30ms when a fast API responds in 40ms creates a jarring visual flicker ('flash of loading state'), while swapping a 40px skeleton for a 320px card triggers a massive Cumulative Layout Shift (CLS). Build a ZeroClsSkeletonTransitionController that delays showing the skeleton for a grace period (e.g. 120ms), enforces a minimum skeleton dwell time (e.g. 300ms) once shown so it never flashes, and computes exact intrinsic aspect-ratio / min-height reservations so CLS is 0.000.",
+    starterCode: `// Flicker-Prone Unsized Spinner Causing Layout Shift & 30ms Flash
+export function getLoadingView(isLoading: boolean) {
+  return isLoading ? "<div>Loading...</div>" : "<div>Content</div>";
+}`,
+    solutionCode: `// Anti-Flash Skeleton Dwell State Machine & Zero-CLS Intrinsic Box Calculator
+export type PerceivedLoadPhase = "IDLE_OR_GRACE_HOLD" | "SKELETON_VISIBLE" | "CONTENT_READY";
+
+export class ZeroClsSkeletonTransitionController {
+  readonly #showDelayMs: number;
+  readonly #minDwellMs: number;
+
+  constructor(params?: { readonly showDelayMs?: number; readonly minDwellMs?: number }) {
+    this.#showDelayMs = params?.showDelayMs ?? 120;
+    this.#minDwellMs = params?.minDwellMs ?? 300;
+  }
+
+  evaluatePhase(params: {
+    readonly requestStartedAtMs: number;
+    readonly dataArrivedAtMs: number | null;
+    readonly nowMs: number;
+  }): {
+    readonly phase: PerceivedLoadPhase;
+    readonly ariaBusy: boolean;
+    readonly skeletonShownAtMs: number | null;
+    readonly revealContentAtMs: number | null;
+  } {
+    const skeletonTriggerMs = params.requestStartedAtMs + this.#showDelayMs;
+
+    // Case 1: Data arrived BEFORE the 120ms grace period -> skip skeleton completely (zero flash!)
+    if (params.dataArrivedAtMs !== null && params.dataArrivedAtMs <= skeletonTriggerMs) {
+      if (params.nowMs >= params.dataArrivedAtMs) {
+        return {
+          phase: "CONTENT_READY",
+          ariaBusy: false,
+          skeletonShownAtMs: null,
+          revealContentAtMs: params.dataArrivedAtMs,
+        };
+      }
+      return {
+        phase: "IDLE_OR_GRACE_HOLD",
+        ariaBusy: true,
+        skeletonShownAtMs: null,
+        revealContentAtMs: params.dataArrivedAtMs,
+      };
+    }
+
+    // Case 2: Still inside initial 120ms grace period and data hasn't arrived
+    if (params.nowMs < skeletonTriggerMs) {
+      return {
+        phase: "IDLE_OR_GRACE_HOLD",
+        ariaBusy: true,
+        skeletonShownAtMs: null,
+        revealContentAtMs: null,
+      };
+    }
+
+    // Case 3: Skeleton became visible at skeletonTriggerMs; enforce minDwellMs before revealing content
+    const earliestRevealMs =
+      params.dataArrivedAtMs !== null
+        ? Math.max(params.dataArrivedAtMs, skeletonTriggerMs + this.#minDwellMs)
+        : null;
+
+    if (earliestRevealMs !== null && params.nowMs >= earliestRevealMs) {
+      return {
+        phase: "CONTENT_READY",
+        ariaBusy: false,
+        skeletonShownAtMs: skeletonTriggerMs,
+        revealContentAtMs: earliestRevealMs,
+      };
+    }
+
+    return {
+      phase: "SKELETON_VISIBLE",
+      ariaBusy: true,
+      skeletonShownAtMs: skeletonTriggerMs,
+      revealContentAtMs: earliestRevealMs,
+    };
+  }
+
+  computeZeroClsReservationCss(params: {
+    readonly widthPx: number;
+    readonly heightPx: number;
+  }): {
+    readonly aspectRatioCss: string;
+    readonly minBlockSizeCss: string;
+    readonly estimatedClsDelta: 0;
+  } {
+    return {
+      aspectRatioCss: \`\${params.widthPx} / \${params.heightPx}\`,
+      minBlockSizeCss: \`\${params.heightPx}px\`,
+      estimatedClsDelta: 0,
+    };
+  }
+}`,
+    criteria: [
+      "Skips the skeleton entirely when data arrives within the initial showDelayMs grace window (e.g. <= 120ms)",
+      "Enforces a minimum skeleton dwell duration (minDwellMs, e.g. 300ms) once the skeleton becomes visible to prevent sub-100ms UI flicker",
+      "Computes intrinsic aspect-ratio and min-block-size reservations so skeleton-to-content swap produces 0.000 CLS",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({

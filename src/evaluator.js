@@ -1520,6 +1520,74 @@ export class Evaluator {
           code.includes("reducedMotionFallbackCss"),
         detail: "Combines key/ambient shadows with 1px inner specular highlight and reduced-motion fallback",
       });
+    } else if (id === "task_ui_roving_tabindex_command_chord_ergonomics") {
+      results.push({
+        name: "WAI-ARIA Roving tabindex (0 / -1) & Disabled Item Skip",
+        passed:
+          code.includes("tabIndex") &&
+          code.includes("getRovingStates") &&
+          code.includes("ArrowDown"),
+        detail: "Maintains exactly one tabIndex=0 item and skips disabled items during Arrow navigation",
+      });
+      results.push({
+        name: "Sequential Two-Key Chord State Machine & Editable Target Guard",
+        passed:
+          code.includes("registerChord") &&
+          code.includes("awaitingSecondKey") &&
+          code.includes("isEditableTarget"),
+        detail: "Resolves two-key chords within timeout window and suppresses chords inside inputs",
+      });
+    } else if (id === "task_ui_css_anchor_positioning_collision_flip_solver") {
+      results.push({
+        name: "CSS Anchor Positioning & @position-try-fallbacks Declaration Compiler",
+        passed:
+          code.includes("anchor-name") &&
+          code.includes("position-anchor") &&
+          code.includes("position-try-fallbacks"),
+        detail: "Emits declarative anchor-name, position-anchor, and flip-block/flip-inline rules",
+      });
+      results.push({
+        name: "Viewport Overflow Block/Inline Flip & Margin Clamping",
+        passed:
+          code.includes("flippedBlock") &&
+          code.includes("flippedInline") &&
+          code.includes("chosenPlacement"),
+        detail: "Flips bottom->top and span-right->span-left when anchored popover overflows viewport",
+      });
+    } else if (id === "task_ui_view_transitions_shared_element_morph_orchestrator") {
+      results.push({
+        name: "Duplicate view-transition-name Prevention & Hidden Node Stripping",
+        passed:
+          code.includes("prepareUniqueTransitionNames") &&
+          code.includes("deduplicatedNames") &&
+          code.includes("seenVisibleNames"),
+        detail: "Prevents startViewTransition InvalidStateError by deduplicating visible transition names",
+      });
+      results.push({
+        name: "prefers-reduced-motion Instant Bypass & Post-Morph Cleanup",
+        passed:
+          code.includes("prefersReducedMotion") &&
+          code.includes("REDUCED_MOTION_INSTANT") &&
+          code.includes("MORPHEME_VIEW_TRANSITION"),
+        detail: "Bypasses morphing when reduced motion is enabled and cleans up transition names",
+      });
+    } else if (id === "task_ui_optimistic_skeleton_shimmer_cls_zero_hydrator") {
+      results.push({
+        name: "Grace Delay & Minimum Skeleton Dwell Anti-Flash State Machine",
+        passed:
+          code.includes("IDLE_OR_GRACE_HOLD") &&
+          code.includes("SKELETON_VISIBLE") &&
+          code.includes("CONTENT_READY"),
+        detail: "Suppresses skeleton on fast responses and holds skeleton for minDwellMs once shown",
+      });
+      results.push({
+        name: "Zero-CLS Intrinsic Aspect-Ratio & Min-Block-Size Reservation",
+        passed:
+          code.includes("computeZeroClsReservationCss") &&
+          code.includes("aspectRatioCss") &&
+          code.includes("minBlockSizeCss"),
+        detail: "Reserves exact aspect-ratio and min-block-size dimensions to guarantee 0.000 CLS",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -5481,6 +5549,162 @@ export class Evaluator {
         name: "Critically-Damped Spring Physics & Specular Glassmorphic Elevation",
         passed: Boolean(res?.springAndElevationOk),
         detail: "Identifies critically-damped spring (zeta=1), samples CSS linear(), and emits specular inner border",
+      });
+    } else if (taskId === "task_ui_roving_tabindex_command_chord_ergonomics") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Nav = typeof CommandChordRovingNavigator === "function"
+            ? CommandChordRovingNavigator
+            : exports.CommandChordRovingNavigator;
+
+          const nav = new Nav();
+          nav.registerChord("g", "t", "GO_TODAY");
+          nav.setCompositeItems([
+            { id: "tab_1" },
+            { id: "tab_2_disabled", disabled: true },
+            { id: "tab_3" },
+          ]);
+
+          // 1. ArrowDown skips disabled tab_2_disabled and lands on tab_3
+          const afterArrow = nav.handleKeyEvent({ key: "ArrowDown", nowMs: 100 });
+          // 2. Sequential chord 'g' then 't' within 800ms triggers GO_TODAY
+          const step1 = nav.handleKeyEvent({ key: "g", nowMs: 200 });
+          const step2 = nav.handleKeyEvent({ key: "t", nowMs: 500 });
+          // 3. Chord suppressed when typing in input
+          const blockedInInput = nav.handleKeyEvent({ key: "g", nowMs: 600, isEditableTarget: true });
+
+          return {
+            rovingAndChordOk:
+              afterArrow.activeItemId === "tab_3" &&
+              afterArrow.rovingStates.filter((s) => s.tabIndex === 0).length === 1 &&
+              step1.awaitingSecondKey === true &&
+              step2.matchedCommandId === "GO_TODAY" &&
+              blockedInInput.awaitingSecondKey === false,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Roving tabindex Disabled-Skip & Two-Key Command Chord Execution",
+        passed: Boolean(res?.rovingAndChordOk),
+        detail: "Skips disabled items during Arrow navigation, fires G->T chord, and ignores editable inputs",
+      });
+    } else if (taskId === "task_ui_css_anchor_positioning_collision_flip_solver") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const compileRules = typeof compileCssAnchorPositioningRules === "function"
+            ? compileCssAnchorPositioningRules
+            : exports.compileCssAnchorPositioningRules;
+          const solveCollision = typeof solveAnchoredViewportCollision === "function"
+            ? solveAnchoredViewportCollision
+            : exports.solveAnchoredViewportCollision;
+
+          const css = compileRules({ anchorId: "menu-btn", popoverClass: "floating-menu" });
+
+          // Anchor near bottom-right corner of 1024x768 viewport -> must flip both block (to top) and inline (to span-left)!
+          const flipped = solveCollision({
+            anchorRect: { x: 920, y: 720, width: 80, height: 32 },
+            floatingSize: { width: 220, height: 180 },
+            viewport: { width: 1024, height: 768 },
+          });
+
+          return {
+            anchorAndFlipOk:
+              css.includes("anchor-name: --menu-btn") &&
+              css.includes("position-try-fallbacks: flip-block, flip-inline") &&
+              flipped.flippedBlock === true &&
+              flipped.flippedInline === true &&
+              flipped.chosenPlacement === "top-span-left",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "CSS Anchor Positioning Rules & Bottom-Right Viewport Flip Solver",
+        passed: Boolean(res?.anchorAndFlipOk),
+        detail: "Emits @position-try-fallbacks and flips popover to top-span-left near bottom-right edge",
+      });
+    } else if (taskId === "task_ui_view_transitions_shared_element_morph_orchestrator") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Orchestrator = typeof ViewTransitionMorphOrchestrator === "function"
+            ? ViewTransitionMorphOrchestrator
+            : exports.ViewTransitionMorphOrchestrator;
+
+          const orch = new Orchestrator();
+          const candidates = [
+            { elementId: "card_1", requestedTransitionName: "hero-card", visible: true },
+            { elementId: "card_2_dup", requestedTransitionName: "hero-card", visible: true },
+            { elementId: "card_3_hidden", requestedTransitionName: "hidden-card", visible: false },
+          ];
+
+          const morphRes = await orch.executeMorphTransition({
+            prefersReducedMotion: false,
+            supportsViewTransitions: true,
+            candidates,
+            mutateDomCallback: () => {},
+          });
+
+          const reducedRes = await orch.executeMorphTransition({
+            prefersReducedMotion: true,
+            supportsViewTransitions: true,
+            candidates,
+            mutateDomCallback: () => {},
+          });
+
+          return {
+            viewTransitionGuardOk:
+              morphRes.mode === "MORPHEME_VIEW_TRANSITION" &&
+              morphRes.activeTransitionNamesCount === 1 &&
+              morphRes.deduplicatedConflicts.includes("hero-card") &&
+              reducedRes.mode === "REDUCED_MOTION_INSTANT",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "View Transition Duplicate Name Guard & Reduced-Motion Bypass",
+        passed: Boolean(res?.viewTransitionGuardOk),
+        detail: "Deduplicates colliding hero-card view-transition-name and bypasses morphing on reduced motion",
+      });
+    } else if (taskId === "task_ui_optimistic_skeleton_shimmer_cls_zero_hydrator") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Controller = typeof ZeroClsSkeletonTransitionController === "function"
+            ? ZeroClsSkeletonTransitionController
+            : exports.ZeroClsSkeletonTransitionController;
+
+          const ctrl = new Controller({ showDelayMs: 120, minDwellMs: 300 });
+
+          // 1. Fast response (arrives at 50ms < 120ms grace) -> never shows skeleton!
+          const fast = ctrl.evaluatePhase({ requestStartedAtMs: 0, dataArrivedAtMs: 50, nowMs: 60 });
+
+          // 2. Slow response: arrives at 200ms (after skeleton shown at 120ms). At 250ms, must still hold skeleton until 120+300=420ms!
+          const heldForMinDwell = ctrl.evaluatePhase({ requestStartedAtMs: 0, dataArrivedAtMs: 200, nowMs: 250 });
+          const revealedAfterDwell = ctrl.evaluatePhase({ requestStartedAtMs: 0, dataArrivedAtMs: 200, nowMs: 430 });
+
+          const box = ctrl.computeZeroClsReservationCss({ widthPx: 640, heightPx: 360 });
+
+          return {
+            antiFlashAndZeroClsOk:
+              fast.phase === "CONTENT_READY" &&
+              fast.skeletonShownAtMs === null &&
+              heldForMinDwell.phase === "SKELETON_VISIBLE" &&
+              revealedAfterDwell.phase === "CONTENT_READY" &&
+              box.aspectRatioCss === "640 / 360" &&
+              box.estimatedClsDelta === 0,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Skeleton Anti-Flash Minimum Dwell & Zero-CLS Aspect-Ratio Reservation",
+        passed: Boolean(res?.antiFlashAndZeroClsOk),
+        detail: "Skips skeleton on 50ms response, holds skeleton until 420ms on 200ms response, and reserves aspect-ratio",
       });
     } else {
       // General syntax evaluation
