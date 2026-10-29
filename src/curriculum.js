@@ -7818,7 +7818,7 @@ export function serializeRfc6265bisCookie(spec: CookieSerializeSpec): {
   readonly clampedMaxAgeSec: number | null;
   readonly warnings: readonly string[];
 } {
-  if (!/^[!#$%&'*+\\-.^_`|~0-9A-Za-z]+$/.test(spec.name)) {
+  if (!/^[!#$%&'*+\\-.^_|~0-9A-Za-z]+$/.test(spec.name)) {
     throw new Error(\`InvalidCookieNameError: '\${spec.name}' contains illegal RFC 6265 token characters\`);
   }
 
@@ -8195,7 +8195,7 @@ export function setTrackingCookies(cookies: string[]) {
     solutionCode: `// Granular Cookie Consent & Retention Gatekeeper with Automatic Revocation Eviction
 export type CookieCategory = "strictly_necessary" | "functional" | "analytics" | "marketing";
 
-export interfaceRegisteredCookiePolicy {
+export interface RegisteredCookiePolicy {
   readonly namePattern: RegExp;
   readonly category: CookieCategory;
   readonly path: string;
