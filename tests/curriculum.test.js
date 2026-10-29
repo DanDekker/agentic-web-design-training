@@ -330,6 +330,40 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies E-Commerce & Checkout engineering tasks (Dinero cents, Inventory TTL holds, EU VAT Reverse Charge, 3DS Saga, Polar.sh MoR entitlements)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=ecommerce-checkout");
+    const { tasks: ecomTasks } = await tasksRes.json();
+    expect(ecomTasks.length).toBe(5);
+
+    for (const ecomTask of ecomTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: ecomTask.id,
+        code: ecomTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
+  test("verifies Payment Processing, Stripe & Polar.sh tasks (PaymentIntent Idempotency, Dual Webhooks, Proration/Dunning, Connect Ledger, AI Usage Meters)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=payment-processing");
+    const { tasks: payTasks } = await tasksRes.json();
+    expect(payTasks.length).toBe(5);
+
+    for (const payTask of payTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: payTask.id,
+        code: payTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
   test("exposes TypeScript framework ecosystem catalog, migration matrix, and package manager specs via API", async () => {
     const res = await call("GET", "/api/curriculum/ecosystem");
     expect(res.status).toBe(200);
@@ -343,9 +377,9 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(62);
-    expect(CURRICULUM_CATEGORIES.length).toBe(17);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(7);
+    expect(validation.totalTasks).toBe(72);
+    expect(CURRICULUM_CATEGORIES.length).toBe(19);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(8);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });

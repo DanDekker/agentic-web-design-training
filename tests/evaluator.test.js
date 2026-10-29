@@ -269,9 +269,31 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
+  test("evaluates E-Commerce, Checkout, Stripe & Polar.sh payment processing tasks in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_ecom_integer_cents_dinero_cart_engine",
+      "task_ecom_inventory_reservation_ttl_oversell_guard",
+      "task_ecom_global_tax_vat_reverse_charge_engine",
+      "task_ecom_checkout_state_machine_3ds_saga",
+      "task_ecom_polar_mor_license_entitlement_provisioning",
+      "task_pay_stripe_payment_intent_idempotency_engine",
+      "task_pay_stripe_polar_webhook_signature_verifier",
+      "task_pay_subscription_proration_dunning_machine",
+      "task_pay_double_entry_ledger_stripe_connect_split",
+      "task_pay_polar_stripe_usage_meter_ai_billing",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(62);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(72);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
