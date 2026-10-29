@@ -804,7 +804,7 @@ export class Evaluator {
         passed:
           code.includes('fetchpriority="high"') &&
           code.includes("imagesrcset=") &&
-          code.includes('loading="eager"'),
+          (code.includes('loading="eager"') || (code.includes('"eager"') && code.includes("loading="))),
         detail: "Prioritizes above-the-fold LCP media with fetchpriority=high, eager loading, and preload hint",
       });
     } else if (id === "task_seo_jsonld_knowledge_graph_builder") {
