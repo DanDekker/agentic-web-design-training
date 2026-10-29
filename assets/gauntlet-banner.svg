@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">LLM Webdev Gauntlet</title>
+  <desc id="desc">Black and white banner with the project name and an abstract code window.</desc>
+  <rect width="1200" height="320" fill="#0b0b0b"/>
+  <g fill="none" stroke="#fff">
+    <rect x="18" y="18" width="1164" height="284" stroke-width="1" opacity=".42"/>
+    <path d="M18 259h1164" opacity=".25"/>
+    <path d="M801 18v284" opacity=".25"/>
+    <rect x="868" y="71" width="244" height="171" stroke-width="2"/>
+    <path d="M868 107h244" stroke-width="2"/>
+    <path d="m928 152-31 22 31 22m124-44 31 22-31 22m-36-57-30 71" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="889" cy="89" r="3"/>
+    <circle cx="903" cy="89" r="3"/>
+    <circle cx="917" cy="89" r="3"/>
+    <text x="62" y="79" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="5">LLM / WEB DEVELOPMENT</text>
+    <text x="58" y="173" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800" letter-spacing="-3">GAUNTLET</text>
+    <text x="62" y="285" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="3">106 CHALLENGES  /  11 TRACKS</text>
+    <text x="868" y="285" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="3">CODE. TEST. ITERATE.</text>
+  </g>
+</svg>
