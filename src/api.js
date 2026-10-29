@@ -14,6 +14,7 @@ import {
   CURRENCY_EXPONENTS,
   calculateCheckoutQuote,
   verifyCommerceWebhook,
+  computeMarketplaceLedgerSplit,
 } from "./commerce.js";
 import { ChatEngine } from "./chat.js";
 
@@ -443,6 +444,14 @@ const benchmarkSuite = new BenchmarkSuite();
       if (pathname === "/api/commerce/webhooks/verify" && req.method === "POST") {
         const body = await readJson(req);
         return json(verifyCommerceWebhook(body));
+      }
+      if (pathname === "/api/commerce/ledger/split" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(computeMarketplaceLedgerSplit(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
       }
       if (pathname === "/api/curriculum/tasks") {
         const category = searchParams.get("category");

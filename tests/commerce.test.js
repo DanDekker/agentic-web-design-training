@@ -151,4 +151,21 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     expect(tampered.valid).toBe(false);
     expect(tampered.reason).toBe("INVALID_HMAC_SIGNATURE");
   });
+
+  test("computes balanced double-entry marketplace ledger splits and partial refund clawbacks via /api/commerce/ledger/split", async () => {
+    const res = await call("POST", "/api/commerce/ledger/split", {
+      orderId: "ord_connect_500",
+      grossChargeMinor: 10000,
+      stripeFeeMinor: 320,
+      platformFeeBps: 1000,
+      refundGrossMinor: 5000,
+    });
+    expect(res.status).toBe(200);
+    const ledger = await res.json();
+    expect(ledger.balanced).toBe(true);
+    expect(ledger.postings.length).toBe(2);
+    expect(ledger.balances.stripe_processing_fee).toBe(320);
+    expect(ledger.balances.platform_commission).toBe(500);
+    expect(ledger.balances.seller_escrow_payable).toBe(4180);
+  });
 });

@@ -305,3 +305,76 @@ export function verifyCommerceWebhook({
     timestampSec,
   };
 }
+
+/**
+ * Computes a balanced double-entry ledger journal for a Stripe Connect marketplace
+ * charge split and optional partial refund with proportional platform fee clawback.
+ */
+export function computeMarketplaceLedgerSplit({
+  orderId = "ord_01",
+  grossChargeMinor,
+  stripeFeeMinor = 0,
+  platformFeeBps = 1000,
+  refundGrossMinor = 0,
+} = {}) {
+  const gross = Number(grossChargeMinor);
+  const fee = Number(stripeFeeMinor);
+  const bps = Number(platformFeeBps);
+  const refund = Number(refundGrossMinor);
+
+  if (!Number.isSafeInteger(gross) || gross <= 0) {
+    throw new Error("grossChargeMinor must be a positive integer.");
+  }
+  if (!Number.isSafeInteger(fee) || fee < 0 || fee >= gross) {
+    throw new Error("Invalid stripeFeeMinor.");
+  }
+  if (!Number.isSafeInteger(refund) || refund < 0 || refund > gross) {
+    throw new Error("Invalid refundGrossMinor.");
+  }
+
+  const platformCommissionMinor = Math.round((gross * bps) / 10000);
+  const sellerNetMinor = gross - fee - platformCommissionMinor;
+
+  const postings = [
+    {
+      txId: `tx_charge_${orderId}`,
+      kind: "CHARGE_SPLIT",
+      lines: [
+        { account: "buyer_external", direction: "DEBIT", amountMinor: gross },
+        { account: "stripe_processing_fee", direction: "CREDIT", amountMinor: fee },
+        { account: "platform_commission", direction: "CREDIT", amountMinor: platformCommissionMinor },
+        { account: "seller_escrow_payable", direction: "CREDIT", amountMinor: sellerNetMinor },
+      ],
+    },
+  ];
+
+  let refundPlatformReversalMinor = 0;
+  let refundSellerClawbackMinor = 0;
+
+  if (refund > 0) {
+    refundPlatformReversalMinor = Math.round((refund * bps) / 10000);
+    refundSellerClawbackMinor = refund - refundPlatformReversalMinor;
+    postings.push({
+      txId: `tx_refund_${orderId}`,
+      kind: "PARTIAL_REFUND",
+      lines: [
+        { account: "platform_commission", direction: "DEBIT", amountMinor: refundPlatformReversalMinor },
+        { account: "seller_escrow_payable", direction: "DEBIT", amountMinor: refundSellerClawbackMinor },
+        { account: "buyer_external", direction: "CREDIT", amountMinor: refund },
+      ],
+    });
+  }
+
+  const balances = {
+    stripe_processing_fee: fee,
+    platform_commission: platformCommissionMinor - refundPlatformReversalMinor,
+    seller_escrow_payable: sellerNetMinor - refundSellerClawbackMinor,
+  };
+
+  return {
+    orderId,
+    balanced: true,
+    postings,
+    balances,
+  };
+}
