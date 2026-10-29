@@ -1686,4 +1686,396 @@ export class LongHorizonMemoryManager {
       "Retrieves top-K relevant episodic memories by term overlap + importance and guards against out-of-scope goal drift",
     ],
   },
+  {
+    id: "task_db_read_write_replica_lag_router",
+    title: "Read/Write Split Replica Router with Causal LSN Consistency & Failover",
+    category: "database",
+    difficulty: "advanced",
+    tags: ["database", "replication-lag", "read-your-writes", "lsn", "failover", "routing"],
+    instructions:
+      "Routing all SELECT queries to asynchronous read replicas causes stale read-your-own-writes bugs immediately after a user mutates data when replication lag is non-zero. Implement a CausalReplicaRouter that tracks the client session's lastWriteLsn, routes mutations to primary, routes SELECTs only to healthy replicas whose appliedLsn >= minLsn, and transparently falls back to primary when all replicas lag or fail.",
+    starterCode: `// Stale-Read Prone Replica Router (Ignores Replication Lag & Node Health)
+class SimpleDbRouter {
+  constructor(primary, replicas) {
+    this.primary = primary;
+    this.replicas = replicas;
+  }
+  async execute(sql, params) {
+    if (sql.trim().toUpperCase().startsWith("SELECT")) {
+      return this.replicas[0].query(sql, params);
+    }
+    return this.primary.query(sql, params);
+  }
+}`,
+    solutionCode: `// Causal LSN Read/Write Split Router with Read-Your-Writes Guarantee & Primary Failover
+export class CausalReplicaRouter {
+  #primary;
+  #replicas;
+  #rrIndex = 0;
+
+  constructor(primary, replicas = []) {
+    this.#primary = primary;
+    this.#replicas = replicas;
+  }
+
+  async execute(sql, params = [], session = { minLsn: 0 }) {
+    const normalized = String(sql || "").trim().toUpperCase();
+    const isReadOnly = normalized.startsWith("SELECT") && !normalized.includes("FOR UPDATE");
+
+    if (!isReadOnly) {
+      const res = await this.#primary.query(sql, params);
+      if (typeof res?.lsn === "number" && session) {
+        session.minLsn = Math.max(session.minLsn || 0, res.lsn);
+      }
+      return { ...res, routedTo: "primary" };
+    }
+
+    const requiredLsn = session?.minLsn || 0;
+    const eligible = this.#replicas.filter(
+      (r) => r.healthy !== false && (r.appliedLsn ?? 0) >= requiredLsn
+    );
+
+    if (eligible.length > 0) {
+      const chosen = eligible[this.#rrIndex++ % eligible.length];
+      try {
+        const res = await chosen.query(sql, params);
+        return { ...res, routedTo: chosen.id || "replica" };
+      } catch {
+        chosen.healthy = false;
+      }
+    }
+
+    // Fallback to primary when replicas are lagging behind session LSN or unhealthy
+    const primaryRes = await this.#primary.query(sql, params);
+    return { ...primaryRes, routedTo: "primary" };
+  }
+}`,
+    criteria: [
+      "Routes write queries and SELECT ... FOR UPDATE locks to primary and updates session.minLsn",
+      "Selects only healthy read replicas whose appliedLsn satisfies the session's causal minLsn watermark",
+      "Falls back to primary when all replicas lag behind requiredLsn or throw query errors",
+    ],
+  },
+  {
+    id: "task_auth_oidc_federated_jwt_validator",
+    title: "OIDC Federated ID Token & JWKS Key-Rotation Validator with Azp & Nonce Guard",
+    category: "web-auth",
+    difficulty: "advanced",
+    tags: ["web-auth", "oidc", "jwt", "jwks", "key-rotation", "algorithm-confusion"],
+    instructions:
+      "An OIDC relying party decodes JWT payloads without enforcing asymmetric algorithm allowlists (vulnerable to alg: 'none' and HS256/RS256 key confusion), fails on key rotation when an unknown kid appears, and skips azp (authorized party) and replay nonce verification. Build a strict federated OIDC ID token validator.",
+    starterCode: `// Vulnerable JWT Decoder (Susceptible to alg:none, Key Confusion & Missing Claims)
+function validateIdToken(token, expectedAud) {
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  if (payload.aud !== expectedAud) throw new Error("Bad aud");
+  return payload;
+}`,
+    solutionCode: `// Strict OIDC ID Token Validator with Asymmetric Alg Pinning, JWKS Kid Refresh & Azp/Nonce Checks
+const ALLOWED_ASYMMETRIC_ALGS = new Set(["RS256", "ES256", "EdDSA"]);
+
+export async function validateOidcIdToken({
+  decodedToken,
+  jwksClient,
+  expectedIssuer,
+  expectedAudience,
+  expectedNonce,
+  nowSec = Math.floor(Date.now() / 1000),
+  clockSkewSec = 30,
+}) {
+  const { header, payload, verifyWithJwk } = decodedToken || {};
+  if (!header || !payload || typeof verifyWithJwk !== "function") {
+    throw new Error("Malformed OIDC token structure");
+  }
+
+  if (!ALLOWED_ASYMMETRIC_ALGS.has(header.alg)) {
+    throw new Error(\`Disallowed JWT alg '\${header.alg}': only asymmetric RS256/ES256/EdDSA permitted\`);
+  }
+  if (!header.kid) {
+    throw new Error("Missing JWT header kid");
+  }
+
+  let jwk = await jwksClient.getKey(header.kid, { forceRefresh: false });
+  if (!jwk) {
+    // Key rotation support: refresh JWKS once on unknown kid
+    jwk = await jwksClient.getKey(header.kid, { forceRefresh: true });
+  }
+  if (!jwk || jwk.kty === "oct") {
+    throw new Error("No valid asymmetric public JWK found for kid " + header.kid);
+  }
+
+  if (!verifyWithJwk(jwk)) {
+    throw new Error("Invalid OIDC ID token cryptographic signature");
+  }
+
+  if (payload.iss !== expectedIssuer) {
+    throw new Error("OIDC issuer mismatch");
+  }
+
+  const audList = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+  if (!audList.includes(expectedAudience)) {
+    throw new Error("OIDC audience mismatch");
+  }
+  if (audList.length > 1 && payload.azp !== expectedAudience) {
+    throw new Error("OIDC multi-audience token missing matching azp claim");
+  }
+
+  if (typeof payload.exp !== "number" || nowSec - clockSkewSec >= payload.exp) {
+    throw new Error("OIDC ID token has expired");
+  }
+  if (typeof payload.nbf === "number" && nowSec + clockSkewSec < payload.nbf) {
+    throw new Error("OIDC ID token not yet valid (nbf)");
+  }
+  if (expectedNonce && payload.nonce !== expectedNonce) {
+    throw new Error("OIDC session nonce mismatch");
+  }
+
+  return {
+    verified: true,
+    sub: payload.sub,
+    iss: payload.iss,
+    aud: expectedAudience,
+    kid: header.kid,
+  };
+}`,
+    criteria: [
+      "Enforces an explicit asymmetric algorithm allowlist (RS256, ES256, EdDSA) and rejects alg: 'none' or symmetric oct keys",
+      "Triggers a single JWKS cache refresh when an unrecognized kid header is encountered during key rotation",
+      "Validates iss, single/multi-audience aud + azp, exp/nbf with clock skew, and session nonce",
+    ],
+  },
+  {
+    id: "task_fingerprint_behavioral_biometrics_bot",
+    title: "Behavioral Biometrics & Synthetic DOM Input Telemetry Classifier",
+    category: "web-fingerprinting",
+    difficulty: "advanced",
+    tags: ["web-fingerprinting", "behavioral-biometrics", "bot-detection", "pointer-kinematics", "telemetry"],
+    instructions:
+      "Headless browser automation frameworks pass static navigator property checks by patching getters, then dispatch synthetic click/keyboard events with constant-velocity linear mouse paths, zero keydown-to-keyup dwell times, or untrusted Event flags. Implement a behavioral telemetry classifier that scores pointer kinematics and keystroke dynamics.",
+    starterCode: `// Naive Event Check (Fooled by Basic Synthetic Dispatch)
+function classifyInteraction(events) {
+  return { isSyntheticBot: events.length === 0 };
+}`,
+    solutionCode: `// Behavioral Kinematics & Keystroke Dynamics Bot Classifier
+export function classifyInteractionTelemetry({ pointerEvents = [], keyEvents = [] } = {}) {
+  const flags = [];
+
+  if (pointerEvents.some((e) => e.isTrusted === false) || keyEvents.some((e) => e.isTrusted === false)) {
+    flags.push("untrusted_dom_event");
+  }
+
+  if (pointerEvents.length >= 3) {
+    const velocities = [];
+    let collinearSegments = 0;
+
+    for (let i = 1; i < pointerEvents.length; i++) {
+      const prev = pointerEvents[i - 1];
+      const curr = pointerEvents[i];
+      const dt = Math.max(1, curr.t - prev.t);
+      const dx = curr.x - prev.x;
+      const dy = curr.y - prev.y;
+      velocities.push(Math.hypot(dx, dy) / dt);
+
+      if (i >= 2) {
+        const p0 = pointerEvents[i - 2];
+        const cross = (prev.x - p0.x) * (curr.y - prev.y) - (prev.y - p0.y) * (curr.x - prev.x);
+        if (Math.abs(cross) < 1e-5) collinearSegments++;
+      }
+    }
+
+    const meanVel = velocities.reduce((a, b) => a + b, 0) / velocities.length;
+    const variance = velocities.reduce((acc, v) => acc + (v - meanVel) ** 2, 0) / velocities.length;
+
+    if (collinearSegments === pointerEvents.length - 2 && variance < 1e-4) {
+      flags.push("synthetic_constant_velocity_linear_path");
+    }
+  }
+
+  if (keyEvents.length > 0) {
+    const zeroDwellCount = keyEvents.filter((k) => Number(k.upTime - k.downTime) <= 0).length;
+    if (zeroDwellCount > 0) {
+      flags.push("zero_dwell_synthetic_keystrokes");
+    }
+  }
+
+  return {
+    isSyntheticBot: flags.length > 0,
+    flags,
+    riskScore: Math.min(100, flags.length * 45),
+  };
+}`,
+    criteria: [
+      "Flags synthetic events with isTrusted === false or zero/negative keystroke dwell intervals",
+      "Computes pointer velocity variance and 2D cross-product collinearity across trajectory segments",
+      "Identifies constant-velocity straight-line bot mouse interpolation vs organic Fitts's law curvature",
+    ],
+  },
+  {
+    id: "task_cybersec_http_desync_header_canonicalizer",
+    title: "HTTP Request Smuggling (CL.TE / TE.CL) & CRLF Header Injection Guard",
+    category: "web-cybersec",
+    difficulty: "advanced",
+    tags: ["web-cybersec", "http-request-smuggling", "desync", "crlf-injection", "reverse-proxy"],
+    instructions:
+      "Discrepancies between a front-end reverse proxy and a back-end HTTP/1.1 parser allow attackers to smuggle requests by sending both Content-Length and Transfer-Encoding headers, duplicate conflicting Content-Length values, obfuscated 'Transfer-Encoding: xchunked', or CRLF (\\r\\n) bytes inside header values. Implement a strict RFC 9112 framing & header canonicalizer.",
+    starterCode: `// Vulnerable Header Parser (Permits CL.TE Ambiguity & CRLF Splitting)
+function normalizeRequestHeaders(rawHeaders) {
+  const map = {};
+  for (const [k, v] of rawHeaders) {
+    map[k.toLowerCase()] = v;
+  }
+  return { valid: true, headers: map };
+}`,
+    solutionCode: `// RFC 9112 HTTP/1.1 Desync (CL.TE / TE.CL) & CRLF Header Injection Guard
+export function canonicalizeAndValidateHttpHeaders(rawHeaderPairs) {
+  if (!Array.isArray(rawHeaderPairs)) {
+    throw new Error("Invalid header list");
+  }
+
+  const canonical = new Map();
+  let hasTransferEncoding = false;
+  let contentLengthValue = null;
+
+  for (const [rawName, rawValue] of rawHeaderPairs) {
+    const nameStr = String(rawName ?? "");
+    const valStr = String(rawValue ?? "");
+
+    if (/[\\r\\n\\x00]/.test(nameStr) || /[\\r\\n\\x00]/.test(valStr)) {
+      throw new Error("HTTPHeaderInjectionError: CRLF or NUL byte detected in header");
+    }
+    if (!/^[!#$%&'*+.^_\`|~0-9A-Za-z-]+$/.test(nameStr)) {
+      throw new Error(\`Malformed HTTP header token name '\${nameStr}'\`);
+    }
+
+    const lower = nameStr.toLowerCase();
+    const trimmedVal = valStr.trim();
+
+    if (lower === "transfer-encoding") {
+      hasTransferEncoding = true;
+      if (trimmedVal.toLowerCase() !== "chunked") {
+        throw new Error(\`HTTPDesyncError: unsupported or obfuscated Transfer-Encoding '\${trimmedVal}'\`);
+      }
+    }
+
+    if (lower === "content-length") {
+      if (!/^\\d+$/.test(trimmedVal)) {
+        throw new Error(\`HTTPDesyncError: non-numeric Content-Length '\${trimmedVal}'\`);
+      }
+      if (contentLengthValue !== null && contentLengthValue !== trimmedVal) {
+        throw new Error("HTTPDesyncError: conflicting duplicate Content-Length headers");
+      }
+      contentLengthValue = trimmedVal;
+    }
+
+    canonical.set(lower, trimmedVal);
+  }
+
+  if (hasTransferEncoding && contentLengthValue !== null) {
+    throw new Error("HTTPDesyncError: ambiguous request contains both Transfer-Encoding and Content-Length");
+  }
+
+  return {
+    valid: true,
+    framing: hasTransferEncoding ? "chunked" : contentLengthValue !== null ? "content-length" : "none",
+    contentLength: contentLengthValue !== null ? Number(contentLengthValue) : 0,
+    headers: Object.fromEntries(canonical),
+  };
+}`,
+    criteria: [
+      "Rejects requests containing both Transfer-Encoding and Content-Length to prevent CL.TE and TE.CL desync",
+      "Blocks conflicting duplicate Content-Length headers, non-digit lengths, and obfuscated Transfer-Encoding values",
+      "Rejects CRLF (\\r, \\n) and NUL bytes in header names or values to prevent response splitting",
+    ],
+  },
+  {
+    id: "task_agentic_multi_agent_consensus_arbiter",
+    title: "Multi-Agent Sub-Task Lease Coordinator & Fencing-Token Patch Arbiter",
+    category: "agentic-workflow",
+    difficulty: "advanced",
+    tags: ["agentic-workflow", "long-horizon", "multi-agent", "fencing-tokens", "path-leases", "concurrency"],
+    instructions:
+      "When multiple autonomous sub-agents edit a repository concurrently without hierarchical path leases or fencing tokens, a stalled worker whose lease expired can wake up and overwrite newer edits from an active peer. Build a MultiAgentLeaseArbiter that detects parent/child path collisions (e.g. 'src/auth' vs 'src/auth/jwt.js'), issues monotonically increasing fencing tokens (epoch), and rejects stale-epoch patch commits.",
+    starterCode: `// Unsafe Unfenced Multi-Agent File Writer (Race Conditions & Stale Overwrites)
+class SharedWorkspace {
+  constructor() { this.files = new Map(); }
+  writePatch(agentId, path, content) {
+    this.files.set(path, { content, by: agentId });
+    return { committed: true };
+  }
+}`,
+    solutionCode: `// Hierarchical Path Lease Coordinator with Monotonic Fencing Tokens
+function pathsOverlap(pathA, pathB) {
+  const normA = String(pathA).replace(/\\/+$/, "");
+  const normB = String(pathB).replace(/\\/+$/, "");
+  return (
+    normA === normB ||
+    normA.startsWith(normB + "/") ||
+    normB.startsWith(normA + "/")
+  );
+}
+
+export class MultiAgentLeaseArbiter {
+  #epoch = 0;
+  #leases = new Map(); // leaseId -> { leaseId, agentId, paths, epoch, expiresAt }
+  #files = new Map();
+
+  acquireLease(agentId, paths, ttlMs = 30000, nowMs = Date.now()) {
+    this.#pruneExpired(nowMs);
+
+    for (const existing of this.#leases.values()) {
+      if (existing.agentId === agentId) continue;
+      for (const reqPath of paths) {
+        if (existing.paths.some((heldPath) => pathsOverlap(reqPath, heldPath))) {
+          throw new Error(\`LeaseConflictError: path '\${reqPath}' conflicts with peer '\${existing.agentId}'\`);
+        }
+      }
+    }
+
+    const epoch = ++this.#epoch;
+    const leaseId = \`lease_\${epoch}\`;
+    const record = {
+      leaseId,
+      agentId,
+      paths: [...paths],
+      epoch,
+      expiresAt: nowMs + ttlMs,
+    };
+    this.#leases.set(leaseId, record);
+    return { ...record };
+  }
+
+  commitPatch({ agentId, leaseId, epoch, filePath, content, nowMs = Date.now() }) {
+    this.#pruneExpired(nowMs);
+    const lease = this.#leases.get(leaseId);
+    if (!lease || lease.agentId !== agentId || lease.epoch !== epoch) {
+      throw new Error("StaleFencingTokenError: lease expired or superseded by newer epoch");
+    }
+    if (!lease.paths.some((held) => pathsOverlap(filePath, held))) {
+      throw new Error(\`UnauthorizedPathError: '\${filePath}' is not covered by lease \${leaseId}\`);
+    }
+
+    const currentFile = this.#files.get(filePath);
+    if (currentFile && currentFile.lastEpoch > epoch) {
+      throw new Error("StaleFencingTokenError: file already modified by a higher fencing epoch");
+    }
+
+    this.#files.set(filePath, { content, lastEpoch: epoch, updatedBy: agentId });
+    return { committed: true, epoch, filePath };
+  }
+
+  releaseLease(leaseId) {
+    return this.#leases.delete(leaseId);
+  }
+
+  #pruneExpired(nowMs) {
+    for (const [id, lease] of this.#leases.entries()) {
+      if (nowMs > lease.expiresAt) this.#leases.delete(id);
+    }
+  }
+}`,
+    criteria: [
+      "Enforces hierarchical parent/child path conflict checks (e.g. 'src/auth' blocks 'src/auth/jwt.js')",
+      "Issues monotonically increasing fencing epochs on every lease acquisition",
+      "Rejects late commits from expired or lower-epoch fencing tokens to prevent zombie agent overwrites",
+    ],
+  },
 ];

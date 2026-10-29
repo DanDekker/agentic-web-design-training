@@ -557,6 +557,26 @@ const benchmarkSuite = new BenchmarkSuite();
           const hasMemory = cleanSubmitted.includes("retrieveEpisodic") && cleanSubmitted.includes("checkGoalAlignment") && cleanSubmitted.includes("maxContextTokens");
           if (hasMemory) passedCriteria.push("Compacts long-horizon context into episodic memory with goal-drift guard");
           else failedCriteria.push("Missing episodic memory compaction/retrieval or goal-alignment check");
+        } else if (taskId === "task_db_read_write_replica_lag_router") {
+          const hasReplicaLsn = cleanSubmitted.includes("minLsn") && cleanSubmitted.includes("appliedLsn") && cleanSubmitted.includes("primary");
+          if (hasReplicaLsn) passedCriteria.push("Enforces causal LSN read-your-writes routing with primary failover");
+          else failedCriteria.push("Missing session minLsn watermark check or primary fallback");
+        } else if (taskId === "task_auth_oidc_federated_jwt_validator") {
+          const hasOidc = cleanSubmitted.includes("RS256") && cleanSubmitted.includes("azp") && cleanSubmitted.includes("nonce") && cleanSubmitted.includes("forceRefresh");
+          if (hasOidc) passedCriteria.push("Validates OIDC asymmetric algorithms, JWKS rotation, azp, and nonce");
+          else failedCriteria.push("Missing asymmetric alg allowlist, JWKS rotation, or azp/nonce check");
+        } else if (taskId === "task_fingerprint_behavioral_biometrics_bot") {
+          const hasBiometrics = cleanSubmitted.includes("isTrusted") && cleanSubmitted.includes("variance") && cleanSubmitted.includes("upTime");
+          if (hasBiometrics) passedCriteria.push("Classifies pointer kinematics variance, collinearity, and keystroke dwell times");
+          else failedCriteria.push("Missing pointer velocity variance/collinearity or keystroke dwell checks");
+        } else if (taskId === "task_cybersec_http_desync_header_canonicalizer") {
+          const hasDesync = cleanSubmitted.includes("transfer-encoding") && cleanSubmitted.includes("content-length") && cleanSubmitted.includes("\\r");
+          if (hasDesync) passedCriteria.push("Blocks CL.TE/TE.CL request smuggling ambiguity and CRLF header splitting");
+          else failedCriteria.push("Missing CL.TE conflict check or CRLF header injection guard");
+        } else if (taskId === "task_agentic_multi_agent_consensus_arbiter") {
+          const hasArbiter = cleanSubmitted.includes("epoch") && cleanSubmitted.includes("StaleFencingTokenError") && cleanSubmitted.includes("startsWith");
+          if (hasArbiter) passedCriteria.push("Coordinates hierarchical path leases with monotonic fencing token validation");
+          else failedCriteria.push("Missing hierarchical path overlap check or fencing epoch validation");
         } else {
           // General criteria: clean code, non-empty, replaces starter
           passedCriteria.push("Valid JS syntax & structure verified");

@@ -366,6 +366,61 @@ export class Evaluator {
         passed: code.includes("retrieveEpisodic") && code.includes("checkGoalAlignment"),
         detail: "Retrieves relevant episodic memories by term overlap and blocks out-of-scope drift",
       });
+    } else if (id === "task_db_read_write_replica_lag_router") {
+      results.push({
+        name: "Causal LSN Watermark Tracking",
+        passed: code.includes("minLsn") && code.includes("appliedLsn"),
+        detail: "Tracks session write LSN and compares against replica appliedLsn",
+      });
+      results.push({
+        name: "Primary Fallback on Lag or Failure",
+        passed: code.includes("primary") && code.includes("healthy"),
+        detail: "Falls back to primary node when replicas lag behind session LSN or fail",
+      });
+    } else if (id === "task_auth_oidc_federated_jwt_validator") {
+      results.push({
+        name: "Asymmetric Algorithm Allowlist & JWKS Rotation",
+        passed: code.includes("RS256") && code.includes("ES256") && code.includes("forceRefresh"),
+        detail: "Enforces asymmetric signing algorithms and refreshes JWKS on unknown kid",
+      });
+      results.push({
+        name: "Multi-Audience Azp & Nonce Validation",
+        passed: code.includes("azp") && code.includes("nonce") && code.includes("exp"),
+        detail: "Validates iss, aud, azp, exp/nbf, and session nonce claims",
+      });
+    } else if (id === "task_fingerprint_behavioral_biometrics_bot") {
+      results.push({
+        name: "Pointer Kinematics & Collinearity Analysis",
+        passed: code.includes("Math.hypot") && code.includes("variance") && code.includes("collinear"),
+        detail: "Analyzes pointer velocity variance and 2D cross-product collinearity",
+      });
+      results.push({
+        name: "Untrusted Event & Keystroke Dwell Checks",
+        passed: code.includes("isTrusted") && code.includes("upTime") && code.includes("downTime"),
+        detail: "Detects synthetic untrusted events and zero-duration keystroke dwell times",
+      });
+    } else if (id === "task_cybersec_http_desync_header_canonicalizer") {
+      results.push({
+        name: "CL.TE / TE.CL Desync Ambiguity Rejection",
+        passed: code.includes("transfer-encoding") && code.includes("content-length") && code.includes("chunked"),
+        detail: "Rejects requests with both Transfer-Encoding and Content-Length or obfuscated chunked framing",
+      });
+      results.push({
+        name: "CRLF Header Splitting Guard",
+        passed: code.includes("\\r") && code.includes("\\n"),
+        detail: "Blocks CR, LF, and NUL control bytes inside HTTP header names and values",
+      });
+    } else if (id === "task_agentic_multi_agent_consensus_arbiter") {
+      results.push({
+        name: "Hierarchical Path Conflict Detection",
+        passed: code.includes("startsWith") && code.includes("LeaseConflictError"),
+        detail: "Prevents overlapping parent/child directory leases across concurrent peer agents",
+      });
+      results.push({
+        name: "Monotonic Fencing Token Enforcement",
+        passed: code.includes("epoch") && code.includes("StaleFencingTokenError"),
+        detail: "Rejects stale commits from expired or superseded fencing epochs",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -1056,6 +1111,232 @@ export class Evaluator {
         name: "Episodic Compaction, Recall & Goal-Drift Guard",
         passed: Boolean(res?.withinBudget && res?.pinnedPreserved && res?.recalledArtifact && res?.driftBlocked),
         detail: "Compacts old turns within token budget, recalls relevant artifacts, and blocks goal drift",
+      });
+    } else if (taskId === "task_db_read_write_replica_lag_router") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Router = typeof CausalReplicaRouter === "function" ? CausalReplicaRouter : exports.CausalReplicaRouter;
+          const primary = { query: async () => ({ rows: ["p"], lsn: 50 }) };
+          const laggingReplica = { id: "rep_lag", healthy: true, appliedLsn: 40, query: async () => ({ rows: ["stale"] }) };
+          const caughtUpReplica = { id: "rep_ok", healthy: true, appliedLsn: 55, query: async () => ({ rows: ["fresh"] }) };
+
+          const router = new Router(primary, [laggingReplica]);
+          const session = { minLsn: 0 };
+          await router.execute("INSERT INTO items VALUES ($1)", ["a"], session);
+          // Lagging replica is at 40 < 50 -> must route to primary!
+          const read1 = await router.execute("SELECT * FROM items", [], session);
+
+          const router2 = new Router(primary, [laggingReplica, caughtUpReplica]);
+          const read2 = await router2.execute("SELECT * FROM items", [], session);
+
+          return {
+            lsnTracked: session.minLsn === 50,
+            lagFallbackToPrimary: read1.routedTo === "primary",
+            caughtUpRoutedToReplica: read2.routedTo === "rep_ok",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Read-Your-Writes LSN Routing & Lag Failover",
+        passed: Boolean(res?.lsnTracked && res?.lagFallbackToPrimary && res?.caughtUpRoutedToReplica),
+        detail: "Bypasses lagging replicas when appliedLsn < session.minLsn and routes to caught-up replicas",
+      });
+    } else if (taskId === "task_auth_oidc_federated_jwt_validator") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const validate = typeof validateOidcIdToken === "function" ? validateOidcIdToken : exports.validateOidcIdToken;
+          let refreshCount = 0;
+          const jwksClient = {
+            async getKey(kid, { forceRefresh }) {
+              if (forceRefresh) refreshCount++;
+              if (kid === "rotated_kid_2" && forceRefresh) {
+                return { kty: "EC", crv: "P-256", kid: "rotated_kid_2" };
+              }
+              return null;
+            }
+          };
+
+          const validRes = await validate({
+            decodedToken: {
+              header: { alg: "ES256", kid: "rotated_kid_2" },
+              payload: {
+                iss: "https://idp.example.com",
+                aud: ["client_app", "other_service"],
+                azp: "client_app",
+                sub: "usr_oidc_1",
+                nonce: "n_777",
+                exp: 1700000500,
+              },
+              verifyWithJwk: (jwk) => jwk.kid === "rotated_kid_2",
+            },
+            jwksClient,
+            expectedIssuer: "https://idp.example.com",
+            expectedAudience: "client_app",
+            expectedNonce: "n_777",
+            nowSec: 1700000100,
+          });
+
+          let algNoneBlocked = false;
+          try {
+            await validate({
+              decodedToken: {
+                header: { alg: "none", kid: "rotated_kid_2" },
+                payload: { iss: "https://idp.example.com", aud: "client_app", exp: 1700000500 },
+                verifyWithJwk: () => true,
+              },
+              jwksClient,
+              expectedIssuer: "https://idp.example.com",
+              expectedAudience: "client_app",
+              nowSec: 1700000100,
+            });
+          } catch {
+            algNoneBlocked = true;
+          }
+
+          return {
+            verified: validRes?.verified === true && refreshCount === 1,
+            algNoneBlocked,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "OIDC JWKS Key Rotation & Alg-Confusion Rejection",
+        passed: Boolean(res?.verified && res?.algNoneBlocked),
+        detail: "Refreshes JWKS on rotated kid, verifies multi-audience azp/nonce, and blocks alg:none",
+      });
+    } else if (taskId === "task_fingerprint_behavioral_biometrics_bot") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const classify = typeof classifyInteractionTelemetry === "function" ? classifyInteractionTelemetry : exports.classifyInteractionTelemetry;
+          const human = classify({
+            pointerEvents: [
+              { x: 10, y: 10, t: 0, isTrusted: true },
+              { x: 45, y: 28, t: 18, isTrusted: true },
+              { x: 110, y: 95, t: 42, isTrusted: true },
+              { x: 140, y: 150, t: 85, isTrusted: true },
+            ],
+            keyEvents: [{ downTime: 100, upTime: 165, isTrusted: true }],
+          });
+          const bot = classify({
+            pointerEvents: [
+              { x: 0, y: 0, t: 0, isTrusted: true },
+              { x: 50, y: 50, t: 10, isTrusted: true },
+              { x: 100, y: 100, t: 20, isTrusted: true },
+              { x: 150, y: 150, t: 30, isTrusted: true },
+            ],
+            keyEvents: [{ downTime: 200, upTime: 200, isTrusted: true }],
+          });
+          return {
+            humanPassed: human.isSyntheticBot === false,
+            botCaught: bot.isSyntheticBot === true && bot.flags.length >= 2,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Pointer Kinematics & Keystroke Dwell Classification",
+        passed: Boolean(res?.humanPassed && res?.botCaught),
+        detail: "Distinguishes curved variable-velocity human input from linear zero-dwell bot macros",
+      });
+    } else if (taskId === "task_cybersec_http_desync_header_canonicalizer") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const check = typeof canonicalizeAndValidateHttpHeaders === "function" ? canonicalizeAndValidateHttpHeaders : exports.canonicalizeAndValidateHttpHeaders;
+          const clean = check([
+            ["Host", "example.com"],
+            ["Content-Length", "42"],
+          ]);
+
+          let clTeBlocked = false;
+          try {
+            check([
+              ["Content-Length", "13"],
+              ["Transfer-Encoding", "chunked"],
+            ]);
+          } catch {
+            clTeBlocked = true;
+          }
+
+          let crlfBlocked = false;
+          try {
+            check([["X-Custom", "val\\r\\nSet-Cookie: evil=1"]]);
+          } catch {
+            crlfBlocked = true;
+          }
+
+          return {
+            cleanOk: clean.valid === true && clean.contentLength === 42,
+            clTeBlocked,
+            crlfBlocked,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "CL.TE Request Smuggling & CRLF Injection Prevention",
+        passed: Boolean(res?.cleanOk && res?.clTeBlocked && res?.crlfBlocked),
+        detail: "Blocks simultaneous Content-Length + Transfer-Encoding and CRLF header splitting",
+      });
+    } else if (taskId === "task_agentic_multi_agent_consensus_arbiter") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Arbiter = typeof MultiAgentLeaseArbiter === "function" ? MultiAgentLeaseArbiter : exports.MultiAgentLeaseArbiter;
+          const arb = new Arbiter();
+
+          const lease1 = arb.acquireLease("agent_alpha", ["src/auth"], 100, 1000);
+          let overlapBlocked = false;
+          try {
+            // Child path src/auth/jwt.js overlaps held parent dir src/auth!
+            arb.acquireLease("agent_beta", ["src/auth/jwt.js"], 100, 1010);
+          } catch {
+            overlapBlocked = true;
+          }
+
+          // After lease1 expires at t=1150, agent_beta acquires a newer epoch lease
+          const lease2 = arb.acquireLease("agent_beta", ["src/auth/jwt.js"], 100, 1150);
+          const betaCommit = arb.commitPatch({
+            agentId: "agent_beta",
+            leaseId: lease2.leaseId,
+            epoch: lease2.epoch,
+            filePath: "src/auth/jwt.js",
+            content: "const v = 2;",
+            nowMs: 1160,
+          });
+
+          let zombieAlphaBlocked = false;
+          try {
+            // Delayed agent_alpha wakes up with stale epoch and tries to overwrite src/auth/jwt.js
+            arb.commitPatch({
+              agentId: "agent_alpha",
+              leaseId: lease1.leaseId,
+              epoch: lease1.epoch,
+              filePath: "src/auth/jwt.js",
+              content: "const v = 1;",
+              nowMs: 1170,
+            });
+          } catch {
+            zombieAlphaBlocked = true;
+          }
+
+          return {
+            overlapBlocked,
+            betaCommitted: betaCommit.committed === true,
+            zombieAlphaBlocked,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Hierarchical Path Leases & Stale Epoch Fencing",
+        passed: Boolean(res?.overlapBlocked && res?.betaCommitted && res?.zombieAlphaBlocked),
+        detail: "Blocks parent/child path conflicts and fences zombie commits with stale lease epochs",
       });
     } else {
       // General syntax evaluation
