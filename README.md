@@ -16,10 +16,10 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (72 tasks across 19 categories & 8 tracks)
+  curriculum.js   Agentic Curriculum refactoring challenges (82 tasks across 21 categories & 9 tracks)
   chat.js         Real-time two-user chat engine, protocol debugger, and P99 latency benchmark
   seo.js          1st-party Schema.org JSON-LD @graph builder & HTML5 / Technical SEO auditor
-  commerce.js     1st-party E-Commerce checkout quote engine, EU VAT/US Nexus tax & Stripe/Polar.sh webhook verifier
+  commerce.js     1st-party WebShopStore (Guest-to-Account Cart Merge, Checkout Promotion, Immutable Order Snapshots, Stripe/Polar.sh Webhooks & Ledger)
   ts_ecosystem.js TypeScript framework catalog, cross-framework migration matrix & package manager registry
   evaluator.js    Isolated execution sandbox with Bun.Transpiler TypeScript support, AST checks, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
@@ -185,6 +185,20 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 71. **Immutable Double-Entry Financial Ledger for Stripe Connect Marketplace Splits & Partial Refunds**: Enforces `sum(DEBIT) === sum(CREDIT)` across `buyer_external`, `stripe_processing_fee`, `platform_commission`, and `seller_escrow_payable` with proportional fee clawbacks on partial refunds.
 72. **Usage-Based AI Token & GPU Meter Billing Engine (Polar Meters / Stripe Billing)**: Idempotent `eventId` meter ingestion, graduated tier bracket pricing (`upToUnits`, `blockSize`, `unitCostMinorPerBlock`), and automatic prepaid credit wallet drawdown.
 
+### Web Shop Storefront UI & Account-to-Checkout Flow (`storefront-ui` — 5 Tasks)
+73. **Faceted Product Catalog Filter & Multi-Axis Variant Matrix (`Color` × `Size` × `Storage`) SKU Selector**: Evaluates cross-axis stock availability (`inStockWithCurrentSelection`) to disable out-of-stock combinations before click, resolves `IN_STOCK`/`LOW_STOCK`/`OUT_OF_STOCK` badges, and syncs canonical `?color=...&layout=...&sku=...` URL parameters.
+74. **Optimistic Slide-Over Cart Drawer UI Controller with Rollback & Catalog Price-Drift Guard**: Applies optimistic quantity updates with full snapshot rollback on server rejection, drops stale out-of-order responses via monotonic `mutationId` watermarks, and surfaces `priceDriftNotices` + ARIA live announcements.
+75. **Seamless Guest-to-Account Creation, Cart Line-Item Conflict Merger & Address Book Deduplicator**: Upgrades anonymous guest carts into authenticated customer accounts, merges overlapping SKUs clamped to `Math.min(availableStock, maxPerOrder)`, and deduplicates shipping addresses via canonical postal fingerprints.
+76. **Accessible Multi-Step Checkout Stepper (`Account` → `Shipping` → `Payment` → `Review`)**: Enforces step prerequisite gates, invalidates downstream payment locks and tax quotes whenever the shipping address is modified, and emits WHATWG section-scoped `autocomplete` tokens (`shipping email`, `shipping address-line1`, `shipping postal-code`).
+77. **Interactive Order History, Split-Shipment Timeline & Self-Service Return (`RMA`) Eligibility Portal UI**: Computes per-line returnable quantities (`deliveredQty - alreadyReturnedQty`), blocks returns on digital license keys or expired 30-day windows, and previews exact minor-unit refunds.
+
+### Order Lifecycle & Commerce Data Architecture (`order-lifecycle-data` — 5 Tasks)
+78. **Normalized Commerce Entity Store (`customers`, `orders`, `orderItems`, `shipments`) with Referential Integrity**: Eliminates duplicated nested state using primary-key maps, $O(1)$ foreign-key secondary indexes (`ordersByCustomer`, `itemsByOrder`, `shipmentsByOrder`), and `ForeignKeyConstraintError` guards.
+79. **Immutable Order Line-Item Price, Tax & Title Snapshot Vault**: Deep-freezes (`Object.freeze`) checkout line-item prices, discounts, tax rates, and titles with a tamper-evident `snapshotHash` so future catalog price changes or SKU deletions never corrupt historical customer invoices.
+80. **Atomic Checkout-to-Order Promotion Pipeline**: Pre-validates stock across all cart SKUs, deducts inventory, issues sequential `INV-2026-XXXXX` invoice numbers, rolls up customer `orderCount` and `lifetimeSpendMinor`, and marks the cart `CONVERTED_TO_ORDER` idempotently.
+81. **Split-Shipment Fulfillment, Backorder Cancellations & Partial Capture Reconciler**: Enforces line-item quantity conservation (`shippedQty + canceledQty <= orderedQty`) and reconciles `authorizedTotalMinor === capturedMinor + releasedAuthorizationMinor + remainingCapturableMinor`.
+82. **Hash-Chained Event-Sourced Customer & Order Lifecycle Audit Log**: Enforces causal transitions (`ACCOUNT_CREATED` -> `GUEST_CART_MERGED` -> `CHECKOUT_AUTHORIZED` -> `ORDER_CAPTURED` -> `SHIPMENT_DELIVERED` -> `RMA_RETURN_APPROVED` -> `ORDER_REFUNDED`) over a tamper-evident hash chain and guards against over-refunding.
+
 ---
 
 ## Real-Time Two-User Chat, Protocol Debugger & Latency Benchmark
@@ -202,12 +216,13 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
 - **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
-- `GET /api/commerce/catalog`, `POST /api/commerce/checkout/quote` & `POST /api/commerce/webhooks/verify` — Exposes Stripe & Polar.sh payment architecture specs, computes integer minor-unit cart quotes with Largest-Remainder discount proration and EU VAT / US Nexus taxes, and verifies Stripe (`Stripe-Signature`) and Polar.sh Standard Webhooks (`webhook-signature`).
+- `GET /api/commerce/shop/state`, `POST /api/commerce/shop/cart/items`, `POST /api/commerce/shop/account`, `POST /api/commerce/shop/checkout`, `POST /api/commerce/shop/orders/lifecycle` & `POST /api/commerce/shop/catalog-mutate` — Full normalized Web Shop engine handling guest carts, account creation + cart merge, atomic checkout-to-order promotion (`INV-2026-XXXXX`), immutable order snapshot isolation, split-shipment delivery, RMA returns, and store-wide data integrity verification.
+- `GET /api/commerce/catalog`, `POST /api/commerce/checkout/quote`, `POST /api/commerce/webhooks/verify` & `POST /api/commerce/ledger/split` — Exposes Stripe & Polar.sh payment architecture specs, computes integer minor-unit cart quotes with Largest-Remainder discount proration and EU VAT / US Nexus taxes, verifies Stripe (`Stripe-Signature`) and Polar.sh Standard Webhooks (`webhook-signature`), and computes double-entry Connect ledger splits.
 - `GET /api/seo/json-ld` & `POST /api/seo/audit` — Generates connected Schema.org JSON-LD `@graph` structured data and audits raw HTML for HTML5 landmarks, heading outline, OpenGraph, Canonical, and JSON-LD `@graph` validity.
 - `GET /api/curriculum/ecosystem` — Returns the TypeScript Framework Ecosystem catalog, cross-framework migration pathways, and multi-runtime package manager specs (`npm`, `pnpm`, `yarn-berry`, `bun`, `deno`, `jsr`).
 - `GET /api/curriculum/tasks?category=...&difficulty=...&track=...` — Filters curriculum challenges by domain category, difficulty, or track.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings (including native `Bun.Transpiler` TypeScript execution) with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 72 curriculum tasks (or a filtered category) in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 82 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
@@ -224,6 +239,7 @@ Designed for training and evaluating autonomous agents (36 curated challenges ac
 | `O` | Open OAuth 2.0 Applications & Simulator |
 | `B` | Open Benchmark Suite Modal & Runner |
 | `C` | Open Two-User Real-Time Chat, Debugger & P99 Benchmark |
+| `S` | Open Web Shop Storefront, Checkout & Order History Inspector |
 | `T` | Toggle Light / Dark Monochrome Theme |
 | `1` / `2` / `3` / `4` | Filter: All / Active / Done / Refactoring |
 | `Delete` | Remove task |
