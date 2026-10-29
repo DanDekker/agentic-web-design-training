@@ -561,6 +561,65 @@ export class Evaluator {
         passed: code.includes(":has(") && code.includes(":popover-open"),
         detail: "Styles parent container state declaratively when child popover is open",
       });
+    } else if (id === "task_ts_react_nextjs_server_actions") {
+      results.push({
+        name: "TypeScript Discriminated Union ActionResult<T>",
+        passed:
+          code.includes("ActionResult") &&
+          code.includes("readonly ok: true") &&
+          code.includes("readonly ok: false"),
+        detail: "Defines strict TypeScript discriminated union result envelope with ok: true | false",
+      });
+      results.push({
+        name: "Immutable Optimistic Rollback & Server Action Wrapper",
+        passed:
+          code.includes("ROLLBACK_FAILURE") &&
+          code.includes("COMMIT_SUCCESS") &&
+          code.includes("createSafeServerAction"),
+        detail: "Rolls back optimistic state on server failure and validates inputs before handler execution",
+      });
+    } else if (id === "task_ts_angular_signals_computed_rx") {
+      results.push({
+        name: "Typed Angular Signal & Computed Dependency Tracking",
+        passed:
+          code.includes("WritableSignal<T>") &&
+          code.includes("computed<T>") &&
+          code.includes("Object.is"),
+        detail: "Implements reactive signal<T> and memoized computed<T> with automatic dependency tracking",
+      });
+      results.push({
+        name: "Cancelable switchMap Async Loader",
+        passed: code.includes("AbortController") && code.includes("createSwitchMapLoader"),
+        detail: "Cancels stale in-flight async requests when source signal updates",
+      });
+    } else if (id === "task_ts_nestjs_di_guard_interceptor") {
+      results.push({
+        name: "Typed NestJS IoC Container & CanActivate Guard",
+        passed:
+          code.includes("CanActivate") &&
+          code.includes("ExecutionContext") &&
+          code.includes("NestContainer"),
+        detail: "Resolves DI providers by token and enforces RBAC CanActivate guard before controller execution",
+      });
+      results.push({
+        name: "Around-Advice NestInterceptor & CallHandler",
+        passed: code.includes("NestInterceptor") && code.includes("next.handle()"),
+        detail: "Wraps route execution in composable CallHandler interceptor chain with audit telemetry",
+      });
+    } else if (id === "task_ts_trpc_zod_end_to_end_rpc") {
+      results.push({
+        name: "Generic ProcedureBuilder<TContext, TInput> & Middleware Narrowing",
+        passed:
+          code.includes("ProcedureBuilder<") &&
+          code.includes("use<") &&
+          code.includes("input<"),
+        detail: "Provides fluent .use() context narrowing and .input() schema validation builder",
+      });
+      results.push({
+        name: "Structured TRPCError & Router Caller Factory",
+        passed: code.includes("TRPCError") && code.includes("createCaller"),
+        detail: "Throws typed TRPCError codes and exposes createCaller(ctx) for end-to-end RPC dispatch",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -593,7 +652,17 @@ export class Evaluator {
       return results;
     }
 
-    const sanitizedCode = code.replace(/\bexport\s+(default\s+)?/g, "");
+    // Transpile TypeScript / TSX syntax natively via Bun.Transpiler when evaluating TS tasks
+    let executableCode = code;
+    if (
+      task?.track === "enterprise-typescript" ||
+      /\b(interface|type\s+[A-Za-z0-9_]+\s*=|readonly\s+|:\s*(string|number|boolean|unknown|any|Record|Promise|Readonly))\b/.test(code)
+    ) {
+      const transpiler = new Bun.Transpiler({ loader: "tsx", target: "bun" });
+      executableCode = transpiler.transformSync(code);
+    }
+
+    const sanitizedCode = executableCode.replace(/\bexport\s+(default\s+)?/g, "");
 
     // Safe isolated execution context
     const sandbox = {
@@ -1744,6 +1813,204 @@ export class Evaluator {
         name: "O(1) Ring Buffer Capacity & Fanout Benchmark",
         passed: Boolean(res?.cappedAtCapacity && res?.slidingWindowCorrect && res?.fanoutDelivered && res?.hasPercentiles),
         detail: "Retains latest 32 of 120 messages in O(1) ring buffer, fans out 240 frames, and reports P50/P99 latency",
+      });
+    } else if (taskId === "task_ts_react_nextjs_server_actions") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const reducer = typeof optimisticOrdersReducer === "function" ? optimisticOrdersReducer : exports.optimisticOrdersReducer;
+          const makeAction = typeof createSafeServerAction === "function" ? createSafeServerAction : exports.createSafeServerAction;
+
+          const base = [{ id: "ord_1", sku: "PRO-PLAN", amountCents: 4900, pending: false }];
+          const afterAdd = reducer(base, { type: "OPTIMISTIC_ADD", tempId: "tmp_9", sku: "ENT-SEAT", amountCents: 9900 });
+          const afterRollback = reducer(afterAdd, { type: "ROLLBACK_FAILURE", tempId: "tmp_9" });
+          const afterCommit = reducer(afterAdd, {
+            type: "COMMIT_SUCCESS",
+            tempId: "tmp_9",
+            committed: { id: "ord_2", sku: "ENT-SEAT", amountCents: 9900 },
+          });
+
+          const action = makeAction({
+            validate: (raw) =>
+              typeof raw.sku === "string" && raw.sku.length >= 3
+                ? { valid: true, value: { sku: raw.sku, amountCents: Number(raw.amountCents || 0) } }
+                : { valid: false, fieldErrors: { sku: "SKU must be at least 3 chars" } },
+            revalidateTags: ["orders", "billing-summary"],
+            handler: async (input) => ({ id: "ord_99", ...input }),
+          });
+
+          const badRes = await action({ sku: "a" });
+          const goodRes = await action({ sku: "ENT-SEAT", amountCents: 9900 });
+
+          return {
+            optimisticOk: afterAdd.length === 2 && afterAdd[1].pending === true && base.length === 1,
+            rollbackOk: afterRollback.length === 1 && afterRollback[0].id === "ord_1",
+            commitOk: afterCommit[1].id === "ord_2" && afterCommit[1].pending === false,
+            validationRejected: badRes.ok === false && badRes.code === "VALIDATION_ERROR",
+            actionResolved: goodRes.ok === true && goodRes.data.id === "ord_99" && goodRes.revalidatedTags.includes("orders"),
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Transpiled TypeScript Server Action & Optimistic Rollback Execution",
+        passed: Boolean(
+          res?.optimisticOk && res?.rollbackOk && res?.commitOk && res?.validationRejected && res?.actionResolved,
+        ),
+        detail: "Executes transpiled TS optimistic reducer rollback and validated Next.js Server Action envelope",
+      });
+    } else if (taskId === "task_ts_angular_signals_computed_rx") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const sigFn = typeof signal === "function" ? signal : exports.signal;
+          const compFn = typeof computed === "function" ? computed : exports.computed;
+          const switchFn = typeof createSwitchMapLoader === "function" ? createSwitchMapLoader : exports.createSwitchMapLoader;
+
+          let computeRuns = 0;
+          const price = sigFn(100);
+          const qty = sigFn(3);
+          const total = compFn(() => {
+            computeRuns++;
+            return price() * qty();
+          });
+
+          const firstTotal = total();
+          const cachedTotal = total(); // Should not recompute when dependencies haven't changed
+          qty.update((q) => q + 2);
+          const updatedTotal = total();
+
+          const accountId = sigFn("acc_slow");
+          const abortedKeys = [];
+          const loader = switchFn(accountId, async (key, abortSig) => {
+            abortSig.addEventListener("abort", () => abortedKeys.push(key));
+            if (key === "acc_slow") {
+              await new Promise((r) => setTimeout(r, 30));
+            }
+            return "portfolio:" + key;
+          });
+
+          const p1 = loader.trigger("acc_slow");
+          const p2 = loader.trigger("acc_fast");
+          await Promise.all([p1, p2]);
+
+          return {
+            signalMemoOk: firstTotal === 300 && cachedTotal === 300 && computeRuns === 2 && updatedTotal === 500,
+            switchMapCanceledSlow: abortedKeys.includes("acc_slow") && loader.data() === "portfolio:acc_fast",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Angular Signal Graph Memoization & switchMap Cancellation",
+        passed: Boolean(res?.signalMemoOk && res?.switchMapCanceledSlow),
+        detail: "Tracks signal dependencies lazily and aborts superseded in-flight switchMap requests",
+      });
+    } else if (taskId === "task_ts_nestjs_di_guard_interceptor") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Container = typeof NestContainer === "function" ? NestContainer : exports.NestContainer;
+          const Guard = typeof RolesGuard === "function" ? RolesGuard : exports.RolesGuard;
+          const Interceptor = typeof AuditTelemetryInterceptor === "function" ? AuditTelemetryInterceptor : exports.AuditTelemetryInterceptor;
+          const runPipe = typeof executeNestPipeline === "function" ? executeNestPipeline : exports.executeNestPipeline;
+
+          const container = new Container();
+          let creations = 0;
+          container.register("LEDGER_SVC", () => ({ id: ++creations, refund: (id) => "refunded:" + id }), true);
+          const s1 = container.resolve("LEDGER_SVC");
+          const s2 = container.resolve("LEDGER_SVC");
+
+          let unauthBlocked = false;
+          try {
+            await runPipe(
+              { handlerName: "issueRefund", requiredRoles: ["FINANCE_ADMIN"], request: { user: { id: "u_1", roles: ["VIEWER"] } } },
+              [new Guard()],
+              [new Interceptor()],
+              async () => s1.refund("inv_1"),
+            );
+          } catch (e) {
+            unauthBlocked = e.statusCode === 403;
+          }
+
+          const authorizedRes = await runPipe(
+            { handlerName: "issueRefund", requiredRoles: ["FINANCE_ADMIN"], request: { user: { id: "u_admin", roles: ["FINANCE_ADMIN"] } } },
+            [new Guard()],
+            [new Interceptor()],
+            async () => s1.refund("inv_99"),
+          );
+
+          return {
+            singletonOk: s1 === s2 && creations === 1,
+            unauthBlocked,
+            interceptorOk: authorizedRes.data === "refunded:inv_99" && authorizedRes.audit.actorId === "u_admin",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "NestJS DI Singleton, RBAC Guard & Interceptor Execution",
+        passed: Boolean(res?.singletonOk && res?.unauthBlocked && res?.interceptorOk),
+        detail: "Resolves singleton DI tokens, blocks unauthorized roles with 403, and wraps responses with audit telemetry",
+      });
+    } else if (taskId === "task_ts_trpc_zod_end_to_end_rpc") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const Builder = typeof ProcedureBuilder === "function" ? ProcedureBuilder : exports.ProcedureBuilder;
+          const Err = typeof TRPCError === "function" ? TRPCError : exports.TRPCError;
+          const makeRouter = typeof createTRPCRouter === "function" ? createTRPCRouter : exports.createTRPCRouter;
+
+          const publicProcedure = new Builder();
+          const authedProcedure = publicProcedure.use(async ({ ctx, next }) => {
+            if (!ctx?.user) throw new Err({ code: "UNAUTHORIZED", message: "Missing session" });
+            return next({ ctx: { ...ctx, user: ctx.user } });
+          });
+
+          const router = makeRouter({
+            createProject: authedProcedure
+              .input({
+                parse(raw) {
+                  if (!raw || typeof raw.name !== "string" || raw.name.length < 3) {
+                    throw new Error("name min 3 chars");
+                  }
+                  return { name: raw.name.trim() };
+                },
+              })
+              .mutation(async ({ ctx, input }) => ({
+                projectName: input.name,
+                ownerId: ctx.user.id,
+              })),
+          });
+
+          let unauthCode = "";
+          try {
+            await router.createCaller({ user: null }).createProject({ name: "Apollo" });
+          } catch (e) {
+            unauthCode = e.code;
+          }
+
+          let badInputCode = "";
+          try {
+            await router.createCaller({ user: { id: "usr_42" } }).createProject({ name: "a" });
+          } catch (e) {
+            badInputCode = e.code;
+          }
+
+          const created = await router.createCaller({ user: { id: "usr_42" } }).createProject({ name: "Enterprise Core" });
+
+          return {
+            unauthBlocked: unauthCode === "UNAUTHORIZED",
+            badInputBlocked: badInputCode === "BAD_REQUEST",
+            createdOk: created.projectName === "Enterprise Core" && created.ownerId === "usr_42",
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "tRPC Context Narrowing, Input Validation & Caller Dispatch",
+        passed: Boolean(res?.unauthBlocked && res?.badInputBlocked && res?.createdOk),
+        detail: "Enforces UNAUTHORIZED middleware, BAD_REQUEST input schema parsing, and typed caller execution",
       });
     } else {
       // General syntax evaluation

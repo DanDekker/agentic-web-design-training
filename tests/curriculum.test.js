@@ -245,6 +245,23 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies Fortune 500 TypeScript framework tasks (React 19/Next.js, Angular Signals, NestJS DI, tRPC+Zod)", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=ts-frameworks");
+    const { tasks: tsTasks } = await tasksRes.json();
+    expect(tsTasks.length).toBe(4);
+
+    for (const tsTask of tsTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: tsTask.id,
+        code: tsTask.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
   test("validates normalized curriculum schema, categories, and domain tracks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);

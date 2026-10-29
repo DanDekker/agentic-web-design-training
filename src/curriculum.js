@@ -31,6 +31,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Real-Time Two-User Chat & Protocol Engineering",
     categories: ["realtime-chat"],
   },
+  "enterprise-typescript": {
+    id: "enterprise-typescript",
+    name: "Fortune 500 TypeScript Frameworks, Migrations & Package Ecosystems",
+    categories: ["ts-frameworks", "framework-migration", "package-managers"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -46,6 +51,9 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "web-cybersec": "identity-security",
   "agentic-workflow": "agentic-systems",
   "realtime-chat": "realtime-systems",
+  "ts-frameworks": "enterprise-typescript",
+  "framework-migration": "enterprise-typescript",
+  "package-managers": "enterprise-typescript",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -2832,6 +2840,467 @@ function positionTooltip(triggerEl, tooltipEl) {
       "Tethers popover to trigger element declaratively via anchor-name, position-anchor, and anchor() functions",
       "Handles viewport edge overflow automatically using position-try-fallbacks and custom @position-try rules",
       "Highlights the parent container when its child popover is open using relational :has([popover]:popover-open)",
+    ],
+  },
+
+  /* ── 8. Fortune 500 Modern TypeScript Frameworks (React 19/Next.js, Angular Signals, NestJS DI, tRPC+Zod) ── */
+  {
+    id: "task_ts_react_nextjs_server_actions",
+    title: "React 19 / Next.js App Router: Type-Safe Server Action with Discriminated Union State, Optimistic Reducer & Schema Guard",
+    category: "ts-frameworks",
+    difficulty: "advanced",
+    tags: ["typescript", "react-19", "nextjs", "server-actions", "use-optimistic", "discriminated-union"],
+    instructions:
+      "A Fortune 500 React/Next.js checkout form mutates client state with untyped any payloads, ignores validation errors, and leaves ghost optimistic items when the server action rejects. Refactor in strict TypeScript using a discriminated union ActionResult<T>, a generic runtime schema validator, an immutable useOptimistic-compatible reducer with rollback-on-failure, and a typed createSafeServerAction wrapper.",
+    starterCode: `// Untyped React Client Mutation with Broken Optimistic Rollback
+export async function submitOrderAction(rawInput: any): Promise<any> {
+  // No runtime validation or discriminated union error envelope
+  const saved = await saveOrderToDb(rawInput);
+  return saved;
+}
+
+export function optimisticOrdersReducer(state: any[], action: any) {
+  state.push(action.payload); // Mutates state in place and cannot roll back on server failure!
+  return state;
+}`,
+    solutionCode: `// TypeScript React 19 / Next.js Safe Server Action & Rollback-Capable Optimistic Reducer
+export type ActionResult<TData, TField extends string = string> =
+  | { readonly ok: true; readonly data: TData; readonly revalidatedTags: readonly string[] }
+  | { readonly ok: false; readonly code: "VALIDATION_ERROR" | "SERVER_ERROR"; readonly message: string; readonly fieldErrors?: Partial<Record<TField, string>> };
+
+export interface OrderItem {
+  readonly id: string;
+  readonly sku: string;
+  readonly amountCents: number;
+  readonly pending?: boolean;
+}
+
+export type OptimisticAction =
+  | { readonly type: "OPTIMISTIC_ADD"; readonly tempId: string; readonly sku: string; readonly amountCents: number }
+  | { readonly type: "COMMIT_SUCCESS"; readonly tempId: string; readonly committed: OrderItem }
+  | { readonly type: "ROLLBACK_FAILURE"; readonly tempId: string };
+
+export function optimisticOrdersReducer(
+  state: readonly OrderItem[],
+  action: OptimisticAction,
+): OrderItem[] {
+  switch (action.type) {
+    case "OPTIMISTIC_ADD":
+      return [
+        ...state,
+        { id: action.tempId, sku: action.sku, amountCents: action.amountCents, pending: true },
+      ];
+    case "COMMIT_SUCCESS":
+      return state.map((item) =>
+        item.id === action.tempId ? { ...action.committed, pending: false } : item,
+      );
+    case "ROLLBACK_FAILURE":
+      return state.filter((item) => item.id !== action.tempId);
+  }
+}
+
+export function createSafeServerAction<TInput extends Record<string, unknown>, TOutput>(config: {
+  readonly validate: (raw: Record<string, unknown>) => { valid: true; value: TInput } | { valid: false; fieldErrors: Record<string, string> };
+  readonly revalidateTags: readonly string[];
+  readonly handler: (input: TInput) => Promise<TOutput>;
+}) {
+  return async (rawInput: Record<string, unknown>): Promise<ActionResult<TOutput>> => {
+    const parsed = config.validate(rawInput);
+    if (!parsed.valid) {
+      return {
+        ok: false,
+        code: "VALIDATION_ERROR",
+        message: "Invalid action payload",
+        fieldErrors: parsed.fieldErrors,
+      };
+    }
+    try {
+      const data = await config.handler(parsed.value);
+      return {
+        ok: true,
+        data,
+        revalidatedTags: [...config.revalidateTags],
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        code: "SERVER_ERROR",
+        message: err instanceof Error ? err.message : "Action execution failed",
+      };
+    }
+  };
+}`,
+    criteria: [
+      "Defines a strict TypeScript discriminated union ActionResult<TData> with ok: true | false branches",
+      "Implements an immutable optimisticOrdersReducer handling OPTIMISTIC_ADD, COMMIT_SUCCESS, and ROLLBACK_FAILURE",
+      "Wraps Next.js Server Actions in a generic createSafeServerAction enforcing runtime validation and cache tag metadata",
+    ],
+  },
+  {
+    id: "task_ts_angular_signals_computed_rx",
+    title: "Angular Enterprise Architecture: Reactive Signal (signal<T>, computed<T>) & Cancelable switchMap Store",
+    category: "ts-frameworks",
+    difficulty: "advanced",
+    tags: ["typescript", "angular", "signals", "computed", "switchmap", "reactivity"],
+    instructions:
+      "An enterprise Angular portfolio dashboard nests manual RxJS .subscribe() calls inside another .subscribe(), causing memory leaks and out-of-order race conditions when switching accounts. Refactor to a fine-grained TypeScript Angular Signal store providing signal<T>(), memoized computed<T>() with automatic dependency tracking, and a switchMapTask() operator that automatically aborts prior in-flight requests when the source signal updates.",
+    starterCode: `// Leaky Nested RxJS Subscriptions & Stale Account Race Condition
+export class PortfolioService {
+  selectedAccountId = "acc_1";
+  positions: any[] = [];
+  totalValuation = 0;
+
+  selectAccount(accountId: string, fetchPositions: (id: string) => Promise<any[]>) {
+    this.selectedAccountId = accountId;
+    // Race condition: slow previous account response overwrites newer account!
+    fetchPositions(accountId).then((rows) => {
+      this.positions = rows;
+      this.totalValuation = rows.reduce((s, r) => s + r.marketValue, 0);
+    });
+  }
+}`,
+    solutionCode: `// TypeScript Angular Signal, Memoized Computed & Cancelable switchMap Store
+export interface Signal<T> {
+  (): T;
+}
+
+export interface WritableSignal<T> extends Signal<T> {
+  set(value: T): void;
+  update(updater: (current: T) => T): void;
+  subscribe(listener: (value: T) => void): () => void;
+}
+
+let activeConsumer: (() => void) | null = null;
+
+export function signal<T>(initialValue: T): WritableSignal<T> {
+  let value = initialValue;
+  const subscribers = new Set<() => void>();
+  const listeners = new Set<(val: T) => void>();
+
+  const read = (() => {
+    if (activeConsumer) subscribers.add(activeConsumer);
+    return value;
+  }) as WritableSignal<T>;
+
+  read.set = (nextValue: T) => {
+    if (Object.is(value, nextValue)) return;
+    value = nextValue;
+    for (const sub of Array.from(subscribers)) sub();
+    for (const fn of Array.from(listeners)) fn(value);
+  };
+
+  read.update = (updater: (current: T) => T) => {
+    read.set(updater(value));
+  };
+
+  read.subscribe = (listener: (val: T) => void) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+
+  return read;
+}
+
+export function computed<T>(derivation: () => T): Signal<T> {
+  let cached: T;
+  let dirty = true;
+
+  const invalidate = () => {
+    dirty = true;
+  };
+
+  return () => {
+    if (dirty) {
+      const prev = activeConsumer;
+      activeConsumer = invalidate;
+      try {
+        cached = derivation();
+        dirty = false;
+      } finally {
+        activeConsumer = prev;
+      }
+    }
+    return cached;
+  };
+}
+
+export function createSwitchMapLoader<TKey, TResult>(
+  source: WritableSignal<TKey>,
+  loader: (key: TKey, abortSignal: AbortSignal) => Promise<TResult>,
+) {
+  const data = signal<TResult | null>(null);
+  const loading = signal<boolean>(false);
+  let activeController: AbortController | null = null;
+  let epoch = 0;
+
+  const trigger = async (key: TKey) => {
+    if (activeController) activeController.abort();
+    const controller = new AbortController();
+    activeController = controller;
+    const currentEpoch = ++epoch;
+    loading.set(true);
+
+    try {
+      const res = await loader(key, controller.signal);
+      if (currentEpoch === epoch && !controller.signal.aborted) {
+        data.set(res);
+        loading.set(false);
+      }
+    } catch {
+      if (currentEpoch === epoch) loading.set(false);
+    }
+  };
+
+  const unsubscribe = source.subscribe((nextKey) => {
+    void trigger(nextKey);
+  });
+
+  return { data, loading, trigger, destroy: unsubscribe };
+}`,
+    criteria: [
+      "Implements typed WritableSignal<T> with Object.is equality guard, .set(), and immutable .update()",
+      "Implements lazy memoized computed<T>() tracking signal reads and invalidating only when dependencies change",
+      "Implements createSwitchMapLoader cancelling stale in-flight requests via AbortController and epoch guards",
+    ],
+  },
+  {
+    id: "task_ts_nestjs_di_guard_interceptor",
+    title: "NestJS Enterprise Backend: Constructor DI Container, RBAC CanActivate Guard & Audit NestInterceptor Pipeline",
+    category: "ts-frameworks",
+    difficulty: "advanced",
+    tags: ["typescript", "nestjs", "dependency-injection", "rbac-guard", "interceptor", "enterprise"],
+    instructions:
+      "A backend microservice hardcodes service singletons inside controller methods and duplicates role checks and latency logging across 40 endpoints. Refactor using NestJS TypeScript architecture: an IoC Dependency Injection Container supporting token registration and dependency resolution, a metadata-driven CanActivate RBAC Guard, and an around-advice NestInterceptor that attaches audit telemetry.",
+    starterCode: `// Tightly-Coupled Controller with Inline Auth & Duplicated Logging
+export class BillingController {
+  async issueRefund(req: any) {
+    if (!req.user || req.user.role !== "FINANCE_ADMIN") {
+      throw new Error("Forbidden");
+    }
+    const start = Date.now();
+    const res = { refundedId: req.body.invoiceId, by: req.user.id };
+    console.log("took", Date.now() - start);
+    return res;
+  }
+}`,
+    solutionCode: `// TypeScript NestJS IoC Container, RBAC CanActivate Guard & Around-Advice Interceptor
+export type Token<T = unknown> = string | symbol | (new (...args: any[]) => T);
+
+export interface ExecutionContext {
+  readonly handlerName: string;
+  readonly requiredRoles: readonly string[];
+  readonly request: {
+    readonly user?: { readonly id: string; readonly roles: readonly string[] };
+    readonly body?: Record<string, unknown>;
+  };
+}
+
+export interface CanActivate {
+  canActivate(context: ExecutionContext): boolean | Promise<boolean>;
+}
+
+export interface CallHandler<T = unknown> {
+  handle(): Promise<T>;
+}
+
+export interface NestInterceptor<T = unknown, R = unknown> {
+  intercept(context: ExecutionContext, next: CallHandler<T>): Promise<R>;
+}
+
+export class NestContainer {
+  #providers = new Map<Token, { useFactory: (c: NestContainer) => unknown; singleton?: boolean; instance?: unknown }>();
+
+  register<T>(token: Token<T>, useFactory: (container: NestContainer) => T, singleton = true): this {
+    this.#providers.set(token, { useFactory, singleton });
+    return this;
+  }
+
+  resolve<T>(token: Token<T>): T {
+    const entry = this.#providers.get(token);
+    if (!entry) throw new Error(\`No provider registered for token \${String(token)}\`);
+    if (entry.singleton) {
+      if (entry.instance === undefined) {
+        entry.instance = entry.useFactory(this);
+      }
+      return entry.instance as T;
+    }
+    return entry.useFactory(this) as T;
+  }
+}
+
+export class RolesGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    if (context.requiredRoles.length === 0) return true;
+    const userRoles = context.request.user?.roles ?? [];
+    return context.requiredRoles.some((role) => userRoles.includes(role));
+  }
+}
+
+export class AuditTelemetryInterceptor<T> implements NestInterceptor<T, { data: T; audit: { handler: string; actorId: string; durationMs: number } }> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler<T>,
+  ): Promise<{ data: T; audit: { handler: string; actorId: string; durationMs: number } }> {
+    const t0 = Date.now();
+    const data = await next.handle();
+    return {
+      data,
+      audit: {
+        handler: context.handlerName,
+        actorId: context.request.user?.id ?? "anonymous",
+        durationMs: Math.max(0, Date.now() - t0),
+      },
+    };
+  }
+}
+
+export async function executeNestPipeline<T>(
+  context: ExecutionContext,
+  guards: readonly CanActivate[],
+  interceptors: readonly NestInterceptor<any, any>[],
+  handler: () => Promise<T>,
+) {
+  for (const guard of guards) {
+    const allowed = await guard.canActivate(context);
+    if (!allowed) {
+      const err = new Error("Forbidden resource");
+      (err as any).statusCode = 403;
+      throw err;
+    }
+  }
+
+  const dispatch = (idx: number): Promise<any> => {
+    if (idx >= interceptors.length) return handler();
+    return interceptors[idx].intercept(context, {
+      handle: () => dispatch(idx + 1),
+    });
+  };
+
+  return dispatch(0);
+}`,
+    criteria: [
+      "Implements a typed IoC NestContainer supporting singleton and factory provider resolution",
+      "Enforces declarative RBAC authorization via CanActivate guard before controller invocation",
+      "Wraps handler execution with composable NestInterceptor CallHandler chains emitting audit metadata",
+    ],
+  },
+  {
+    id: "task_ts_trpc_zod_end_to_end_rpc",
+    title: "tRPC + Zod Architecture: Fluent Generic ProcedureBuilder<TContext, TInput, TOutput> with Context Narrowing",
+    category: "ts-frameworks",
+    difficulty: "advanced",
+    tags: ["typescript", "trpc", "zod", "rpc", "type-inference", "middleware"],
+    instructions:
+      "REST endpoints drift out of sync with frontend TypeScript types and forget to validate inputs or narrow the authenticated session context. Build a tRPC-style generic ProcedureBuilder<TContext, TInput, TOutput> supporting .use() middleware that narrows TContext (e.g., guaranteeing ctx.user is non-null), .input(schema) runtime validation with structured TRPCError codes (BAD_REQUEST, UNAUTHORIZED), and createCaller(ctx) for direct server-side invocation.",
+    starterCode: `// Unvalidated Loose RPC Handler Map
+export const appRouter = {
+  createProject: async (ctx: any, input: any) => {
+    // Forgot to check ctx.user or validate input.name length!
+    return { id: "prj_1", name: input.name, ownerId: ctx.user.id };
+  }
+};`,
+    solutionCode: `// End-to-End Type-Safe tRPC Procedure Builder with Context-Narrowing Middleware & Schema Parser
+export type TRPCErrorCode = "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "INTERNAL_SERVER_ERROR";
+
+export class TRPCError extends Error {
+  readonly code: TRPCErrorCode;
+  constructor(opts: { code: TRPCErrorCode; message: string }) {
+    super(opts.message);
+    this.name = "TRPCError";
+    this.code = opts.code;
+  }
+}
+
+export interface SchemaValidator<T> {
+  parse(raw: unknown): T;
+}
+
+type MiddlewareFn<TContextIn, TContextOut> = (opts: {
+  ctx: TContextIn;
+  next: <TNewCtx>(nextOpts?: { ctx: TNewCtx }) => Promise<TNewCtx>;
+}) => Promise<TContextOut>;
+
+export class ProcedureBuilder<TContext, TInput = undefined> {
+  #middlewares: MiddlewareFn<any, any>[];
+  #inputSchema?: SchemaValidator<TInput>;
+
+  constructor(middlewares: MiddlewareFn<any, any>[] = [], inputSchema?: SchemaValidator<TInput>) {
+    this.#middlewares = middlewares;
+    this.#inputSchema = inputSchema;
+  }
+
+  use<TNewContext>(fn: MiddlewareFn<TContext, TNewContext>): ProcedureBuilder<TNewContext, TInput> {
+    return new ProcedureBuilder<TNewContext, TInput>([...this.#middlewares, fn], this.#inputSchema);
+  }
+
+  input<TNewInput>(schema: SchemaValidator<TNewInput>): ProcedureBuilder<TContext, TNewInput> {
+    return new ProcedureBuilder<TContext, TNewInput>(this.#middlewares, schema);
+  }
+
+  mutation<TOutput>(resolver: (opts: { ctx: TContext; input: TInput }) => Promise<TOutput> | TOutput) {
+    return this.#buildProcedure("mutation", resolver);
+  }
+
+  query<TOutput>(resolver: (opts: { ctx: TContext; input: TInput }) => Promise<TOutput> | TOutput) {
+    return this.#buildProcedure("query", resolver);
+  }
+
+  #buildProcedure<TOutput>(
+    type: "query" | "mutation",
+    resolver: (opts: { ctx: TContext; input: TInput }) => Promise<TOutput> | TOutput,
+  ) {
+    const middlewares = this.#middlewares;
+    const schema = this.#inputSchema;
+
+    return {
+      _type: type,
+      async call(rawCtx: unknown, rawInput?: unknown): Promise<TOutput> {
+        let currentCtx: any = rawCtx;
+        for (const mw of middlewares) {
+          currentCtx = await mw({
+            ctx: currentCtx,
+            next: async (nextOpts) => (nextOpts && "ctx" in nextOpts ? nextOpts.ctx : currentCtx),
+          });
+        }
+
+        let parsedInput: any = rawInput;
+        if (schema) {
+          try {
+            parsedInput = schema.parse(rawInput);
+          } catch (err) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: err instanceof Error ? err.message : "Input validation failed",
+            });
+          }
+        }
+
+        return await resolver({ ctx: currentCtx as TContext, input: parsedInput as TInput });
+      },
+    };
+  }
+}
+
+export function createTRPCRouter<TProcedures extends Record<string, { call: (ctx: any, input?: any) => Promise<any> }>>(
+  procedures: TProcedures,
+) {
+  return {
+    procedures,
+    createCaller(ctx: unknown): {
+      [K in keyof TProcedures]: (input?: unknown) => ReturnType<TProcedures[K]["call"]>;
+    } {
+      const caller: Record<string, (input?: unknown) => Promise< unknown >> = {};
+      for (const [key, proc] of Object.entries(procedures)) {
+        caller[key] = (input?: unknown) => proc.call(ctx, input);
+      }
+      return caller as any;
+    },
+  };
+}`,
+    criteria: [
+      "Implements generic ProcedureBuilder<TContext, TInput> supporting fluent .use() context narrowing and .input() schema parsing",
+      "Throws structured TRPCError with BAD_REQUEST on schema failure and UNAUTHORIZED in auth middleware",
+      "Provides createTRPCRouter().createCaller(ctx) for end-to-end typed procedure invocation",
     ],
   },
 ];

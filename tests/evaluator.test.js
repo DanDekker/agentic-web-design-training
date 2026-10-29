@@ -199,6 +199,22 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
+  test("evaluates Fortune 500 TypeScript framework tasks via native Bun.Transpiler in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_ts_react_nextjs_server_actions",
+      "task_ts_angular_signals_computed_rx",
+      "task_ts_nestjs_di_guard_interceptor",
+      "task_ts_trpc_zod_end_to_end_rpc",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
     expect(REFACTORING_CURRICULUM_TASKS.length).toBeGreaterThanOrEqual(40);
