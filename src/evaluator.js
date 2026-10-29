@@ -1452,6 +1452,74 @@ export class Evaluator {
           code.includes("formatServerTimingHeader"),
         detail: "Schedules HTTP requests by RFC 9218 urgency/incremental directives and compiles Server-Timing headers",
       });
+    } else if (id === "task_design_w3c_dtcg_token_compiler_multi_brand_alias") {
+      results.push({
+        name: "W3C DTCG 2025.10 Group $type Inheritance & {group.token} Alias Resolution",
+        passed:
+          code.includes("$type") &&
+          code.includes("$value") &&
+          code.includes("resolveTokenValue"),
+        detail: "Inherits group-level $type and resolves chained curly-brace token aliases",
+      });
+      results.push({
+        name: "Circular Alias Cycle Detection & Deterministic CSS Variable Output",
+        passed:
+          code.includes("CircularTokenAliasError") &&
+          code.includes("compileCssCustomProperties") &&
+          code.includes("cssVarName"),
+        detail: "Throws CircularTokenAliasError on alias cycles and compiles sorted --group-token CSS declarations",
+      });
+    } else if (id === "task_design_oklch_perceptual_palette_apca_contrast_guard") {
+      results.push({
+        name: "11-Step Perceptual OKLCH Tonal Ramp & Chroma Polar Tapering",
+        passed:
+          code.includes("oklch(") &&
+          code.includes("generatePerceptualOklchRamp") &&
+          code.includes("chromaFactor"),
+        detail: "Synthesizes 50..950 OKLCH ramp with chroma tapering near white and black poles",
+      });
+      results.push({
+        name: "Polarity-Aware APCA (Lc) & WCAG 2.2 Contrast Auto-Remediation",
+        passed:
+          code.includes("apcaLc") &&
+          code.includes("wcagRatio") &&
+          code.includes("enforceAccessibleTextContrast"),
+        detail: "Computes APCA Lc / WCAG contrast and nudges foreground lightness until target Lc is met",
+      });
+    } else if (id === "task_design_fluid_utopia_typography_bento_spatial_grid") {
+      results.push({
+        name: "Utopia Slope-Intercept Fluid clamp() Typography Compiler",
+        passed:
+          code.includes("compileFluidClampExpression") &&
+          code.includes("clamp(") &&
+          code.includes("vw"),
+        detail: "Computes exact clamp(minRem, interceptRem + slopeVw, maxRem) fluid typography expressions",
+      });
+      results.push({
+        name: "4px/8px Spatial Grid Rhythm & Bento Rectangle Packing Validator",
+        passed:
+          code.includes("validateBentoGridAndSpatialRhythm") &&
+          code.includes("offGridPxValues") &&
+          code.includes("isHoleFreeCompleteRectangle"),
+        detail: "Flags spacing values off the 4px grid and verifies hole-free Bento cell packing",
+      });
+    } else if (id === "task_design_proprietary_elevation_glassmorphism_spring_tokens") {
+      results.push({
+        name: "Hooke's Law Spring Physics Damping Ratio & CSS linear() Sampler",
+        passed:
+          code.includes("synthesizeSpringPhysicsToken") &&
+          code.includes("dampingRatio") &&
+          code.includes("linear("),
+        detail: "Calculates zeta damping ratio and samples damped harmonic oscillator into CSS linear(...)",
+      });
+      results.push({
+        name: "Multi-Layer OKLCH Specular Elevation & Reduced-Motion Guard",
+        passed:
+          code.includes("compileProprietarySurfaceElevation") &&
+          code.includes("backdropFilterCss") &&
+          code.includes("reducedMotionFallbackCss"),
+        detail: "Combines key/ambient shadows with 1px inner specular highlight and reduced-motion fallback",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -1492,6 +1560,7 @@ export class Evaluator {
       task?.track === "commerce-fintech" ||
       task?.track === "storefront-order-lifecycle" ||
       task?.track === "web-cookies-data-traffic" ||
+      task?.track === "design-systems-web-components" ||
       /\b(interface|type\s+[A-Za-z0-9_]+\s*=|readonly\s+|:\s*(string|number|boolean|unknown|any|Record|Promise|Readonly))\b/.test(code)
     ) {
       const transpiler = new Bun.Transpiler({ loader: "tsx", target: "bun" });
@@ -5250,6 +5319,168 @@ export class Evaluator {
         name: "W3C traceparent Child Span, RFC 9218 Priority Ordering & Server-Timing",
         passed: Boolean(res?.tracePriorityAndTimingOk),
         detail: "Propagates W3C traceId with new child spanId, orders u=0 before u=3 before u=6, and formats Server-Timing",
+      });
+    } else if (taskId === "task_design_w3c_dtcg_token_compiler_multi_brand_alias") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const Compiler = typeof W3cDtcgTokenCompiler === "function"
+            ? W3cDtcgTokenCompiler
+            : exports.W3cDtcgTokenCompiler;
+
+          const compiler = new Compiler();
+          compiler.loadTokenTree({
+            color: {
+              $type: "color",
+              primitive: {
+                obsidian: { $value: "oklch(0.12 0.005 90)" },
+              },
+              semantic: {
+                surface: { $value: "{color.primitive.obsidian}" },
+              },
+            },
+          });
+
+          const compiled = compiler.compileCssCustomProperties(":root");
+
+          // Verify cycle detection
+          const cyclic = new Compiler();
+          cyclic.loadTokenTree({
+            a: { $type: "color", x: { $value: "{b.y}" } },
+            b: { $type: "color", y: { $value: "{a.x}" } },
+          });
+          let cycleCaught = false;
+          try {
+            cyclic.compileCssCustomProperties();
+          } catch (err) {
+            cycleCaught = String(err.message).includes("CircularTokenAliasError");
+          }
+
+          return {
+            dtcgCompiledAndCycleCaughtOk:
+              compiled.cssText.includes("--color-semantic-surface: oklch(0.12 0.005 90);") &&
+              compiled.tokens.every((t) => t.type === "color") &&
+              cycleCaught === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "W3C DTCG 2025.10 Alias Resolution, Group $type Inheritance & Cycle Guard",
+        passed: Boolean(res?.dtcgCompiledAndCycleCaughtOk),
+        detail: "Resolves {color.primitive.obsidian} into --color-semantic-surface and catches circular alias cycles",
+      });
+    } else if (taskId === "task_design_oklch_perceptual_palette_apca_contrast_guard") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const genRamp = typeof generatePerceptualOklchRamp === "function"
+            ? generatePerceptualOklchRamp
+            : exports.generatePerceptualOklchRamp;
+          const enforce = typeof enforceAccessibleTextContrast === "function"
+            ? enforceAccessibleTextContrast
+            : exports.enforceAccessibleTextContrast;
+
+          const ramp = genRamp(0.16, 250);
+          // Low-contrast gray text (l=0.35) on dark obsidian surface (l=0.12) must be lightened automatically!
+          const remediated = enforce(
+            { l: 0.35, c: 0.02, h: 90 },
+            { l: 0.12, c: 0.005, h: 90 },
+            65,
+          );
+
+          return {
+            oklchAndApcaOk:
+              ramp.length === 11 &&
+              ramp[0].step === 50 &&
+              ramp[10].step === 950 &&
+              remediated.wasAdjusted === true &&
+              remediated.apcaLc >= 65 &&
+              remediated.adjustedText.l > 0.7,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "11-Step OKLCH Tonal Ramp & APCA Lc Contrast Auto-Remediation",
+        passed: Boolean(res?.oklchAndApcaOk),
+        detail: "Generates 50..950 OKLCH scale and lightens dark-mode foreground text to >= 65 APCA Lc",
+      });
+    } else if (taskId === "task_design_fluid_utopia_typography_bento_spatial_grid") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const genScale = typeof generateModularFluidTypeScale === "function"
+            ? generateModularFluidTypeScale
+            : exports.generateModularFluidTypeScale;
+          const validateGrid = typeof validateBentoGridAndSpatialRhythm === "function"
+            ? validateBentoGridAndSpatialRhythm
+            : exports.validateBentoGridAndSpatialRhythm;
+
+          const scale = genScale({
+            baseMinPx: 16,
+            baseMaxPx: 20,
+            minRatio: 1.2,
+            maxRatio: 1.25,
+            steps: [{ name: "body", power: 0 }, { name: "h1", power: 3 }],
+          });
+
+          const bento = validateGrid({
+            columns: 4,
+            spacingPxValues: [4, 8, 16, 24, 32],
+            cards: [
+              { id: "hero", colSpan: 2, rowSpan: 2 },
+              { id: "stat1", colSpan: 2, rowSpan: 1 },
+              { id: "stat2", colSpan: 2, rowSpan: 1 },
+            ],
+          });
+
+          return {
+            utopiaAndBentoOk:
+              scale.length === 2 &&
+              scale[0].clampCss.startsWith("clamp(1rem,") &&
+              bento.rhythmValid === true &&
+              bento.totalCellsOccupied === 8 &&
+              bento.isHoleFreeCompleteRectangle === true,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Utopia Fluid clamp() Type Scale & Hole-Free Bento Grid Verification",
+        passed: Boolean(res?.utopiaAndBentoOk),
+        detail: "Compiles slope-intercept clamp() tokens and verifies 4-column Bento grid completeness",
+      });
+    } else if (taskId === "task_design_proprietary_elevation_glassmorphism_spring_tokens") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const synthSpring = typeof synthesizeSpringPhysicsToken === "function"
+            ? synthesizeSpringPhysicsToken
+            : exports.synthesizeSpringPhysicsToken;
+          const compileSurface = typeof compileProprietarySurfaceElevation === "function"
+            ? compileProprietarySurfaceElevation
+            : exports.compileProprietarySurfaceElevation;
+
+          // Critically damped spring: k=400, m=1 => critical c = 2*sqrt(400) = 40
+          const spring = synthSpring({ stiffness: 400, damping: 40, mass: 1 });
+          const surface = compileSurface({ level: 2, theme: "dark", glassBlurPx: 16 });
+
+          return {
+            springAndElevationOk:
+              spring.regime === "critically-damped" &&
+              spring.dampingRatio === 1 &&
+              spring.cssLinearEasing.startsWith("linear(0,") &&
+              surface.boxShadowCss.includes("inset 0 1px 0 0") &&
+              surface.backdropFilterCss.includes("blur(16px)"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Critically-Damped Spring Physics & Specular Glassmorphic Elevation",
+        passed: Boolean(res?.springAndElevationOk),
+        detail: "Identifies critically-damped spring (zeta=1), samples CSS linear(), and emits specular inner border",
       });
     } else {
       // General syntax evaluation

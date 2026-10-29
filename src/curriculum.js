@@ -56,6 +56,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Deep Web Cookies (RFC 6265bis/CHIPS/DBSC), Client Storage & HTTP Traffic Engineering",
     categories: ["web-cookies", "web-storage-data", "web-traffic"],
   },
+  "design-systems-web-components": {
+    id: "design-systems-web-components",
+    name: "Proprietary UI Design Systems (W3C DTCG 2025.10 / OKLCH), Interaction Craft & Web Components",
+    categories: ["proprietary-design-systems", "ui-ux-interaction", "web-components"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -83,6 +88,9 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "web-cookies": "web-cookies-data-traffic",
   "web-storage-data": "web-cookies-data-traffic",
   "web-traffic": "web-cookies-data-traffic",
+  "proprietary-design-systems": "design-systems-web-components",
+  "ui-ux-interaction": "design-systems-web-components",
+  "web-components": "design-systems-web-components",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -9211,6 +9219,454 @@ export function formatServerTimingHeader(
       "Validates W3C traceparent (00-traceId-parentId-flags), rejects all-zero trace/span IDs, and mints a child span traceparent",
       "Parses RFC 9218 Priority headers (u=0..7, i) with default u=3 and schedules lower urgency numbers first",
       "Formats standard Server-Timing headers (name;desc=\"...\";dur=...) for browser DevTools performance inspection",
+    ],
+  },
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * DOMAIN 17: PROPRIETARY DESIGN SYSTEMS & W3C DTCG 2025.10 TOKENS (proprietary-design-systems)
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  {
+    id: "task_design_w3c_dtcg_token_compiler_multi_brand_alias",
+    title: "Build W3C Design Tokens (DTCG 2025.10) Compiler with {group.token} Alias Resolution, Circular Reference Detection & Multi-Theme CSS Variable Output",
+    category: "proprietary-design-systems",
+    difficulty: "advanced",
+    tags: ["design-systems", "dtcg-2025", "design-tokens", "css-variables", "theming", "typescript"],
+    instructions:
+      "The W3C Design Tokens Community Group (DTCG 2025.10) specification standardizes design tokens using $type inheritance from parent groups, $value payloads, and curly-brace alias references ({color.primitive.obsidian.900}). Naive token scripts fail to inherit group-level $type, silently emit broken CSS on circular token aliases ({a.b} -> {c.d} -> {a.b}), or duplicate entire token trees for dark/high-contrast modes. Build a W3cDtcgTokenCompiler that flattens nested DTCG groups, resolves chained aliases with cycle detection, applies mode overrides, and compiles deterministic :root / [data-theme] CSS Custom Properties.",
+    starterCode: `// Unvalidated Flat Token Object Dumper Ignoring DTCG $type Inheritance & Alias Cycles
+export function tokensToCss(tokens: Record<string, string>) {
+  return Object.entries(tokens).map(([k, v]) => \`--\${k}: \${v};\`).join("\\n");
+}`,
+    solutionCode: `// W3C Design Tokens (DTCG 2025.10) Compiler with Group $type Inheritance & Cycle-Safe Alias Resolution
+export interface FlattenedDtcgToken {
+  readonly path: string;
+  readonly cssVarName: string;
+  readonly type: string;
+  readonly rawValue: string | number;
+  readonly resolvedValue: string | number;
+}
+
+const ALIAS_REGEX = /^\\{([a-zA-Z0-9_.-]+)\\}$/;
+
+export class W3cDtcgTokenCompiler {
+  #flatTokens = new Map<string, { type: string; value: string | number }>();
+
+  loadTokenTree(tree: Readonly<Record<string, any>>, parentPath = "", inheritedType = "unknown"): void {
+    const currentGroupType = typeof tree.$type === "string" ? tree.$type : inheritedType;
+
+    for (const [key, node] of Object.entries(tree)) {
+      if (key.startsWith("$")) continue;
+      const nextPath = parentPath ? \`\${parentPath}.\${key}\` : key;
+
+      if (node && typeof node === "object" && "$value" in node) {
+        const tokenType = typeof node.$type === "string" ? node.$type : currentGroupType;
+        this.#flatTokens.set(nextPath, {
+          type: tokenType,
+          value: node.$value,
+        });
+      } else if (node && typeof node === "object") {
+        this.loadTokenTree(node, nextPath, currentGroupType);
+      }
+    }
+  }
+
+  resolveTokenValue(path: string, visited = new Set<string>()): {
+    readonly type: string;
+    readonly resolvedValue: string | number;
+  } {
+    if (visited.has(path)) {
+      throw new Error(\`CircularTokenAliasError: Cycle detected at '\${Array.from(visited).join(" -> ")} -> \${path}'\`);
+    }
+    const entry = this.#flatTokens.get(path);
+    if (!entry) {
+      throw new Error(\`UnresolvedTokenAliasError: Token '\${path}' does not exist\`);
+    }
+
+    if (typeof entry.value === "string") {
+      const m = ALIAS_REGEX.exec(entry.value.trim());
+      if (m) {
+        const nextVisited = new Set(visited);
+        nextVisited.add(path);
+        const target = this.resolveTokenValue(m[1], nextVisited);
+        return {
+          type: entry.type !== "unknown" ? entry.type : target.type,
+          resolvedValue: target.resolvedValue,
+        };
+      }
+    }
+
+    return { type: entry.type, resolvedValue: entry.value };
+  }
+
+  compileCssCustomProperties(selector = ":root"): {
+    readonly tokens: readonly FlattenedDtcgToken[];
+    readonly cssText: string;
+  } {
+    const sortedPaths = Array.from(this.#flatTokens.keys()).sort();
+    const compiled: FlattenedDtcgToken[] = [];
+
+    for (const path of sortedPaths) {
+      const raw = this.#flatTokens.get(path)!;
+      const resolved = this.resolveTokenValue(path);
+      const cssVarName = \`--\${path.replace(/\\./g, "-")}\`;
+      compiled.push({
+        path,
+        cssVarName,
+        type: resolved.type,
+        rawValue: raw.value,
+        resolvedValue: resolved.resolvedValue,
+      });
+    }
+
+    const declarations = compiled.map((t) => \`  \${t.cssVarName}: \${t.resolvedValue};\`).join("\\n");
+    return {
+      tokens: compiled,
+      cssText: \`\${selector} {\\n\${declarations}\\n}\`,
+    };
+  }
+}`,
+    criteria: [
+      "Inherits $type down nested DTCG token groups and resolves chained {group.token} alias references",
+      "Detects circular token alias graphs and throws a descriptive CircularTokenAliasError",
+      "Emits deterministic sorted CSS custom property declarations (--group-token: value) for :root or theme selectors",
+    ],
+  },
+  {
+    id: "task_design_oklch_perceptual_palette_apca_contrast_guard",
+    title: "Implement Perceptual OKLCH & Display-P3 Color Scale Synthesizer with Automated APCA (Lc) & WCAG 2.2 Contrast Enforcement",
+    category: "proprietary-design-systems",
+    difficulty: "advanced",
+    tags: ["design-systems", "oklch", "display-p3", "apca-contrast", "color-science", "typescript"],
+    instructions:
+      "HSL color scales suffer from severe perceptual lightness distortion (yellow at 50% lightness appears blindingly bright while blue at 50% lightness looks dark), breaking proprietary dark-mode surfaces and accessible typography. Build an OklchPerceptualPaletteEngine that generates an 11-step perceptual OKLCH tonal ramp (50..950) with chroma tapering at extreme lightnesses, computes relative luminance and APCA-style polarity contrast (Lc) between foreground text and surface backgrounds, and automatically nudges foreground lightness until target contrast thresholds (body >= 60 Lc, large/UI >= 45 Lc) are satisfied.",
+    starterCode: `// Naive HSL Lightness Stepper Producing Muddy Gamut & Illegible Contrast
+export function generatePalette(hue: number) {
+  return [10, 50, 90].map((l) => \`hsl(\${hue}, 80%, \${l}%)\`);
+}`,
+    solutionCode: `// Perceptual OKLCH Tonal Ramp Generator & Polarity-Aware APCA / WCAG Contrast Solver
+export interface OklchColorSpec {
+  readonly l: number; // 0.0 to 1.0 perceptual lightness
+  readonly c: number; // 0.0 to 0.37 chroma
+  readonly h: number; // 0 to 360 hue angle
+}
+
+export interface PaletteStepEntry {
+  readonly step: number;
+  readonly oklchCss: string;
+  readonly l: number;
+  readonly c: number;
+  readonly h: number;
+}
+
+const RAMP_STEPS: readonly { readonly step: number; readonly l: number; readonly chromaFactor: number }[] = [
+  { step: 50, l: 0.97, chromaFactor: 0.18 },
+  { step: 100, l: 0.93, chromaFactor: 0.32 },
+  { step: 200, l: 0.86, chromaFactor: 0.55 },
+  { step: 300, l: 0.78, chromaFactor: 0.78 },
+  { step: 400, l: 0.68, chromaFactor: 0.94 },
+  { step: 500, l: 0.58, chromaFactor: 1.0 },
+  { step: 600, l: 0.48, chromaFactor: 0.92 },
+  { step: 700, l: 0.39, chromaFactor: 0.78 },
+  { step: 800, l: 0.3, chromaFactor: 0.6 },
+  { step: 900, l: 0.21, chromaFactor: 0.42 },
+  { step: 950, l: 0.13, chromaFactor: 0.26 },
+];
+
+export function formatOklchCss(color: OklchColorSpec): string {
+  const l = Math.round(Math.min(1, Math.max(0, color.l)) * 1000) / 1000;
+  const c = Math.round(Math.min(0.37, Math.max(0, color.c)) * 1000) / 1000;
+  const h = Math.round((((color.h % 360) + 360) % 360) * 10) / 10;
+  return \`oklch(\${l} \${c} \${h})\`;
+}
+
+export function generatePerceptualOklchRamp(peakChroma: number, hue: number): readonly PaletteStepEntry[] {
+  return RAMP_STEPS.map((s) => {
+    const c = Math.round(peakChroma * s.chromaFactor * 1000) / 1000;
+    return {
+      step: s.step,
+      l: s.l,
+      c,
+      h: hue,
+      oklchCss: formatOklchCss({ l: s.l, c, h: hue }),
+    };
+  });
+}
+
+// Perceptual lightness (OKLCH L is cube-root of relative luminance Y: Y ≈ L^3)
+export function estimateApcaLcAndWcagRatio(
+  text: OklchColorSpec,
+  surface: OklchColorSpec,
+): {
+  readonly wcagRatio: number;
+  readonly apcaLc: number;
+  readonly polarity: "dark-on-light" | "light-on-dark";
+} {
+  const yText = Math.pow(Math.min(1, Math.max(0, text.l)), 3);
+  const yBg = Math.pow(Math.min(1, Math.max(0, surface.l)), 3);
+
+  const lighter = Math.max(yText, yBg);
+  const darker = Math.min(yText, yBg);
+  const wcagRatio = Math.round(((lighter + 0.05) / (darker + 0.05)) * 100) / 100;
+
+  const polarity = yBg >= yText ? "dark-on-light" : "light-on-dark";
+  // Polarity-aware perceptual contrast Lc (0..108 scale)
+  const rawLc =
+    polarity === "dark-on-light"
+      ? (Math.pow(yBg, 0.56) - Math.pow(yText, 0.57)) * 114
+      : (Math.pow(yBg, 0.65) - Math.pow(yText, 0.62)) * 114;
+  const apcaLc = Math.round(Math.abs(rawLc) * 10) / 10;
+
+  return { wcagRatio, apcaLc, polarity };
+}
+
+export function enforceAccessibleTextContrast(
+  candidateText: OklchColorSpec,
+  surface: OklchColorSpec,
+  minApcaLc = 60,
+): {
+  readonly adjustedText: OklchColorSpec;
+  readonly oklchCss: string;
+  readonly apcaLc: number;
+  readonly wcagRatio: number;
+  readonly wasAdjusted: boolean;
+} {
+  let current = { ...candidateText };
+  let metrics = estimateApcaLcAndWcagRatio(current, surface);
+  let wasAdjusted = false;
+
+  const moveTowardLight = surface.l < 0.5;
+  for (let step = 0; step < 50 && metrics.apcaLc < minApcaLc; step++) {
+    wasAdjusted = true;
+    const nextL = moveTowardLight
+      ? Math.min(0.99, current.l + 0.02)
+      : Math.max(0.05, current.l - 0.02);
+    // Reduce chroma slightly as lightness approaches white/black poles to prevent gamut clipping
+    const nextC = current.c * 0.96;
+    current = { l: nextL, c: nextC, h: current.h };
+    metrics = estimateApcaLcAndWcagRatio(current, surface);
+  }
+
+  return {
+    adjustedText: current,
+    oklchCss: formatOklchCss(current),
+    apcaLc: metrics.apcaLc,
+    wcagRatio: metrics.wcagRatio,
+    wasAdjusted,
+  };
+}`,
+    criteria: [
+      "Synthesizes an 11-step perceptual OKLCH tonal ramp (50..950) with chroma tapering near white and black poles",
+      "Computes polarity-aware APCA (Lc) and WCAG 2.2 luminance contrast ratios from OKLCH perceptual lightness",
+      "Automatically adjusts foreground lightness and tapers chroma until target APCA Lc contrast (e.g. >= 60 Lc) is achieved",
+    ],
+  },
+  {
+    id: "task_design_fluid_utopia_typography_bento_spatial_grid",
+    title: "Architect Proprietary Fluid Typography (clamp() Slope-Intercept Math), 4px/8px Spatial Rhythm Validator & Bento Grid Layout Solver",
+    category: "proprietary-design-systems",
+    difficulty: "advanced",
+    tags: ["design-systems", "fluid-typography", "utopia-clamp", "spatial-rhythm", "bento-grid", "typescript"],
+    instructions:
+      "Signature editorial web designs (Linear, Stripe, Loom Monochrome) rely on exact fluid typographic scales where font sizes interpolate smoothly between a minimum viewport (e.g. 320px) and maximum viewport (e.g. 1440px) via CSS clamp(minRem, interceptRem + slopeVw, maxRem), paired with strict 4px/8px baseline rhythm and hole-free Bento grid card packing. Build a ProprietaryTypographyGridEngine.",
+    starterCode: `// Hardcoded Pixel Breakpoint Jumps & Unaligned Bento Grid
+export function getHeadingSize(isMobile: boolean) {
+  return isMobile ? "24px" : "48px";
+}`,
+    solutionCode: `// Utopia Fluid Typography clamp() Compiler, 4px/8px Rhythm Auditor & Bento Grid Packer
+export interface FluidTypeStep {
+  readonly stepName: string;
+  readonly minPx: number;
+  readonly maxPx: number;
+  readonly clampCss: string;
+}
+
+export function compileFluidClampExpression(params: {
+  readonly minPx: number;
+  readonly maxPx: number;
+  readonly minViewportPx?: number;
+  readonly maxViewportPx?: number;
+  readonly rootFontPx?: number;
+}): string {
+  const minVp = params.minViewportPx ?? 320;
+  const maxVp = params.maxViewportPx ?? 1440;
+  const remBase = params.rootFontPx ?? 16;
+
+  const slope = (params.maxPx - params.minPx) / (maxVp - minVp);
+  const interceptPx = params.minPx - slope * minVp;
+
+  const minRem = Math.round((params.minPx / remBase) * 1000) / 1000;
+  const maxRem = Math.round((params.maxPx / remBase) * 1000) / 1000;
+  const interceptRem = Math.round((interceptPx / remBase) * 1000) / 1000;
+  const slopeVw = Math.round(slope * 100 * 1000) / 1000;
+
+  return \`clamp(\${minRem}rem, \${interceptRem}rem + \${slopeVw}vw, \${maxRem}rem)\`;
+}
+
+export function generateModularFluidTypeScale(params: {
+  readonly baseMinPx: number;
+  readonly baseMaxPx: number;
+  readonly minRatio: number;
+  readonly maxRatio: number;
+  readonly steps: readonly { readonly name: string; readonly power: number }[];
+}): readonly FluidTypeStep[] {
+  return params.steps.map((s) => {
+    const minPx = Math.round(params.baseMinPx * Math.pow(params.minRatio, s.power) * 100) / 100;
+    const maxPx = Math.round(params.baseMaxPx * Math.pow(params.maxRatio, s.power) * 100) / 100;
+    return {
+      stepName: s.name,
+      minPx,
+      maxPx,
+      clampCss: compileFluidClampExpression({ minPx, maxPx }),
+    };
+  });
+}
+
+export function validateBentoGridAndSpatialRhythm(params: {
+  readonly columns: number;
+  readonly spacingPxValues: readonly number[];
+  readonly cards: readonly { readonly id: string; readonly colSpan: number; readonly rowSpan: number }[];
+}): {
+  readonly rhythmValid: boolean;
+  readonly offGridPxValues: readonly number[];
+  readonly totalCellsOccupied: number;
+  readonly remainderCellsInLastRow: number;
+  readonly isHoleFreeCompleteRectangle: boolean;
+} {
+  // Every spacing token must align to the 4px sub-grid (or 8px primary grid)
+  const offGridPxValues = params.spacingPxValues.filter((px) => px < 0 || px % 4 !== 0);
+
+  let totalCellsOccupied = 0;
+  for (const card of params.cards) {
+    if (card.colSpan > params.columns || card.colSpan <= 0 || card.rowSpan <= 0) {
+      throw new Error(\`InvalidBentoSpanError: Card '\${card.id}' span (\${card.colSpan}x\${card.rowSpan}) exceeds \${params.columns} columns\`);
+    }
+    totalCellsOccupied += card.colSpan * card.rowSpan;
+  }
+
+  const remainderCellsInLastRow = totalCellsOccupied % params.columns;
+
+  return {
+    rhythmValid: offGridPxValues.length === 0,
+    offGridPxValues,
+    totalCellsOccupied,
+    remainderCellsInLastRow,
+    isHoleFreeCompleteRectangle: remainderCellsInLastRow === 0,
+  };
+}`,
+    criteria: [
+      "Computes exact Utopia slope-intercept fluid CSS clamp(minRem, interceptRem + slopeVw, maxRem) expressions",
+      "Generates modular fluid typographic scales across viewport bounds using independent min/max type ratios",
+      "Validates 4px/8px spatial grid alignment and checks whether Bento grid card spans form a hole-free rectangle",
+    ],
+  },
+  {
+    id: "task_design_proprietary_elevation_glassmorphism_spring_tokens",
+    title: "Build Proprietary Surface Elevation, Multi-Layer Shadow & Critical-Damped Spring Physics Synthesizer with prefers-reduced-motion Fallbacks",
+    category: "proprietary-design-systems",
+    difficulty: "advanced",
+    tags: ["design-systems", "spring-physics", "glassmorphism", "elevation-tokens", "reduced-motion", "typescript"],
+    instructions:
+      "High-craft proprietary interfaces avoid harsh single-layer drop shadows and arbitrary linear durations. Instead, they layer ambient + key shadows with subtle 1px inner specular borders (oklch specular hairline), backdrop-filter blur, and critically damped Hooke's Law spring physics (stiffness k, damping c, mass m) that automatically collapse to instant opacity transitions when prefers-reduced-motion: reduce is active. Build a ProprietarySurfaceMotionSynthesizer.",
+    starterCode: `// Single Harsh Box-Shadow & Linear Transition Ignoring Reduced Motion
+export const CARD_STYLE = "box-shadow: 0 10px 20px black; transition: all 0.5s linear;";`,
+    solutionCode: `// Proprietary Multi-Layer Elevation, Glassmorphic Specular Surface & Spring Physics Synthesizer
+export interface SpringPhysicsConfig {
+  readonly stiffness: number; // e.g. 320
+  readonly damping: number;   // e.g. 28
+  readonly mass: number;      // e.g. 1
+}
+
+export interface CompiledSpringMotion {
+  readonly dampingRatio: number;
+  readonly regime: "underdamped-bouncy" | "critically-damped" | "overdamped";
+  readonly estimatedSettlingDurationMs: number;
+  readonly cssLinearEasing: string;
+  readonly reducedMotionFallbackCss: string;
+}
+
+export function synthesizeSpringPhysicsToken(config: SpringPhysicsConfig): CompiledSpringMotion {
+  const { stiffness: k, damping: c, mass: m } = config;
+  if (k <= 0 || c <= 0 || m <= 0) throw new Error("Spring parameters must be positive");
+
+  const criticalDamping = 2 * Math.sqrt(k * m);
+  const zeta = Math.round((c / criticalDamping) * 1000) / 1000;
+  const omega0 = Math.sqrt(k / m);
+
+  const regime =
+    zeta < 0.98
+      ? "underdamped-bouncy"
+      : zeta <= 1.05
+        ? "critically-damped"
+        : "overdamped";
+
+  // Sample 9 points along the damped harmonic oscillator response x(t) = 1 - e^(-zeta*omega0*t)*(cos(omegaD*t) + ...)
+  const settlingSec = Math.min(1.2, Math.max(0.15, 4.6 / (zeta * omega0)));
+  const estimatedSettlingDurationMs = Math.round(settlingSec * 1000);
+
+  const samples: string[] = [];
+  const steps = 8;
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * settlingSec;
+    let position = 1;
+    if (i === 0) {
+      position = 0;
+    } else if (i < steps) {
+      const expTerm = Math.exp(-zeta * omega0 * t);
+      if (zeta < 1) {
+        const omegaD = omega0 * Math.sqrt(1 - zeta * zeta);
+        position = 1 - expTerm * (Math.cos(omegaD * t) + (zeta / Math.sqrt(1 - zeta * zeta)) * Math.sin(omegaD * t));
+      } else {
+        position = 1 - expTerm * (1 + omega0 * t);
+      }
+    }
+    samples.push(String(Math.round(position * 1000) / 1000));
+  }
+
+  return {
+    dampingRatio: zeta,
+    regime,
+    estimatedSettlingDurationMs,
+    cssLinearEasing: \`linear(\${samples.join(", ")})\`,
+    reducedMotionFallbackCss: "transition-duration: 0.01ms !important; animation-duration: 0.01ms !important;",
+  };
+}
+
+export function compileProprietarySurfaceElevation(params: {
+  readonly level: 1 | 2 | 3 | 4;
+  readonly theme: "dark" | "light";
+  readonly glassBlurPx?: number;
+}): {
+  readonly boxShadowCss: string;
+  readonly backdropFilterCss: string;
+  readonly borderSpecCss: string;
+} {
+  const blur = params.glassBlurPx ?? (params.level * 6);
+  const yKey = params.level * 4;
+  const blurKey = params.level * 10;
+  const yAmbient = params.level * 1;
+  const blurAmbient = params.level * 3;
+
+  // Dual shadow (key + ambient) plus 1px inner top specular highlight
+  const shadowAlphaKey = params.theme === "dark" ? 0.45 : 0.08;
+  const shadowAlphaAmb = params.theme === "dark" ? 0.28 : 0.04;
+  const specularHighlight =
+    params.theme === "dark"
+      ? "inset 0 1px 0 0 oklch(1 0 0 / 0.09)"
+      : "inset 0 1px 0 0 oklch(1 0 0 / 0.65)";
+
+  return {
+    boxShadowCss: \`0 \${yKey}px \${blurKey}px -2px oklch(0 0 0 / \${shadowAlphaKey}), 0 \${yAmbient}px \${blurAmbient}px 0 oklch(0 0 0 / \${shadowAlphaAmb}), \${specularHighlight}\`,
+    backdropFilterCss: \`blur(\${blur}px) saturate(160%)\`,
+    borderSpecCss:
+      params.theme === "dark"
+        ? "1px solid oklch(0.98 0 0 / 0.08)"
+        : "1px solid oklch(0.12 0 0 / 0.08)",
+  };
+}`,
+    criteria: [
+      "Computes physical damping ratio (zeta = c / (2 * sqrt(k * m))), classifies spring regime, and samples a CSS linear(...) easing curve",
+      "Synthesizes multi-layer elevation shadows combining key shadow, ambient shadow, and an inner 1px oklch specular highlight",
+      "Emits a prefers-reduced-motion accessibility fallback alongside glassmorphic backdrop-filter rules",
     ],
   },
 ];
