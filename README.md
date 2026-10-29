@@ -4,7 +4,7 @@
 
 <p><strong>Web development challenges. One local workspace for testing solutions.</strong></p>
 
-<p><a href="#get-started">Get started</a> · <a href="#the-curriculum">Curriculum</a> · <a href="#how-evaluation-works">Evaluation</a> · <a href="#project-layout">Project layout</a></p>
+<p><a href="#technology-map">Technologies</a> · <a href="#get-started">Get started</a> · <a href="#the-curriculum">Curriculum</a> · <a href="#how-evaluation-works">Evaluation</a> · <a href="#project-layout">Project layout</a></p>
 
 </div>
 
@@ -12,36 +12,7 @@
 
 **LLM Webdev Gauntlet** is a local curriculum and evaluation workspace for web development agents. It combines code challenges, an interactive task board, automated checks, and a benchmark of the included reference solutions. The application is called **guantlet-web** and runs on Bun with vanilla JavaScript, HTML, and CSS; it has no runtime package dependencies or build step.
 
-## Get started
-
-Requires [Bun](https://bun.sh/).
-
-```bash
-git clone https://github.com/DanDekker/webdev-gauntlet.git
-cd webdev-gauntlet
-bun run dev
-```
-
-Open **http://localhost:3000**. Use **Demo Agent** on the sign-in screen, then open the curriculum board. Select an exercise to read its prompt, starter code, and acceptance criteria. Submit a JavaScript or TypeScript solution to see assertion results and a diff. The **Benchmark** view runs the bundled reference solutions across the catalog and can export a Markdown report.
-
-For a regular server without file watching, use `bun run start`. Run the test suite with `bun test`.
-
-## The curriculum
-
-The repository currently includes **106 exercises in 27 categories and 11 tracks**, from introductory refactoring to more involved web systems work. Topics include:
-
-| Area | Examples |
-| --- | --- |
-| Core web engineering | Async flows, performance, architecture, CSS, accessibility |
-| Data and identity | Database access, distributed persistence, authentication, security |
-| Application systems | Realtime chat, commerce, storefronts, order lifecycles |
-| Web platform | HTML, structured data, cookies, storage, HTTP traffic |
-| UI engineering | Design tokens, interaction patterns, web components |
-| Developer tooling | TypeScript frameworks, migrations, package management |
-
-Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
-
-### Technology map
+## Technology map
 
 The app uses the first row. The remaining logos show technologies covered by the curriculum. Every logo links to the project’s source repository.
 
@@ -107,6 +78,35 @@ The app uses the first row. The remaining logos show technologies covered by the
 </table>
 
 Logo sources: [Simple Icons and Polar](assets/logos/SOURCES.md).
+
+## Get started
+
+Requires [Bun](https://bun.sh/).
+
+```bash
+git clone https://github.com/DanDekker/webdev-gauntlet.git
+cd webdev-gauntlet
+bun run dev
+```
+
+Open **http://localhost:3000**. Use **Demo Agent** on the sign-in screen, then open the curriculum board. Select an exercise to read its prompt, starter code, and acceptance criteria. Submit a JavaScript or TypeScript solution to see assertion results and a diff. The **Benchmark** view runs the bundled reference solutions across the catalog and can export a Markdown report.
+
+For a regular server without file watching, use `bun run start`. Run the test suite with `bun test`.
+
+## The curriculum
+
+The repository currently includes **106 exercises in 27 categories and 11 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+
+| Area | Examples |
+| --- | --- |
+| Core web engineering | Async flows, performance, architecture, CSS, accessibility |
+| Data and identity | Database access, distributed persistence, authentication, security |
+| Application systems | Realtime chat, commerce, storefronts, order lifecycles |
+| Web platform | HTML, structured data, cookies, storage, HTTP traffic |
+| UI engineering | Design tokens, interaction patterns, web components |
+| Developer tooling | TypeScript frameworks, migrations, package management |
+
+Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
 ### Frontend framework exercises
 
