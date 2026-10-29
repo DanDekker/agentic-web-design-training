@@ -375,13 +375,14 @@ const benchmarkSuite = new BenchmarkSuite();
       if (pathname === "/api/curriculum/benchmark") {
         if (req.method === "GET") {
           const format = searchParams.get("format");
+          const category = searchParams.get("category") || null;
           if (format === "markdown") {
-            const bench = await benchmarkSuite.runFullBenchmark();
+            const bench = await benchmarkSuite.runFullBenchmark({ category });
             const md = benchmarkSuite.formatMarkdown(bench);
             return new Response(md, { headers: { "content-type": "text/markdown; charset=utf-8" } });
           }
           if (searchParams.get("run") === "true") {
-            const bench = await benchmarkSuite.runFullBenchmark();
+            const bench = await benchmarkSuite.runFullBenchmark({ category });
             return json(bench);
           }
           return json(benchmarkSuite.getCatalogStats());
@@ -390,11 +391,17 @@ const benchmarkSuite = new BenchmarkSuite();
       }
 
       if (pathname === "/api/curriculum/benchmark/run-all" && req.method === "POST") {
-        const results = await benchmarkSuite.runFullBenchmark();
+        const body = await readJson(req);
+        const results = await benchmarkSuite.runFullBenchmark({ category: body?.category || null });
         return json(results);
       }
       if (pathname === "/api/curriculum/tasks") {
-        return json({ tasks: REFACTORING_CURRICULUM_TASKS });
+        const category = searchParams.get("category");
+        const difficulty = searchParams.get("difficulty");
+        let tasks = REFACTORING_CURRICULUM_TASKS;
+        if (category) tasks = tasks.filter((t) => t.category === category);
+        if (difficulty) tasks = tasks.filter((t) => t.difficulty === difficulty);
+        return json({ tasks });
       }
 
       if (pathname === "/api/curriculum/seed" && req.method === "POST") {

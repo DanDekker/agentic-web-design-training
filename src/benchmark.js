@@ -26,7 +26,8 @@ export class BenchmarkSuite {
       totalTasks: total,
       byDifficulty,
       byCategory,
-      catalogVersion: "1.2.0",
+      categories: Object.keys(byCategory),
+      catalogVersion: "2.0.0",
       curriculumName: "Agentic Curriculum Benchmark",
     };
   }
@@ -34,11 +35,14 @@ export class BenchmarkSuite {
   /**
    * Runs automated verification benchmark against all curriculum tasks using reference solutions.
    */
-  async runFullBenchmark() {
+  async runFullBenchmark({ category = null } = {}) {
     const startTime = performance.now();
     const taskResults = [];
+    const targetTasks = category
+      ? REFACTORING_CURRICULUM_TASKS.filter((t) => t.category === category)
+      : REFACTORING_CURRICULUM_TASKS;
 
-    for (const task of REFACTORING_CURRICULUM_TASKS) {
+    for (const task of targetTasks) {
       const solution = task.solutionCode;
       const evalResult = await this.#evaluator.evaluate(task.id, solution);
       taskResults.push({
@@ -54,10 +58,20 @@ export class BenchmarkSuite {
     }
 
     const totalDurationMs = Math.round((performance.now() - startTime) * 100) / 100;
+    const count = taskResults.length || 1;
     const passedCount = taskResults.filter((t) => t.passed).length;
     const avgDuration =
-      Math.round((taskResults.reduce((acc, t) => acc + t.durationMs, 0) / taskResults.length) * 100) / 100;
-    const avgScore = Math.round(taskResults.reduce((acc, t) => acc + t.score, 0) / taskResults.length);
+      Math.round((taskResults.reduce((acc, t) => acc + t.durationMs, 0) / count) * 100) / 100;
+    const avgScore = Math.round(taskResults.reduce((acc, t) => acc + t.score, 0) / count);
+
+    const byCategory = {};
+    for (const r of taskResults) {
+      if (!byCategory[r.category]) {
+        byCategory[r.category] = { total: 0, passed: 0 };
+      }
+      byCategory[r.category].total++;
+      if (r.passed) byCategory[r.category].passed++;
+    }
 
     return {
       suite: "Agentic Curriculum Benchmark",
@@ -66,10 +80,11 @@ export class BenchmarkSuite {
         totalTasks: taskResults.length,
         passedTasks: passedCount,
         failedTasks: taskResults.length - passedCount,
-        passRate: `${Math.round((passedCount / taskResults.length) * 100)}%`,
+        passRate: `${Math.round((passedCount / count) * 100)}%`,
         averageScore: avgScore,
         averageDurationMs: avgDuration,
         totalDurationMs,
+        byCategory,
       },
       results: taskResults,
     };

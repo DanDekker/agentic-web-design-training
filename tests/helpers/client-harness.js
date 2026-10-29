@@ -173,7 +173,7 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
         Object.assign(task, body);
         return json(task);
       }
-      if (path === "/api/curriculum/benchmark") return json({ totalTasks: 12 });
+      if (path === "/api/curriculum/benchmark") return json({ totalTasks: 27 });
       throw new Error(`Unhandled fixture request: ${method} ${path}`);
     },
   });
