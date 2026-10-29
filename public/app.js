@@ -27,6 +27,7 @@ const el = {
   btnOAuthPortal: document.querySelector("#btn-oauth-portal"),
   btnBenchmarkPortal: document.querySelector("#btn-benchmark-portal"),
   btnChatPortal: document.querySelector("#btn-chat-portal"),
+  btnShopPortal: document.querySelector("#btn-shop-portal"),
 
   // Modals
   refactorModal: document.querySelector("#refactor-modal"),
@@ -95,6 +96,17 @@ const el = {
   chatStatDedup: document.querySelector("#chat-stat-dedup"),
   chatStatHealth: document.querySelector("#chat-stat-health"),
 
+  // Shop modal
+  shopModal: document.querySelector("#shop-modal"),
+  btnCloseShop: document.querySelector("#btn-close-shop"),
+  btnShopSimulateFlow: document.querySelector("#btn-shop-simulate-flow"),
+  btnShopVerifyIntegrity: document.querySelector("#btn-shop-verify-integrity"),
+  shopSimOutput: document.querySelector("#shop-sim-output"),
+  shopStatProducts: document.querySelector("#shop-stat-products"),
+  shopStatAccounts: document.querySelector("#shop-stat-accounts"),
+  shopStatOrders: document.querySelector("#shop-stat-orders"),
+  shopStatIntegrity: document.querySelector("#shop-stat-integrity"),
+
   // Command palette
   palette: document.querySelector("#palette"),
   paletteInput: document.querySelector("#palette-input"),
@@ -157,7 +169,7 @@ const isTyping = (node) =>
   !!node &&
   (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT" || node.isContentEditable);
 
-const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.palette].filter(Boolean);
+const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.shopModal, el.palette].filter(Boolean);
 
 function openDialog(dialog) {
   if (dialog && !dialog.open) dialog.showModal();
@@ -917,7 +929,7 @@ async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
     const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 72;
+    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 82;
   } catch (err) {
     toast(err.message);
   }
@@ -1107,6 +1119,122 @@ async function runChatBenchmarkUI() {
   }
 }
 
+/* ── Web Shop Storefront, Account-to-Checkout & Order History Modal ── */
+
+async function openShopModal() {
+  openDialog(el.shopModal);
+  await refreshShopState();
+}
+
+function closeShopModal() {
+  closeDialog(el.shopModal);
+}
+
+async function refreshShopState() {
+  try {
+    const shop = await api("GET", "/api/commerce/shop/state");
+    if (el.shopStatProducts) el.shopStatProducts.textContent = String(shop.products?.length ?? 4);
+    if (el.shopStatAccounts) el.shopStatAccounts.textContent = String(shop.accounts?.length ?? 0);
+    if (el.shopStatOrders) el.shopStatOrders.textContent = String(shop.orders?.length ?? 0);
+    if (el.shopStatIntegrity) el.shopStatIntegrity.textContent = shop.integrity?.healthy ? "HEALTHY" : "DRIFT";
+    return shop;
+  } catch (err) {
+    toast(err.message);
+    return null;
+  }
+}
+
+async function simulateShopEndToEndFlow() {
+  if (el.shopSimOutput) {
+    el.shopSimOutput.hidden = false;
+    el.shopSimOutput.textContent = "Running Guest Cart → Account Merge → Checkout → Order History Pipeline...\n";
+  }
+
+  try {
+    // 1. Add items to anonymous guest cart
+    await api("POST", "/api/commerce/shop/cart/items", {
+      cartId: "cart_guest_ui",
+      sku: "LOOM-KB-OBS-TKL",
+      quantity: 1,
+    });
+    await api("POST", "/api/commerce/shop/cart/items", {
+      cartId: "cart_guest_ui",
+      sku: "POLAR-PRO-SEAT-1Y",
+      quantity: 1,
+    });
+
+    // 2. Create customer account & merge guest cart + normalize address book
+    const onboarded = await api("POST", "/api/commerce/shop/account", {
+      email: "architect@loom.dev",
+      displayName: "Lead Architect",
+      guestCartId: "cart_guest_ui",
+      shippingAddress: {
+        recipientName: "Lead Architect",
+        line1: "500 Monochrome Blvd",
+        city: "San Francisco",
+        stateOrProvince: "CA",
+        postalCode: "94107",
+        countryCode: "US",
+      },
+    });
+
+    // 3. Promote authenticated cart to immutable Order Snapshot
+    const promoted = await api("POST", "/api/commerce/shop/checkout", {
+      checkoutIdempotencyKey: `ui_chk_${Date.now()}`,
+      accountId: onboarded.account.accountId,
+      cartId: onboarded.cart.cartId,
+      paymentProvider: "stripe",
+      promoCode: "LOOM10",
+      buyerCountry: "US",
+      buyerState: "CA",
+    });
+
+    // 4. Advance order to delivered & verify data integrity
+    const delivered = await api("POST", "/api/commerce/shop/orders/lifecycle", {
+      orderId: promoted.order.orderId,
+      action: "SHIP_AND_DELIVER",
+    });
+
+    const shopState = await refreshShopState();
+    if (el.shopSimOutput) {
+      el.shopSimOutput.textContent = JSON.stringify(
+        {
+          accountCreatedAndMerged: onboarded.account,
+          orderPromotedAndDelivered: {
+            orderId: delivered.orderId,
+            invoiceNumber: delivered.invoiceNumber,
+            status: delivered.status,
+            grandTotalMinor: delivered.grandTotalMinor,
+            snapshotHash: delivered.snapshotHash,
+            snapshotIntegrityValid: delivered.snapshotIntegrityValid,
+            lifecycleEventsCount: delivered.lifecycleEvents.length,
+          },
+          integrity: shopState?.integrity,
+        },
+        null,
+        2,
+      );
+    }
+    toast(`Order ${delivered.invoiceNumber} fulfilled & verified!`);
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function verifyShopIntegrityUI() {
+  const shopState = await refreshShopState();
+  if (!shopState) return;
+  if (el.shopSimOutput) {
+    el.shopSimOutput.hidden = false;
+    el.shopSimOutput.textContent = JSON.stringify(shopState.integrity, null, 2);
+  }
+  toast(
+    shopState.integrity?.healthy
+      ? "All shop accounts, carts, and order snapshots verified healthy!"
+      : "Shop data integrity violation detected!",
+  );
+}
+
 /* ── Command Palette ─────────────────────────────────────── */
 
 const commands = [
@@ -1115,6 +1243,7 @@ const commands = [
   { label: "Agentic Refactoring Curriculum", hint: "R", run: seedCurriculum },
   { label: "Agentic 1M Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
+  { label: "Web Shop Storefront, Checkout & Order History", hint: "S", run: openShopModal },
   { label: "OAuth 2.0 Applications & Simulator", hint: "O", run: openOAuthModal },
   { label: "Switch to Today board", hint: "", run: () => switchBoard("board_today") },
   { label: "Switch to Agentic Refactoring board", hint: "", run: () => switchBoard("board_refactor_curriculum") },
@@ -1184,6 +1313,7 @@ function runCommand(command) {
   closeOAuthModal();
   closeBenchmarkModal();
   closeChatModal();
+  closeShopModal();
   command.run();
 }
 
@@ -1320,6 +1450,12 @@ el.btnChatSimulate?.addEventListener("click", simulateTwoUserExchange);
 el.btnChatDebug?.addEventListener("click", runChatProtocolDebugger);
 el.btnChatBenchmark?.addEventListener("click", runChatBenchmarkUI);
 
+// Shop Modal Wiring
+el.btnShopPortal?.addEventListener("click", openShopModal);
+el.btnCloseShop?.addEventListener("click", closeShopModal);
+el.btnShopSimulateFlow?.addEventListener("click", simulateShopEndToEndFlow);
+el.btnShopVerifyIntegrity?.addEventListener("click", verifyShopIntegrityUI);
+
 // Command palette wiring
 el.palette?.addEventListener("mousedown", (event) => {
   if (event.target === el.palette) closePalette();
@@ -1415,6 +1551,11 @@ document.addEventListener("keydown", (event) => {
     case "C":
       event.preventDefault();
       openChatModal();
+      break;
+    case "s":
+    case "S":
+      event.preventDefault();
+      openShopModal();
       break;
     case "1":
       setFilter("all");
