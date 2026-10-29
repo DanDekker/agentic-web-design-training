@@ -291,9 +291,31 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
+  test("evaluates Web Shop Storefront UI, Account-to-Checkout & Order Lifecycle Data tasks in sandbox", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    for (const id of [
+      "task_shop_ui_faceted_catalog_variant_sku_selector",
+      "task_shop_ui_optimistic_cart_drawer_price_drift_guard",
+      "task_shop_ui_guest_to_account_cart_address_merge",
+      "task_shop_ui_accessible_checkout_stepper_autocomplete",
+      "task_shop_ui_order_history_timeline_rma_portal",
+      "task_shop_data_normalized_entity_store_referential_integrity",
+      "task_shop_data_immutable_order_line_snapshot_isolation",
+      "task_shop_data_transactional_account_cart_to_order_promoter",
+      "task_shop_data_split_shipment_partial_capture_reconciler",
+      "task_shop_data_customer_order_event_sourced_timeline",
+    ]) {
+      const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
+      expect(task).toBeTruthy();
+      const result = await evaluator.evaluate(id, task.solutionCode);
+      expect(result.passed).toBe(true);
+      expect(result.score).toBe(100);
+    }
+  });
+
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(72);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(82);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
