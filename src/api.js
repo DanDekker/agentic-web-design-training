@@ -22,6 +22,11 @@ import {
   auditAndSerializeWebCookie,
   simulateHttpTrafficPipeline,
 } from "./web_traffic.js";
+import {
+  PROPRIETARY_DESIGN_SYSTEM_CATALOG,
+  compileDtcgDesignTokens,
+  evaluateAndRemediateOklchContrast,
+} from "./design_system.js";
 import { ChatEngine } from "./chat.js";
 
 class HttpError extends Error {
@@ -521,6 +526,25 @@ const benchmarkSuite = new BenchmarkSuite();
         const body = await readJson(req);
         try {
           return json(simulateHttpTrafficPipeline(body));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/design/overview" && req.method === "GET") {
+        return json(PROPRIETARY_DESIGN_SYSTEM_CATALOG);
+      }
+      if (pathname === "/api/design/tokens/compile" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(compileDtcgDesignTokens(body.tokens, body.selector || ":root"));
+        } catch (err) {
+          throw new ValidationError(err.message);
+        }
+      }
+      if (pathname === "/api/design/oklch/contrast" && req.method === "POST") {
+        const body = await readJson(req);
+        try {
+          return json(evaluateAndRemediateOklchContrast(body));
         } catch (err) {
           throw new ValidationError(err.message);
         }
