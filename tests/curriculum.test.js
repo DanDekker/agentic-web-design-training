@@ -296,13 +296,22 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("exposes TypeScript framework ecosystem catalog, migration matrix, and package manager specs via API", async () => {
+    const res = await call("GET", "/api/curriculum/ecosystem");
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.frameworks.length).toBeGreaterThanOrEqual(9);
+    expect(data.migrations.length).toBe(4);
+    expect(data.packageManagers.map((p) => p.id)).toEqual(["npm", "pnpm", "yarn-berry", "bun", "deno", "jsr"]);
+  });
+
   test("validates normalized curriculum schema, categories, and domain tracks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBeGreaterThanOrEqual(40);
-    expect(CURRICULUM_CATEGORIES.length).toBeGreaterThanOrEqual(12);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBeGreaterThanOrEqual(5);
+    expect(validation.totalTasks).toBe(52);
+    expect(CURRICULUM_CATEGORIES.length).toBe(15);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(6);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });
