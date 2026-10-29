@@ -1,9 +1,56 @@
 /**
- * Agentic Curriculum: 1M Tasks — Refactoring Suite.
- * Pre-seeded high-signal refactoring challenges designed for agent-agnostic training.
+ * Agentic Curriculum: 1M Tasks — Standardized AI Training & Refactoring Suite.
+ * Pre-seeded high-signal challenges across 12 categories and 5 domain tracks.
  */
 
-export const REFACTORING_CURRICULUM_TASKS = [
+export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
+
+export const CURRICULUM_TRACKS = Object.freeze({
+  "core-engineering": {
+    id: "core-engineering",
+    name: "Core Web, Async, Performance & Architecture",
+    categories: ["async", "performance", "architecture", "css", "accessibility", "security"],
+  },
+  "distributed-data": {
+    id: "distributed-data",
+    name: "Database Connectivity & Distributed Persistence",
+    categories: ["database"],
+  },
+  "identity-security": {
+    id: "identity-security",
+    name: "Deep Web Auth, Fingerprinting & Cybersecurity",
+    categories: ["web-auth", "web-fingerprinting", "web-cybersec"],
+  },
+  "agentic-systems": {
+    id: "agentic-systems",
+    name: "Long-Horizon Autonomous Agent Workflows",
+    categories: ["agentic-workflow"],
+  },
+  "realtime-systems": {
+    id: "realtime-systems",
+    name: "Real-Time Two-User Chat & Protocol Engineering",
+    categories: ["realtime-chat"],
+  },
+});
+
+export const CATEGORY_TO_TRACK = Object.freeze({
+  async: "core-engineering",
+  performance: "core-engineering",
+  architecture: "core-engineering",
+  css: "core-engineering",
+  accessibility: "core-engineering",
+  security: "core-engineering",
+  database: "distributed-data",
+  "web-auth": "identity-security",
+  "web-fingerprinting": "identity-security",
+  "web-cybersec": "identity-security",
+  "agentic-workflow": "agentic-systems",
+  "realtime-chat": "realtime-systems",
+});
+
+export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
+
+const RAW_CURRICULUM_TASKS = [
   {
     id: "task_refactor_async_pipeline",
     title: "Refactor Nested Callback Hell to Modern Async/Await Pipeline",
@@ -2531,3 +2578,51 @@ export function benchmarkTwoUserChatFanout(iterations = 200, capacity = 64) {
     ],
   },
 ];
+
+export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({
+  ...task,
+  order: index + 1,
+  track: task.track || CATEGORY_TO_TRACK[task.category] || "core-engineering",
+}));
+
+export function validateCurriculumCatalog(tasks = REFACTORING_CURRICULUM_TASKS) {
+  const seenIds = new Set();
+  const errors = [];
+
+  for (const task of tasks) {
+    if (!task.id || !/^task_[a-z0-9_]+$/.test(task.id)) {
+      errors.push(`Invalid task id '${task.id}'`);
+    }
+    if (seenIds.has(task.id)) {
+      errors.push(`Duplicate task id '${task.id}'`);
+    }
+    seenIds.add(task.id);
+
+    if (!CURRICULUM_CATEGORIES.includes(task.category)) {
+      errors.push(`Unknown category '${task.category}' on ${task.id}`);
+    }
+    if (!CURRICULUM_DIFFICULTIES.includes(task.difficulty)) {
+      errors.push(`Invalid difficulty '${task.difficulty}' on ${task.id}`);
+    }
+    if (!CURRICULUM_TRACKS[task.track]) {
+      errors.push(`Invalid track '${task.track}' on ${task.id}`);
+    }
+    if (!task.starterCode || !task.solutionCode || task.starterCode === task.solutionCode) {
+      errors.push(`Invalid starterCode/solutionCode on ${task.id}`);
+    }
+    if (!Array.isArray(task.criteria) || task.criteria.length < 3) {
+      errors.push(`Task ${task.id} must define at least 3 verification criteria`);
+    }
+    if (!Array.isArray(task.tags) || task.tags.length < 3) {
+      errors.push(`Task ${task.id} must define at least 3 tags`);
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    totalTasks: tasks.length,
+    categories: CURRICULUM_CATEGORIES.length,
+    tracks: Object.keys(CURRICULUM_TRACKS).length,
+    errors,
+  };
+}

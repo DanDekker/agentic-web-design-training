@@ -7,7 +7,12 @@ import { AuthStore } from "../src/auth.js";
 import { OAuthServer } from "../src/oauth.js";
 import { createHandler } from "../src/api.js";
 import { createHub } from "../src/events.js";
-import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
+import {
+  REFACTORING_CURRICULUM_TASKS,
+  CURRICULUM_CATEGORIES,
+  CURRICULUM_TRACKS,
+  validateCurriculumCatalog,
+} from "../src/curriculum.js";
 
 let dir;
 let taskStore;
@@ -221,5 +226,15 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
       expect(body.success).toBe(true);
       expect(body.score).toBe(100);
     }
+  });
+
+  test("validates normalized 36-task curriculum schema, 12 categories, and 5 domain tracks", () => {
+    const validation = validateCurriculumCatalog();
+    expect(validation.valid).toBe(true);
+    expect(validation.errors).toEqual([]);
+    expect(validation.totalTasks).toBe(36);
+    expect(CURRICULUM_CATEGORIES.length).toBe(12);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(5);
+    expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });
