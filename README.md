@@ -16,7 +16,7 @@ bun test        # auth, oauth, store, api, curriculum, evaluator, benchmark, com
 src/
   auth.js         1st-party authentication (Bun.password hashing, cryptographically secure sessions)
   oauth.js        1st-party OAuth 2.0 & OIDC provider (PKCE S256, Code, Token, Userinfo, Revocation, Introspection)
-  curriculum.js   Agentic Curriculum refactoring challenges (12 tasks across 6 categories)
+  curriculum.js   Agentic Curriculum refactoring challenges (32 tasks across 11 categories)
   evaluator.js    Isolated execution sandbox with AST checks, assertion runners, and telemetry scoring
   benchmark.js    Automated benchmark suite & markdown report generator
   store.js        Multi-board task store, atomic JSON writes, corrupt-file quarantine
@@ -76,8 +76,9 @@ Full RFC 6749, RFC 7636, and RFC 7662 Authorization Server:
 
 ## 1M Refactoring Curriculum Tasks
 
-Designed for training and evaluating autonomous agents (12 curated challenges):
+Designed for training and evaluating autonomous agents (32 curated challenges across 11 categories):
 
+### Core Systems, Async, Performance & UI (12 Tasks)
 1. **Async Pipeline**: Refactor nested callback hell into an idiomatic `async/await` pipeline with `Promise.all`.
 2. **DOM Memory Leak**: Eliminate unbounded event listener subscriptions using `AbortController` signals.
 3. **Algorithm Optimization**: Optimize $O(N^2)$ nested loop lookups into $O(N)$ indexed `Map` lookups.
@@ -91,15 +92,46 @@ Designed for training and evaluating autonomous agents (12 curated challenges):
 11. **Runtime Schema**: Type-safe schema validator replacing brittle unchecked property access.
 12. **Worker Pool**: Decouple CPU-intensive work to non-blocking bounded concurrency pools.
 
+### Database Connectivity & Distributed Persistence (`database` — 4 Tasks)
+13. **Connection Pool**: Bounded connection pool with idle reuse, `ping()` health checks, waiter queue timeouts, and `withConnection()` automatic release.
+14. **Transactional Outbox**: Parameterized SQL (`$1, $2`), atomic `BEGIN`/`COMMIT`/`ROLLBACK` outbox event insertion, and transient deadlock (`40001`/`40P01`/`SQLITE_BUSY`) retry.
+15. **Keyset Pagination & DataLoader**: Eliminate $1+N$ queries via `queueMicrotask` batch coalescing and indexed keyset cursor pagination.
+16. **Causal LSN Replica Router**: Read/write split router tracking session `minLsn` against replica `appliedLsn` for read-your-own-writes consistency with primary failover.
+
+### Deep Web Authentication (`web-auth` — 4 Tasks)
+17. **OAuth 2.0 DPoP (RFC 9449)**: Sender-constrained proof-of-possession verifier validating `dpop+jwt`, `htm`, `htu`, `ath`, `cnf.jkt` thumbprint binding, and `jti` replay cache.
+18. **WebAuthn / FIDO2 Passkey Verifier**: Validates `clientDataJSON`, binary `authenticatorData` (`UP`/`UV` flags, RP ID hash), and big-endian `signCount` clone detection.
+19. **Refresh Token Rotation & Reuse Detection**: Single-use refresh tokens grouped by `familyId` with immediate family-wide revocation upon replay of a rotated token.
+20. **OIDC Federated JWT & JWKS Key Rotation**: Enforces asymmetric signing algorithm allowlists (`RS256`, `ES256`, `EdDSA`), on-miss JWKS `kid` rotation refresh, `azp`, and `nonce` validation.
+
+### Web Fingerprinting & Anti-Bot Signals (`web-fingerprinting` — 4 Tasks)
+21. **Multi-Surface Entropy Normalizer**: Deterministic FNV-1a hashing across Canvas, WebGL, AudioContext, and platform signals with cross-layer OS/renderer spoofing detection (`SwiftShader`, `webdriver`).
+22. **JA4+ TLS ClientHello & HTTP/2 Correlator**: Strips RFC 8701 TLS GREASE values, computes canonical JA4 signatures, and correlates HTTP/2 pseudo-header order (`:method,:authority,:scheme,:path`).
+23. **Privacy Budget & Canvas Farbling Guard**: Per-origin cumulative entropy budget enforcement with deterministic session+origin keyed PRNG LSB pixel perturbation.
+24. **Behavioral Biometrics Classifier**: Pointer velocity variance, 2D cross-product collinearity, untrusted DOM event detection, and keystroke dwell-time analysis.
+
+### Web Cybersecurity Hardening (`web-cybersec` — 4 Tasks)
+25. **SSRF & DNS Rebinding Guard**: Blocks loopback, RFC 1918, CGNAT, IPv6-mapped IPv4 (`::ffff:127.0.0.1`), and cloud metadata (`169.254.169.254`) while pinning resolved DNS IPs with `redirect: "manual"`.
+26. **DOM XSS Sanitizer & Trusted Types CSP**: Strips dangerous tags, `on*` attributes, and entity-obfuscated `javascript:`/`data:` URIs paired with a `strict-dynamic` nonce CSP requiring Trusted Types.
+27. **Constant-Time HMAC Webhook & Fetch-Metadata CSRF**: Bitwise XOR constant-time comparison, timestamp replay window + nonce deduplication, and `Sec-Fetch-Site` / Origin / double-submit CSRF verification.
+28. **HTTP/1.1 Desync (CL.TE / TE.CL) & CRLF Guard**: RFC 9112 framing validator rejecting simultaneous `Transfer-Encoding` and `Content-Length`, conflicting duplicate lengths, and CRLF header splitting.
+
+### Long-Horizon Agentic Workflows (`agentic-workflow` — 4 Tasks)
+29. **Hierarchical DAG Planner & Saga Compensation**: Cycle detection, concurrent topological wave execution, durable checkpoint resumption, and reverse-order Saga `compensate()` rollback.
+30. **Self-Healing Multi-Tool Loop & Circuit Breakers**: Per-tool circuit breakers with automatic fallback routing, action-signature loop detection, and strict token/step budgets.
+31. **Episodic Memory Compactor & Goal-Drift Guard**: Pins immutable root goal contracts across context compactions, indexes evicted turns for lexical+importance recall, and blocks out-of-scope drift.
+32. **Multi-Agent Lease Coordinator & Fencing Arbiter**: Hierarchical parent/child path conflict detection with monotonically increasing fencing epochs to block zombie agent overwrites.
+
 ---
 
 ## Automated Sandbox Evaluation & Benchmark Suite
 
 - **Execution Telemetry**: Evaluates code in an isolated VM context and measures execution duration (ms), memory, and assertion pass rates.
 - **Live Code Diff**: Side-by-side and inline diff viewer highlighting additions and deletions.
-- **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries and formatted Markdown reports for agent evaluation.
+- **Benchmark Suite (`GET /api/curriculum/benchmark`)**: Generates automated benchmark summaries, domain breakdowns, and formatted Markdown reports for agent evaluation.
+- `GET /api/curriculum/tasks?category=...&difficulty=...` — Filters curriculum challenges by domain category or difficulty.
 - `POST /api/curriculum/evaluate` — Evaluates candidate refactorings with live telemetry.
-- `POST /api/curriculum/benchmark/run-all` — Evaluates all 12 curriculum tasks in automated batch mode.
+- `POST /api/curriculum/benchmark/run-all` — Evaluates all 32 curriculum tasks (or a filtered category) in automated batch mode.
 
 ---
 
