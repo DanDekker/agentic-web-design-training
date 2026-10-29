@@ -12,6 +12,7 @@ describe("Client dialogs and keyboard navigation", () => {
     ["btn-oauth-portal", "oauth-modal", "btn-close-oauth"],
     ["btn-benchmark-portal", "benchmark-modal", "btn-close-benchmark"],
     ["btn-chat-portal", "chat-modal", "btn-close-chat"],
+    ["btn-shop-portal", "shop-modal", "btn-close-shop"],
   ]) {
     test(`${dialog} opens, closes, and returns focus to its opener`, async () => {
       const app = await createClient();
@@ -40,6 +41,9 @@ describe("Client dialogs and keyboard navigation", () => {
     await app.key("Escape");
     await app.key("o");
     expect(app.get("oauth-modal").open).toBe(true);
+    await app.key("Escape");
+    await app.key("s");
+    expect(app.get("shop-modal").open).toBe(true);
   });
 
   test("dialog and browser shortcuts do not act on background tasks", async () => {
