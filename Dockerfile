@@ -13,6 +13,7 @@ RUN mkdir -p /data && chown bun:bun /data
 
 ENV NODE_ENV=production \
     PORT=3000 \
+    GUANTLET_WEB_HOST=0.0.0.0 \
     GUANTLET_WEB_DATA_DIR=/data
 
 USER bun
