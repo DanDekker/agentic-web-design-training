@@ -81,6 +81,7 @@ export class TaskStore {
   #tasks = [];
   #queue = Promise.resolve();
   #write;
+  #initializedFresh = false;
 
   constructor(file, { write = writeJsonFile } = {}) {
     this.#file = file;
@@ -89,9 +90,18 @@ export class TaskStore {
 
   async load() {
     const stored = await readJsonStore(this.#file, "store");
-    if (stored.found) this.#hydrate(stored.value);
-    else await this.#seedFresh();
+    if (stored.found) {
+      this.#hydrate(stored.value);
+      this.#initializedFresh = false;
+    } else {
+      await this.#seedFresh();
+      this.#initializedFresh = true;
+    }
     return this;
+  }
+
+  get initializedFresh() {
+    return this.#initializedFresh;
   }
 
   async #seedFresh() {

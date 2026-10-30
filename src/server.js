@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 const HOSTNAME = process.env.GUANTLET_WEB_HOST ?? "127.0.0.1";
 
 const store = await new TaskStore(DATA_FILE).load();
-if (store.listTasks().length === 0) {
+if (store.initializedFresh) {
   await store.seedCurriculumTasks();
 }
 const authStore = await new AuthStore(AUTH_FILE).load();
