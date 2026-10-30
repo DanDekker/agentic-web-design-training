@@ -172,6 +172,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Progressive Slot Presence Decoration", all: ["@supports selector(slot:has-slotted)", ":has-slotted", "border-block-end-color: transparent", "border-block-end-color: currentColor"] },
     { name: "Focus and High-Contrast Cues", all: [":focus-visible", "forced-colors: active", "outline-offset: 3px", "LinkText", "Highlight"] },
   ],
+  task_css_shadow_host_custom_state_theming: [
+    { name: "Host Attributes and Theme Tokens", all: [":host {", ':host([density="compact"])', "--field-gap:", "--field-radius:", "min-block-size: 44px"] },
+    { name: "Custom State and Public Control Part", all: [":host(:state(invalid)) .control", "border: 3px double currentColor", "clinic-dose-field::part(control)", ".control:focus-visible"] },
+    { name: "Forced-Colors Error and Focus Cues", all: ["forced-colors: active", "background-color: Field", "color: FieldText", "outline-color: Highlight", "border-style: double"], none: ["outline: none"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {

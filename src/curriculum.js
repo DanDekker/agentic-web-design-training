@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 181 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 182 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4329,6 +4329,92 @@ slot[name="article-body"]::slotted(p) {
       "Styles only directly assigned action links, buttons, and article paragraphs with ::slotted compound selectors",
       "Keeps a base separator style and guards decorative :has-slotted styling with selector feature detection",
       "Accounts for whitespace slotted text and preserves focus and forced-colors cues without using slot presence as required-content state",
+    ],
+  },
+
+  {
+    id: "task_css_shadow_host_custom_state_theming",
+    title: "Theme a Clinical Form Control with Shadow Host State and Public Parts",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "shadow-dom", "host", "custom-states", "element-internals", "healthcare"],
+    instructions:
+      "A clinical medication entry component is embedded in both a full chart and a compact reconciliation drawer. Keep density configurable with a host attribute, style validation from the form-associated custom element state exposed through ElementInternals, and expose only the input as the public control part. Inside the shadow root use :host, :host([density=compact]), and :host(:state(invalid)) rather than mirrored JavaScript classes. In the consumer stylesheet, theme the host with custom properties and customize only ::part(control). Preserve a strong focus-visible indicator and provide system colors in forced-colors mode; errors must remain distinguishable without relying on red.",
+    starterCode: `/* Shadow-root stylesheet; .control is the internal input. */
+:host {
+  display: block;
+}
+
+.control {
+  inline-size: 100%;
+}`,
+    solutionCode: `/* Inside the clinic-dose-field shadow root; the input carries part="control". */
+:host {
+  display: block;
+  color: var(--clinic-field-ink, CanvasText);
+  --field-gap: 0.75rem;
+  --field-radius: 0.45rem;
+}
+
+:host([density="compact"]) {
+  --field-gap: 0.4rem;
+  --field-radius: 0.3rem;
+}
+
+.field {
+  display: grid;
+  gap: var(--field-gap);
+}
+
+.control {
+  inline-size: 100%;
+  min-block-size: 44px;
+  border: 1px solid currentColor;
+  border-radius: var(--field-radius);
+  background-color: Canvas;
+  color: inherit;
+  font: inherit;
+}
+
+.control:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+:host(:state(invalid)) .control {
+  border: 3px double currentColor;
+}
+
+@media (forced-colors: active) {
+  .control {
+    background-color: Field;
+    color: FieldText;
+    border-color: FieldText;
+  }
+
+  .control:focus-visible {
+    outline-color: Highlight;
+  }
+
+  :host(:state(invalid)) .control {
+    border-style: double;
+    border-color: CanvasText;
+  }
+}
+
+/* Consumer stylesheet, outside the shadow root. */
+clinic-dose-field {
+  --clinic-field-ink: #17324d;
+}
+
+clinic-dose-field::part(control) {
+  border-radius: 0.75rem;
+}
+}`,
+    criteria: [
+      "Uses :host and a density attribute to expose compact spacing and radius tokens through the shadow boundary",
+      "Styles the ElementInternals invalid custom state, exposes the input as ::part(control), and preserves keyboard focus",
+      "Uses forced-colors system colors and a double border so invalid state is not conveyed by color alone",
     ],
   },
 
