@@ -173,7 +173,7 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
         Object.assign(task, body);
         return json(task);
       }
-      if (path === "/api/curriculum/benchmark") return json({ totalTasks: 36 });
+      if (path === "/api/curriculum/benchmark") return json({ totalTasks: 36, byCategory: { css: 27, webassembly: 9 } });
       if (path.startsWith("/api/chat/messages") && method === "GET") {
         return json({
           roomId: "dm:agent:pp",
