@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webcodecs_timestamp_mapper") {
+      results.push({
+        name: "Shared-Origin Microsecond Rounding",
+        passed: code.includes("timeOriginMs") && code.includes("* 1000") && code.includes("Math.round"),
+        detail: "Converts one source clock into rounded integer WebCodecs microseconds",
+      });
+      results.push({
+        name: "Strict Timestamp Monotonicity",
+        passed: code.includes("previousUs + 1") && code.includes("firstTimestampUs"),
+        detail: "Resolves duplicate and regressing source timestamps by at least one microsecond",
+      });
+      results.push({
+        name: "Finite Safe-Integer Guard",
+        passed: code.includes("Number.isFinite") && code.includes("Number.isSafeInteger"),
+        detail: "Rejects timestamps that cannot be represented accurately as safe integers",
+      });
     } else if (id === "task_webcodecs_bounded_encode_queue") {
       results.push({
         name: "Encoder Queue Backpressure",
@@ -6872,6 +6888,31 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webcodecs_timestamp_mapper") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const mapper = createMicrosecondTimestampMapper({ timeOriginMs: 5 });
+            const timestamps = [mapper.toMicroseconds(5.0004), mapper.toMicroseconds(5.00049), mapper.toMicroseconds(5.00031), mapper.toMicroseconds(6)];
+            let nonFiniteRejected = false;
+            let unsafeRejected = false;
+            try { mapper.toMicroseconds(Number.NaN); } catch (error) { nonFiniteRejected = error instanceof RangeError; }
+            try { mapper.toMicroseconds(1e20); } catch (error) { unsafeRejected = error instanceof RangeError; }
+            return {
+              mediaTimestampsOk:
+                timestamps.join(",") === "0,1,2,1000" && nonFiniteRejected && unsafeRejected &&
+                new Set(timestamps).size === timestamps.length,
+            };
+          } catch { return { mediaTimestampsOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Fractional Media Timestamps & Regressing Clock Protection",
+        passed: Boolean(res?.mediaTimestampsOk),
+        detail: "Produces distinct microseconds for colliding frames and rejects unsafe timestamps",
       });
     } else if (taskId === "task_webcodecs_bounded_encode_queue") {
       const harness = `
