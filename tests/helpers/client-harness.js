@@ -263,6 +263,10 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
       eventSource.onmessage({ data: JSON.stringify({ type: "state" }) });
       await settle();
     },
+    async chatEvent() {
+      eventSource.onmessage({ data: JSON.stringify({ type: "chat" }) });
+      await settle();
+    },
     async openEvents() {
       eventSource.onopen();
       await settle();

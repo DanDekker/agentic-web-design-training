@@ -284,6 +284,27 @@ describe("Live state and rendering", () => {
     expect(app.get("chat-messages-list").innerHTML).toContain("Message 3");
   });
 
+  test("out-of-order chat refreshes cannot replace newer messages or receipts", async () => {
+    const pending = [];
+    let defer = false;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "GET" && path.startsWith("/api/chat/messages") && defer
+        ? new Promise((resolve) => pending.push(resolve)) : undefined,
+    });
+    await app.click("btn-chat-portal");
+    defer = true;
+    await app.chatEvent();
+    await app.chatEvent();
+    const message = { seq: 4, sender: "pp", recipient: "agent", text: "Latest message" };
+    pending[1](json({ latestSeq: 4, messages: [{ ...message, readBy: ["pp", "agent"] }], typingUsers: ["agent"] }));
+    await settle();
+    pending[0](json({ latestSeq: 4, messages: [{ ...message, readBy: ["pp"] }], typingUsers: [] }));
+    await settle();
+    expect(app.get("chat-stat-seq").textContent).toBe("4");
+    expect(app.get("chat-messages-list").innerHTML).toContain("✓✓ Read");
+    expect(app.get("chat-typing-indicator").textContent).toBe("agent is typing…");
+  });
+
   test("live updates preserve an unfinished inline edit", async () => {
     const app = await createClient();
     await app.key("j");
