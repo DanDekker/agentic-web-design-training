@@ -22,8 +22,9 @@ export interface InventoryParsers {
 export interface InventoryItem { sku: string; quantity: number; version: number }
 export interface InventoryStore {
   find(sku: string): Promise<InventoryItem | null>;
-  // Compare and replace atomically. Never reuse a version for a given SKU,
-  // including after deletion/recreation; advance it for every representation change.
+  // Compare and replace atomically. Versions are nonnegative safe integers,
+  // never reused for a SKU, even after deletion/recreation. Advance on every
+  // representation change, including changes to the stable JSON serialization.
   replaceIfMatch(sku: string, match: "*" | number[], quantity: number): Promise<InventoryItem | null>;
 }
 

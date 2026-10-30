@@ -219,6 +219,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
     for (const id of [
       "task_express5_problem_details_error_pipeline",
+      "task_express5_inventory_preconditions",
       "task_express5_tenant_claims",
       "task_express5_payment_webhook",
       "task_migrate_express_to_hono_edge_ts",
@@ -245,6 +246,20 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       expect(result.passed).toBe(false);
       expect(result.assertionResults.find((a) => a.name === "Tenant Isolation and Indistinguishable 404s").passed).toBe(false);
     }
+  });
+
+  test("rejects weak validators and unconditional inventory overwrites", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === "task_express5_inventory_preconditions");
+    expect((await evaluator.evaluate(task.id, task.starterCode)).passed).toBe(false);
+    const weak = await evaluator.evaluate(task.id, task.solutionCode.replace("!tag[1] && ", ""));
+    expect(weak.passed).toBe(false);
+    expect(weak.assertionResults.find((a) => a.name === "Conditional Request Validation").passed).toBe(false);
+    const overwrite = await evaluator.evaluate(task.id, task.solutionCode.replace(
+      "store.replaceIfMatch(sku, match,", 'store.replaceIfMatch(sku, "*",',
+    ));
+    expect(overwrite.passed).toBe(false);
+    expect(overwrite.assertionResults.find((a) => a.name === "Atomic Inventory Updates").passed).toBe(false);
   });
 
   test("rejects altered webhook bytes and acknowledgement before durable enqueue", async () => {
@@ -407,7 +422,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(220);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(221);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);

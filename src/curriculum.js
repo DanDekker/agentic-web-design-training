@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 220 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 221 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -19,6 +19,8 @@ import expressTenantStarter from "../exercises/frameworks/express5_tenant_claims
 import expressTenantSolution from "../exercises/frameworks/express5_tenant_claims/solution.ts" with { type: "text" };
 import expressWebhookStarter from "../exercises/frameworks/express5_payment_webhook/starter.ts" with { type: "text" };
 import expressWebhookSolution from "../exercises/frameworks/express5_payment_webhook/solution.ts" with { type: "text" };
+import expressInventoryStarter from "../exercises/frameworks/express5_inventory_preconditions/starter.ts" with { type: "text" };
+import expressInventorySolution from "../exercises/frameworks/express5_inventory_preconditions/solution.ts" with { type: "text" };
 import reactSvelteVueStarter from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/starter.ts" with { type: "text" };
 import reactSvelteVueSolution from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/solution.ts" with { type: "text" };
 import reduxTanstackStarter from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/starter.ts" with { type: "text" };
@@ -5682,6 +5684,23 @@ clinic-dose-field::part(control) {
   },
 
   /* ── 9. TypeScript Framework Migrations (Express 4->5, Express->Hono, React->Svelte/Vue, Redux->TanStack, Pages->App Router) ── */
+  {
+    id: "task_express5_inventory_preconditions",
+    title: "Express 5 Inventory: Prevent Lost Updates with Conditional Requests",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "express-5", "http", "inventory", "concurrency", "etag"],
+    instructions:
+      "Two retail staff edit the same stock quantity, and the later request silently overwrites the first. Using the supplied dependency-injected Express interfaces, register GET and PUT /v1/inventory/:sku. Validate SKUs as 1–64 ASCII letters, digits, underscores or hyphens; return 404 for an invalid SKU or a GET of an absent item. GET returns {sku, quantity}, Cache-Control: private, no-store, and a strong ETag formatted as a quoted v followed by the store's nonnegative safe-integer version. Register a route-local application/json parser with limit 65,536, strict true, and inflate false. PUT accepts only {quantity} with an integer from 0 through 1,000,000. Missing If-Match returns 428 with Cache-Control: no-store; malformed headers or invalid bodies return 400. Parse a bounded HTTP entity-tag list (at most 1,024 characters and 32 tags), accepting space and tab, empty list elements, commas inside quoted opaque tags, and the standalone wildcard *. Weak or unrelated valid tags never match the application's strong version tags. Return 412 if the precondition fails, including for a missing item; otherwise return 204 without a validator, since the request body is not the complete stored representation. Pass all matching version candidates or * to the injected atomic replaceIfMatch operation, never a separate read-then-write. The wildcard checks existence only and intentionally does not protect against stale edits; clients should send a specific tag for lost-update protection. Propagate unexpected storage failures. In a real system, authenticate, authorize, and scope tenants before these routes, and ensure the database operation is atomic and versions change whenever the representation changes and never repeat for a SKU, even after deletion and recreation. The JSON serialization must remain stable for a version.",
+    starterCode: expressInventoryStarter.trimEnd(),
+    solutionCode: expressInventorySolution.trimEnd(),
+    criteria: [
+      "Registers GET and bounded route-local JSON PUT with validated SKUs and quantities",
+      "Returns a strong version ETag and distinguishes missing, malformed, stale, weak, and wildcard preconditions",
+      "Uses one atomic compare-and-replace operation and handles concurrent edits without silent overwrites",
+      "Omits a validator on the transformed successful PUT and propagates unexpected storage failures",
+    ],
+  },
   {
     id: "task_express5_payment_webhook",
     title: "Express 5 Payments: Verify Raw Webhooks and Queue Duplicate Deliveries Safely",
