@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 189 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 190 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -79,6 +79,8 @@ import wasmResourcesStarter from "../exercises/platform/webassembly/component_re
 import wasmResourcesSolution from "../exercises/platform/webassembly/component_resources/solution.js" with { type: "text" };
 import wasmJspiStarter from "../exercises/platform/webassembly/jspi_bindings/starter.js" with { type: "text" };
 import wasmJspiSolution from "../exercises/platform/webassembly/jspi_bindings/solution.js" with { type: "text" };
+import wasmStreamingStarter from "../exercises/platform/webassembly/streaming_loader/starter.js" with { type: "text" };
+import wasmStreamingSolution from "../exercises/platform/webassembly/streaming_loader/solution.js" with { type: "text" };
 import credentialBuilderStarter from "../exercises/platform/digital_credentials/request_builder/starter.js" with { type: "text" };
 import credentialBuilderSolution from "../exercises/platform/digital_credentials/request_builder/solution.js" with { type: "text" };
 import credentialPromptStarter from "../exercises/platform/digital_credentials/prompt_coordinator/starter.js" with { type: "text" };
@@ -12340,6 +12342,23 @@ export class VirtualizedShadowListEngine {
       "Wraps imported JavaScript functions in new WebAssembly.Suspending instances",
       "Wraps exported Wasm functions through WebAssembly.promising while preserving non-function exports",
       "Copies nested import namespaces and leaves caller-provided objects unmodified",
+    ],
+  },
+  {
+    id: "task_webassembly_streaming_loader",
+    title: "Load WebAssembly Efficiently Across CDN MIME and Runtime Differences",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "instantiate-streaming", "mime-type", "deployment", "fallback"],
+    instructions:
+      "A browser app serves a .wasm file from several CDNs and local preview servers, some of which omit or misconfigure the application/wasm content type. Build an injectable loader that rejects unsuccessful HTTP responses before reading bytes, uses instantiateStreaming only when the media type is exactly application/wasm (ignoring case and parameters), and otherwise buffers once and calls instantiate. Preserve compile/link errors from the selected path instead of retrying and potentially running module startup side effects twice.",
+    starterCode: wasmStreamingStarter,
+    solutionCode: wasmStreamingSolution,
+    criteria: [
+      "Rejects failed responses with a useful NetworkError before streaming or buffering",
+      "Uses streaming only for the normalized application/wasm media type and when supported",
+      "Falls back to one arrayBuffer read and asynchronous instantiation for incorrect MIME or older runtimes",
+      "Propagates errors from the chosen instantiation path without retrying guest startup",
     ],
   },
   {

@@ -2550,6 +2550,22 @@ export class Evaluator {
         passed: code.includes("Object.entries(imports)") && code.includes("Object.entries(namespace)") && code.includes("Object.entries(exports)"),
         detail: "Builds fresh namespaces while preserving memories, globals and other non-function bindings",
       });
+    } else if (id === "task_webassembly_streaming_loader") {
+      results.push({
+        name: "HTTP Failure and Instantiation Capability Checks",
+        passed: code.includes("response.ok !== true") && code.includes("NetworkError") && code.includes("wasmApi.instantiate"),
+        detail: "Rejects bad fetch responses before consuming their bodies and reports unsupported instantiation",
+      });
+      results.push({
+        name: "Normalized MIME-Gated Streaming and Byte Fallback",
+        passed: code.includes("application/wasm") && code.includes("instantiateStreaming") && code.includes("arrayBuffer()"),
+        detail: "Streams only the registered WebAssembly media type and buffers once for misconfigured servers",
+      });
+      results.push({
+        name: "No Retry After Guest Startup or Compile Failure",
+        passed: !code.includes("catch (") && !code.includes("catch{"),
+        detail: "Keeps compile, link and guest-start failures from triggering a second instantiation attempt",
+      });
     } else if (id === "task_webnn_tensor_inference_lifecycle") {
       results.push({
         name: "Least-Privilege Tensor Permissions",
@@ -8178,6 +8194,65 @@ export class Evaluator {
         name: "JSPI Import Suspension, Export Promises & Unsupported Runtime",
         passed: Boolean(res?.jspiBoundaryOk),
         detail: "Uses injected JSPI shims to wrap functions, keep memory values intact and reject absent proposal APIs",
+      });
+    } else if (taskId === "task_webassembly_streaming_loader") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const imports = { env: { log() {} } };
+            const calls = [];
+            const wasmApi = {
+              async instantiateStreaming(responsePromise, receivedImports) {
+                calls.push("stream");
+                const response = await responsePromise;
+                return { path: "stream", ok: response.ok, imports: receivedImports };
+              },
+              async instantiate(bytes, receivedImports) {
+                calls.push("buffer");
+                return { path: "buffer", bytes: bytes.byteLength, imports: receivedImports };
+              },
+            };
+            const streamedResponse = new Response(new Uint8Array([0, 97, 115, 109]), {
+              status: 200,
+              headers: { "content-type": "Application/Wasm; charset=binary" },
+            });
+            const streamed = await loadWasmResponse(Promise.resolve(streamedResponse), imports, wasmApi);
+            const legacyResponse = new Response(new Uint8Array([1, 2, 3]), {
+              status: 200,
+              headers: { "content-type": "application/octet-stream" },
+            });
+            const buffered = await loadWasmResponse(Promise.resolve(legacyResponse), imports, wasmApi);
+            const failingResponse = new Response("missing", { status: 404 });
+            let httpRejected = false;
+            try { await loadWasmResponse(Promise.resolve(failingResponse), imports, wasmApi); }
+            catch (error) { httpRejected = error.name === "NetworkError"; }
+            const compileError = Object.assign(new Error("bad module"), { name: "CompileError" });
+            const failingApi = {
+              async instantiateStreaming() { calls.push("compile-failure"); throw compileError; },
+              async instantiate() { calls.push("retry"); return {}; },
+            };
+            const compileResponse = new Response(new Uint8Array([0]), {
+              status: 200,
+              headers: { "content-type": "application/wasm" },
+            });
+            let compileErrorPreserved = false;
+            try { await loadWasmResponse(Promise.resolve(compileResponse), imports, failingApi); }
+            catch (error) { compileErrorPreserved = error === compileError; }
+            return {
+              wasmStreamingLoaderOk: streamed.path === "stream" && buffered.path === "buffer" &&
+                buffered.bytes === 3 && streamed.imports === imports && buffered.imports === imports &&
+                httpRejected && compileErrorPreserved && !calls.includes("retry") &&
+                calls.filter((call) => call === "buffer").length === 1,
+            };
+          } catch { return { wasmStreamingLoaderOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "CDN MIME Fallback, HTTP Failure & Single Instantiation",
+        passed: Boolean(res?.wasmStreamingLoaderOk),
+        detail: "Uses streaming with a correct MIME type, buffers a legacy response, and preserves failures without retrying",
       });
     } else if (taskId === "task_webnn_tensor_inference_lifecycle") {
       const harness = `
