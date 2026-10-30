@@ -212,6 +212,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Frame Fills the Reserved Wrapper", all: [":where(iframe, video)", "position: absolute", "inset: 0", "block-size: 100%", "border: 0"] },
     { name: "Focus Without Media Clipping", all: [":focus-within", "outline: 3px solid", "outline-offset: 3px"], none: ["overflow: hidden", "width: 560px", "height: 315px"] },
   ],
+  task_css_nested_workspace_scrollers: [
+    { name: "Shrinkable Two-Axis Workspace Tracks", all: ["grid-template-rows: auto minmax(0, 1fr)", "grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr)", "min-inline-size: 0", "min-block-size: 0"] },
+    { name: "Scroll Ownership and Containment", all: [".support-inbox__messages", "overflow: auto", "overscroll-behavior-block: contain", "scrollbar-gutter: stable"], none: ["overflow: hidden"] },
+    { name: "Responsive Workspace Keeps Its Document Order", all: ["@media (max-width: 48rem)", "grid-template-columns: minmax(0, 1fr)", "grid-template-rows: auto minmax(0, 1fr)"], none: ["position: fixed"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
