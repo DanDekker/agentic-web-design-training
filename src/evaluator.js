@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webrtc_data_channel_backpressure") {
+      results.push({
+        name: "UTF-8 Byte-Aware Queue Bound",
+        passed: code.includes("TextEncoder") && code.includes("highWaterMark"),
+        detail: "Bounds queued bytes rather than JavaScript character count",
+      });
+      results.push({
+        name: "Native Low-Water-Event Backpressure",
+        passed: code.includes("bufferedAmountLowThreshold") && code.includes("bufferedamountlow"),
+        detail: "Resumes queued sends when the peer data channel drains below its threshold",
+      });
+      results.push({
+        name: "Concurrent Producer Serialization",
+        passed: code.includes("WeakMap") && code.includes("channelTails"),
+        detail: "Queues writers per channel so simultaneous calls respect the same watermarks",
+      });
     } else if (id === "task_webrtc_ice_candidate_inbox") {
       results.push({
         name: "Pre-Description Candidate Buffer",
@@ -6840,6 +6856,53 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webrtc_data_channel_backpressure") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const channel = {
+              readyState: "open",
+              bufferedAmount: 98,
+              bufferedAmountLowThreshold: 0,
+              sent: [],
+              listeners: new Map(),
+              addEventListener(type, handler) {
+                if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+                this.listeners.get(type).add(handler);
+              },
+              removeEventListener(type, handler) { this.listeners.get(type)?.delete(handler); },
+              dispatch(type) {
+                for (const handler of this.listeners.get(type) ?? []) handler({ type });
+              },
+              send(payload) {
+                this.sent.push(payload);
+                this.bufferedAmount += new TextEncoder().encode(payload).byteLength;
+              },
+            };
+            const first = sendWithBackpressure(channel, "🙂", { highWaterMark: 100, lowWaterMark: 30 });
+            const second = sendWithBackpressure(channel, "A", { highWaterMark: 100, lowWaterMark: 30 });
+            setTimeout(() => {
+              channel.bufferedAmount = 30;
+              channel.dispatch("bufferedamountlow");
+            }, 0);
+            const results = await Promise.all([first, second]);
+            const remainingListeners = [...channel.listeners.values()].reduce((sum, set) => sum + set.size, 0);
+            return {
+              dataChannelFlowOk:
+                channel.sent.join(",") === "🙂,A" && results[0].bytesSent === 4 &&
+                results[1].bytesSent === 1 && channel.bufferedAmountLowThreshold === 30 &&
+                channel.bufferedAmount <= 35 && remainingListeners === 0,
+            };
+          } catch { return { dataChannelFlowOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1500 });
+      results.push({
+        name: "Ordered RTCDataChannel Writes & UTF-8 Backpressure",
+        passed: Boolean(res?.dataChannelFlowOk),
+        detail: "Waits for bufferedamountlow before sending a four-byte UTF-8 emoji, then releases listeners",
       });
     } else if (taskId === "task_webrtc_ice_candidate_inbox") {
       const harness = `
