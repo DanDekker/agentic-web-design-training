@@ -85,6 +85,12 @@ import credentialPromptStarter from "../exercises/platform/digital_credentials/p
 import credentialPromptSolution from "../exercises/platform/digital_credentials/prompt_coordinator/solution.js" with { type: "text" };
 import credentialVerifyStarter from "../exercises/platform/digital_credentials/server_verification/starter.js" with { type: "text" };
 import credentialVerifySolution from "../exercises/platform/digital_credentials/server_verification/solution.js" with { type: "text" };
+import webxrSessionStarter from "../exercises/platform/webxr_depth/session_options/starter.js" with { type: "text" };
+import webxrSessionSolution from "../exercises/platform/webxr_depth/session_options/solution.js" with { type: "text" };
+import webxrSampleStarter from "../exercises/platform/webxr_depth/depth_sampling/starter.js" with { type: "text" };
+import webxrSampleSolution from "../exercises/platform/webxr_depth/depth_sampling/solution.js" with { type: "text" };
+import webxrLoopStarter from "../exercises/platform/webxr_depth/frame_loop/starter.js" with { type: "text" };
+import webxrLoopSolution from "../exercises/platform/webxr_depth/frame_loop/solution.js" with { type: "text" };
 import webnnInferenceStarter from "../exercises/platform/webnn/tensor_inference/starter.js" with { type: "text" };
 import webnnInferenceSolution from "../exercises/platform/webnn/tensor_inference/solution.js" with { type: "text" };
 import webnnQueueStarter from "../exercises/platform/webnn/shared_tensor_queue/starter.js" with { type: "text" };
@@ -180,6 +186,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Digital Credentials, Browser Mediation & Verifier Privacy",
     categories: ["digital-credentials"],
   },
+  "webxr-spatial-computing": {
+    id: "webxr-spatial-computing",
+    name: "WebXR Spatial Computing & Depth Sensing",
+    categories: ["webxr-depth"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -224,6 +235,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   webassembly: "webassembly-runtime",
   webnn: "web-neural-compute",
   "digital-credentials": "digital-credentials",
+  "webxr-depth": "webxr-spatial-computing",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10523,6 +10535,57 @@ export class VirtualizedShadowListEngine {
       "Rejects non-HTTPS origins and any endpoint outside the caller's origin",
       "POSTs protocol and data with same-origin credentials, no-store cache, and redirects disabled",
       "Returns only the server's explicit verified boolean and never trusts local credential claims",
+    ],
+  },
+  {
+    id: "task_webxr_depth_session_options",
+    title: "Negotiate WebXR Depth Sensing as Required or Optional",
+    category: "webxr-depth",
+    difficulty: "advanced",
+    tags: ["webxr", "depth-sensing", "capability-negotiation", "xr-session"],
+    instructions:
+      "Build XRSessionInit options for the evolving WebXR Depth Sensing module. Put depth-sensing in requiredFeatures only when the experience cannot work without geometry; otherwise request it through optionalFeatures so the browser can create a session without depth. Whenever the feature is requested, include valid usagePreference, dataFormatPreference and depthTypeRequest arrays plus matchDepthView. Do not assume every CPU/GPU format combination is implemented by the device, and let requestSession report device and permission failures.",
+    starterCode: webxrSessionStarter,
+    solutionCode: webxrSessionSolution,
+    criteria: [
+      "Uses requiredFeatures or optionalFeatures according to the caller's requirement",
+      "Includes a depthSensing dictionary with the feature descriptor request",
+      "Validates ordered usage, data format, and raw/smooth depth preferences",
+      "Delegates device capability and permission rejection to XRSystem.requestSession",
+    ],
+  },
+  {
+    id: "task_webxr_depth_sampling",
+    title: "Sample XR Depth in Meters Without Assuming Buffer Encoding",
+    category: "webxr-depth",
+    difficulty: "advanced",
+    tags: ["webxr", "depth-buffer", "meters", "coordinate-transform"],
+    instructions:
+      "Read one CPU-accessible XRDepthInformation sample at normalized view coordinates. Reject non-finite or out-of-range coordinates, delegate matrix mapping and rawValueToMeters conversion to getDepthInMeters(), return null when no depth information or invalid depth is available, and fail clearly if a GPU-only object has no CPU sampling method. Never assume depth is stored as millimeters, mutate the shared data buffer, or multiply the API's meter result a second time.",
+    starterCode: webxrSampleStarter,
+    solutionCode: webxrSampleSolution,
+    criteria: [
+      "Validates finite normalized coordinates inside the inclusive zero-to-one range",
+      "Uses getDepthInMeters so the browser applies depth-buffer coordinate mapping and unit conversion",
+      "Returns null for absent or invalid samples and clearly rejects GPU-only information",
+      "Does not mutate raw depth data or scale an already converted result twice",
+    ],
+  },
+  {
+    id: "task_webxr_depth_frame_loop",
+    title: "Run a Failure-Safe WebXR Per-View Depth Frame Loop",
+    category: "webxr-depth",
+    difficulty: "advanced",
+    tags: ["webxr", "requestAnimationFrame", "depth-sensing", "lifecycle"],
+    instructions:
+      "Build a WebXR session loop that requests the next XR animation frame, obtains the viewer pose, and gathers the matching depth-information object for each view. Missing poses and per-view depth are normal; pass them through without guessing or reusing old sensor data. Keep onFrame synchronous because XR frames are time-sensitive, cancel the pending callback and remove the end listener on stop, and stop plus report an error if rendering or depth access throws.",
+    starterCode: webxrLoopStarter,
+    solutionCode: webxrLoopSolution,
+    criteria: [
+      "Schedules work through XRSession.requestAnimationFrame and obtains the viewer pose",
+      "Collects a current depth result for every pose view while preserving missing values",
+      "Rejects asynchronous frame callbacks to avoid queued stale sensor frames",
+      "Cancels the pending callback, removes the end listener, and reports failures once",
     ],
   },
 ];

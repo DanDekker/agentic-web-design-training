@@ -2303,6 +2303,54 @@ export class Evaluator {
         passed: code.includes("result?.verified === true") && !code.includes("console.log(credential"),
         detail: "Returns the verifier's explicit boolean and does not log or locally trust the credential payload",
       });
+    } else if (id === "task_webxr_depth_session_options") {
+      results.push({
+        name: "Required and Optional Feature Negotiation",
+        passed: code.includes('required ? "requiredFeatures" : "optionalFeatures"') && code.includes('"depth-sensing"'),
+        detail: "Keeps depth-required experiences strict and lets optional experiences fall back to a normal session",
+      });
+      results.push({
+        name: "Depth Configuration Completeness",
+        passed: code.includes("usagePreference:") && code.includes("dataFormatPreference:") && code.includes("depthTypeRequest:") && code.includes("matchDepthView"),
+        detail: "Supplies each requested depth mode preference expected by XRSessionInit",
+      });
+      results.push({
+        name: "Native Capability Delegation",
+        passed: code.includes("xr.requestSession(mode, sessionOptions)"),
+        detail: "Lets the user agent resolve device support, permission, and feature negotiation",
+      });
+    } else if (id === "task_webxr_depth_sampling") {
+      results.push({
+        name: "Normalized Coordinate Bounds",
+        passed: code.includes("Number.isFinite(x)") && code.includes("x > 1") && code.includes("y > 1") && code.includes("RangeError"),
+        detail: "Rejects invalid view coordinates before asking the XR device for a sample",
+      });
+      results.push({
+        name: "Browser Unit and View Conversion",
+        passed: code.includes("getDepthInMeters(x, y)"),
+        detail: "Uses the native helper to apply the depth-buffer view transform and meter scale",
+      });
+      results.push({
+        name: "Unavailable and Invalid Sample Handling",
+        passed: code.includes("if (!depthInformation) return null") && code.includes('error.name = "NotSupportedError"') && code.includes("depthMeters <= 0"),
+        detail: "Handles absent, invalid, and GPU-only depth data without assuming an encoding",
+      });
+    } else if (id === "task_webxr_depth_frame_loop") {
+      results.push({
+        name: "Per-Frame Pose and Depth Sampling",
+        passed: code.includes("session.requestAnimationFrame(tick)") && code.includes("frame.getViewerPose(referenceSpace)") && code.includes("binding.getDepthInformation(view)"),
+        detail: "Samples current depth data against each XR view in the current animation frame",
+      });
+      results.push({
+        name: "Synchronous Time-Sensitive Callback",
+        passed: code.includes('result.then === "function"') && code.includes("onFrame must be synchronous"),
+        detail: "Stops asynchronous callbacks from queuing stale real-world sensor frames",
+      });
+      results.push({
+        name: "End and Failure Cleanup",
+        passed: code.includes('session.addEventListener("end"') && code.includes("cancelAnimationFrame") && code.includes('removeEventListener?.("end"'),
+        detail: "Cancels pending frame work and removes the session end listener on stop or error",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -8027,6 +8075,134 @@ export class Evaluator {
         name: "Same-Origin Verifier Boundary & Opaque Response Handling",
         passed: Boolean(res?.credentialVerifyOk),
         detail: "Posts the credential response securely and accepts only the verifier's explicit boolean result",
+      });
+    } else if (taskId === "task_webxr_depth_session_options") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const optional = buildDepthAwareXRSessionOptions({});
+            const required = buildDepthAwareXRSessionOptions({ required: true, matchDepthView: false });
+            let captured;
+            const session = { id: "xr" };
+            const xr = { async requestSession(mode, options) { captured = { mode, options }; return session; } };
+            const result = await requestDepthAwareXRSession(xr, "immersive-ar", { required: true });
+            let invalidRejected = false;
+            try { buildDepthAwareXRSessionOptions({ dataFormatPreference: ["made-up"] }); }
+            catch (error) { invalidRejected = error.name === "TypeError"; }
+            return {
+              webxrSessionOk: optional.optionalFeatures.join(",") === "depth-sensing" &&
+                !optional.requiredFeatures && required.requiredFeatures.join(",") === "depth-sensing" &&
+                required.depthSensing.matchDepthView === false &&
+                required.depthSensing.usagePreference.length > 0 &&
+                required.depthSensing.dataFormatPreference.length > 0 &&
+                captured.mode === "immersive-ar" && captured.options.requiredFeatures[0] === "depth-sensing" &&
+                result === session && invalidRejected,
+            };
+          } catch { return { webxrSessionOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Required and Optional Depth Feature Negotiation",
+        passed: Boolean(res?.webxrSessionOk),
+        detail: "Requests the correct feature policy and supplies validated preference arrays to XRSystem",
+      });
+    } else if (taskId === "task_webxr_depth_sampling") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const coordinates = [];
+            const information = {
+              data: new ArrayBuffer(8),
+              getDepthInMeters(x, y) { coordinates.push([x, y]); return 1.75; },
+            };
+            const meters = readXrDepthSample(information, 0.25, 1);
+            const invalid = readXrDepthSample({ getDepthInMeters() { return 0; } }, 0, 0);
+            const absent = readXrDepthSample(null, 0.5, 0.5);
+            let boundsRejected = false;
+            let gpuRejected = false;
+            try { readXrDepthSample(information, 1.01, 0.5); } catch (error) { boundsRejected = error.name === "RangeError"; }
+            try { readXrDepthSample({ texture: {} }, 0.5, 0.5); } catch (error) { gpuRejected = error.name === "NotSupportedError"; }
+            return {
+              webxrSampleOk: meters === 1.75 && invalid === null && absent === null &&
+                coordinates.length === 1 && coordinates[0][0] === 0.25 && coordinates[0][1] === 1 &&
+                information.data.byteLength === 8 && boundsRejected && gpuRejected,
+            };
+          } catch { return { webxrSampleOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Meter Conversion, View Bounds & GPU-Only Handling",
+        passed: Boolean(res?.webxrSampleOk),
+        detail: "Uses XR's unit conversion, preserves source bytes and reports unsupported CPU sampling clearly",
+      });
+    } else if (taskId === "task_webxr_depth_frame_loop") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            function makeSession() {
+              const callbacks = new Map();
+              const cancelled = [];
+              const listeners = new Map();
+              let nextId = 1;
+              return {
+                callbacks, cancelled, listeners,
+                requestAnimationFrame(callback) { const id = nextId++; callbacks.set(id, callback); return id; },
+                cancelAnimationFrame(id) { cancelled.push(id); callbacks.delete(id); },
+                addEventListener(name, callback) { listeners.set(name, callback); },
+                removeEventListener(name, callback) { if (listeners.get(name) === callback) listeners.delete(name); },
+                end() { listeners.get("end")?.(); },
+              };
+            }
+            const session = makeSession();
+            const referenceSpace = { id: "local" };
+            const depth = { width: 2, height: 2 };
+            let framesSeen = 0;
+            let currentDepth = false;
+            const loop = startXRDepthFrameLoop({
+              session, referenceSpace,
+              binding: { getDepthInformation(view) { return view.id === "left" ? depth : null; } },
+              onFrame(frameInfo) {
+                framesSeen += 1;
+                currentDepth = frameInfo.time === 12 && frameInfo.depthByView[0] === depth && frameInfo.depthByView[1] === null;
+              },
+            });
+            const firstId = [...session.callbacks.keys()][0];
+            const firstTick = session.callbacks.get(firstId);
+            session.callbacks.delete(firstId);
+            firstTick(12, { getViewerPose(space) { return space === referenceSpace ? { views: [{ id: "left" }, { id: "right" }] } : null; } });
+            const pendingId = [...session.callbacks.keys()][0];
+            session.end();
+            loop.stop();
+            const errorSession = makeSession();
+            let reported = 0;
+            startXRDepthFrameLoop({
+              session: errorSession, referenceSpace,
+              binding: { getDepthInformation() { return null; } },
+              onFrame() { throw new Error("renderer failed"); },
+              onError(error) { if (error.message === "renderer failed") reported += 1; },
+            });
+            const errorId = [...errorSession.callbacks.keys()][0];
+            const errorTick = errorSession.callbacks.get(errorId);
+            errorSession.callbacks.delete(errorId);
+            errorTick(13, { getViewerPose() { return { views: [] }; } });
+            return {
+              webxrLoopOk: framesSeen === 1 && currentDepth && pendingId !== undefined &&
+                session.cancelled.includes(pendingId) && !session.listeners.has("end") &&
+                reported === 1 && errorSession.cancelled.length === 1,
+            };
+          } catch { return { webxrLoopOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Current Per-View Depth, Session End & Render Failure Cleanup",
+        passed: Boolean(res?.webxrLoopOk),
+        detail: "Samples each view, preserves missing depth, and cancels queued callbacks on end or renderer failure",
       });
     } else {
       // General syntax evaluation
