@@ -75,6 +75,8 @@ import webtransportReplayStarter from "../exercises/platform/webtransport/datagr
 import webtransportReplaySolution from "../exercises/platform/webtransport/datagram_replay_window/solution.js" with { type: "text" };
 import wasmMemoryStarter from "../exercises/platform/webassembly/memory_view/starter.js" with { type: "text" };
 import wasmMemorySolution from "../exercises/platform/webassembly/memory_view/solution.js" with { type: "text" };
+import wasmResourcesStarter from "../exercises/platform/webassembly/component_resources/starter.js" with { type: "text" };
+import wasmResourcesSolution from "../exercises/platform/webassembly/component_resources/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10359,6 +10361,23 @@ export class VirtualizedShadowListEngine {
       "Checks safe non-negative offsets and lengths using subtraction-based bounds validation",
       "Reads and writes little-endian unsigned 32-bit values with value-range validation",
       "Decodes only the requested UTF-8 byte range and rejects malformed UTF-8",
+    ],
+  },
+  {
+    id: "task_webassembly_component_resource_lifetimes",
+    title: "Enforce Owned and Borrowed WebAssembly Component Resource Lifetimes",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "component-model", "wit", "resource-handles", "async-lifetimes"],
+    instructions:
+      "A host adapter exposes a Component Model resource as a unique `own` handle and lends `borrow` handles to asynchronous subtasks. Implement generation-checked handles so a dropped or transferred owner cannot be reused, prevent transfer or drop while any async task still holds a borrow, and return every borrow when its subtask returns or confirms cancellation. Invoke the resource finalizer once, only after all loans are resolved.",
+    starterCode: wasmResourcesStarter,
+    solutionCode: wasmResourcesSolution,
+    criteria: [
+      "Uses unique generation-checked owner handles and invalidates the old owner after transfer",
+      "Tracks each borrowed handle under its asynchronous task and rejects stale or mismatched handles",
+      "Releases all outstanding loans when a task resolves or is cancelled",
+      "Prevents drop or transfer while borrowed and calls the resource finalizer exactly once",
     ],
   },
 ];
