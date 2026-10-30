@@ -6,6 +6,134 @@
 import { createContext, runInContext } from "node:vm";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
 
+const CSS_TASK_CHECKS = Object.freeze({
+  task_css_reset_baseline_renewal: [
+    { name: "Layered Box-Sizing Baseline", all: ["@layer reset", "*::before", "box-sizing: border-box"] },
+    { name: "Responsive Media and Inherited Control Fonts", all: ["max-inline-size: 100%", "font: inherit;", "body {"] },
+    { name: "Non-Destructive Reset", none: ["!important", "width: 100%;"] },
+  ],
+  task_css_physical_to_logical_properties: [
+    { name: "Logical Component Sizing", all: ["inline-size: min(100%", "float: inline-start"] },
+    { name: "Writing-Mode-Safe Spacing and Border", all: ["margin-inline-end", "margin-block-end", "padding-inline-start", "border-inline-start"] },
+    { name: "No Physical Directional Offsets", none: ["margin-right:", "padding-left:", "border-left:", "width: 240px"] },
+  ],
+  task_css_float_navigation_to_flex: [
+    { name: "Wrapping Flex Header and Navigation", all: [".site-header", "display: flex", "flex-wrap: wrap"], min: [["display: flex", 2]] },
+    { name: "Gap-Based Navigation Spacing", all: [".site-nav", "gap:", "align-items: center"] },
+    { name: "Removes Float and Clearfix Hacks", none: ["float:", "::after", "width: 120px"] },
+  ],
+  task_css_float_columns_to_responsive_grid: [
+    { name: "Intrinsic Auto-Fitting Grid Tracks", all: ["grid-template-columns", "repeat(auto-fit", "minmax(min(100%", "gap:"] },
+    { name: "Removes Float Width Patches", none: ["float:", "width: 960px", "width: 320px", "nth-child"] },
+    { name: "Centered Logical Container", all: ["inline-size: min(100% - 2rem", "margin-inline: auto"] },
+  ],
+  task_css_breakpoints_to_fluid_type: [
+    { name: "Bounded Fluid Type Scale", all: ["font-size: clamp(", "1.75rem", "4rem"] },
+    { name: "Readable Measure and Line Height", all: ["max-inline-size: 68ch", "line-height: 1.65", "text-wrap: balance"] },
+    { name: "Removes Stepped Heading Breakpoints", none: ["@media (min-width:", "font-size: 64px"] },
+  ],
+  task_css_fixed_media_to_aspect_ratio: [
+    { name: "Intrinsic Image Geometry", all: ["aspect-ratio: 4 / 3", "inline-size: 100%"] },
+    { name: "Intentional Non-Distorting Crop", all: ["object-fit: cover", "object-position: 50% 35%"] },
+    { name: "Removes Breakpoint Height Ladder", none: ["height: 280px", "@media (max-width:", "@media (min-width:"] },
+  ],
+  task_css_sass_to_native_nesting: [
+    { name: "Native Theme Custom Properties", all: ["--card-ink:", "var(--card-ink)", "--focus-ring:"] },
+    { name: "Nested Component and Focus Rules", all: [".card__title", "&:focus-within", ".card {"] },
+    { name: "Removes Preprocessor-Only Syntax", none: ["$card-ink", "@mixin", "@include"] },
+  ],
+  task_css_specificity_wars_to_layers: [
+    { name: "Explicit Cascade Layer Order", all: ["@layer reset, vendor, components, utilities"] },
+    { name: "Low-Specificity Reset and Readable Component", all: [":where(*, *::before, *::after)", ".button-primary"] },
+    { name: "No Specificity Escalation", none: ["!important", "#app .panel", "html body #app"] },
+  ],
+  task_css_supports_progressive_enhancement: [
+    { name: "Color Value and Selector Feature Queries", all: ["@supports (color: oklch(", "@supports selector(", ":has("] },
+    { name: "Base Selected State and Non-Color Cue", all: [".product-card[data-selected=\"true\"]", "border-style: double"] },
+    { name: "Parse-Time Fallbacks Precede Enhancements", before: [["background: #fff;", "@supports (color:"], ["border-style: double;", "@supports (color:"]] },
+  ],
+  task_css_accessible_focus_motion_refresh: [
+    { name: "Keyboard Focus Indicator", all: [":focus-visible", "outline: 3px solid", "outline-offset: 3px"], none: ["outline: none"] },
+    { name: "Targeted Reduced-Motion Override", all: ["prefers-reduced-motion: reduce", "transition: none", "transform: none"] },
+    { name: "Forced-Colors System Palette", all: ["forced-colors: active", "ButtonText", "ButtonFace", "Highlight"] },
+  ],
+  task_css_layout_animations_to_transforms: [
+    { name: "Transform-Based Visual Motion", all: ["transition: transform", "translateY("] },
+    { name: "Keyboard Reachable Motion State", all: [":focus-within", ".promo-tile:hover"] },
+    { name: "Reduced-Motion Transform Removal", all: ["prefers-reduced-motion: reduce", "transition: none", "transform: none"], none: ["transition: top"] },
+  ],
+  task_css_offscreen_content_visibility: [
+    { name: "Viewport-Aware Rendering", all: ["content-visibility: auto"] },
+    { name: "Intrinsic Placeholder Geometry", all: ["contain-intrinsic-size:", "56rem"] },
+    { name: "Preserves Flowing Document Content", all: [".report-chapter__body", "max-inline-size: 72ch"], none: ["display: none"] },
+  ],
+  task_css_scroll_snap_gallery: [
+    { name: "Native Inline Scroll Snap", all: ["overflow-x: auto", "scroll-snap-type: inline proximity", "scroll-snap-align: start"] },
+    { name: "Responsive Tracks and Scroll Padding", all: ["grid-auto-columns: minmax(min(100%", "scroll-padding-inline:"] },
+    { name: "No Scripted Mandatory Motion", none: ["scroll-snap-type: x mandatory", "scroll-behavior: smooth"] },
+  ],
+  task_css_print_stylesheet_recovery: [
+    { name: "Dedicated Print Rules", all: ["@media print", "@page", "inline-size: auto"] },
+    { name: "Removes Screen-Only Controls", all: [".invoice-actions", ".screen-only", "display: none"] },
+    { name: "Readable Page Breaks and Link Destinations", all: ["break-inside: avoid", "a[href^=\"http\"]::after", "attr(href)"] },
+  ],
+  task_css_js_class_to_has_state: [
+    { name: "Relational Parent State", all: [":has(> .favorite-toggle[aria-pressed=\"true\"])"] },
+    { name: "Progressive Selector Feature Detection", all: ["@supports selector(.product-card:has("] },
+    { name: "No Mirrored JavaScript State Class", none: [".is-favorited", "classList"] },
+  ],
+  task_css_popover_starting_style: [
+    { name: "Native Popover Open State", all: ["[popover]:popover-open"] },
+    { name: "Discrete Entry and Exit Transition", all: ["@starting-style", "display 180ms allow-discrete", "overlay 180ms allow-discrete"] },
+    { name: "Reduced-Motion Popover", all: ["prefers-reduced-motion: reduce", "transition: none"] },
+  ],
+  task_css_mobile_viewport_unit_migration: [
+    { name: "Progressive Viewport Height Fallbacks", all: ["100vh", "100svh", "100dvh"] },
+    { name: "Content-Growing Logical Minimum", all: ["min-block-size: 100dvh"] },
+    { name: "Notch-Safe Logical Padding", all: ["safe-area-inset-top", "safe-area-inset-bottom", "safe-area-inset-left", "safe-area-inset-right"] },
+  ],
+  task_css_font_face_variable_migration: [
+    { name: "Variable Font Weight Range and Swap", all: ["@font-face", "font-weight: 100 900", "font-display: swap"] },
+    { name: "Resilient System Fallback and Optical Sizing", all: ["system-ui", "font-optical-sizing: auto"] },
+    { name: "Progressive Fallback Metric Adjustment", all: ["font-size: 1rem", "font-size-adjust: 0.52"] },
+  ],
+  task_css_scope_proximity_limits: [
+    { name: "Separate Bounded Component Scopes", all: ["@scope (.dashboard-shell) to (.embedded-app)", "@scope (.widget-shell) to (.embedded-app)"] },
+    { name: "Scope Roots and Shared Target Selector", all: [":scope", ".toolbar-action {"], min: [[".toolbar-action {", 2]] },
+    { name: "Scope Proximity Resolution", all: ["same specificity", "closer root wins"] },
+  ],
+  task_css_custom_fluid_functions: [
+    { name: "Typed Dashed CSS Function", all: ["@function --fluid-space(", "returns <length>", "--minimum <length>"] },
+    { name: "Default Parameter and Result Descriptor", all: ["--maximum <length> : 4rem", "result: clamp(", "var(--maximum)"] },
+    { name: "Reusable Fluid Calls and Draft Note", all: ["--fluid-space(0.75rem", "--fluid-space(1rem", "build-time fallbacks"] },
+  ],
+  task_css_if_conditional_values: [
+    { name: "Ordered Media and Supports Conditions", all: ["if(media(", "if(\n    supports(color:"] },
+    { name: "Inline Else Values", all: ["else: 1rem", "else: #f4f6f8"] },
+    { name: "Fallbacks Precede Draft Values", before: [["padding: 1rem;", "padding: if("], ["background-color: #f4f6f8;", "background-color: if("]] },
+  ],
+  task_css_cross_document_transition_classes: [
+    { name: "Cross-Document Navigation Opt-In", all: ["@view-transition", "navigation: auto", "both same-origin documents"] },
+    { name: "Unique Names and Shared Transition Class", all: ["view-transition-name: featured-product", "view-transition-name: price-summary", "view-transition-class: commerce-item", "::view-transition-group(*.commerce-item)"] },
+    { name: "Reduced Motion and Capture Semantics", all: ["prefers-reduced-motion: reduce", "navigation: none", "does not capture an element"] },
+  ],
+});
+
+function cssCheckPassed(code, check) {
+  const includesAll = (check.all || []).every((token) => code.includes(token));
+  const excludesAll = (check.none || []).every((token) => !code.includes(token));
+  const meetsMinimumCounts = (check.min || []).every(([token, minimum]) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return (code.match(new RegExp(escaped, "g")) || []).length >= minimum;
+  });
+  const followsRequiredOrder = (check.before || []).every(([first, later]) => {
+    const firstIndex = code.indexOf(first);
+    const laterIndex = code.indexOf(later);
+    return firstIndex >= 0 && laterIndex > firstIndex;
+  });
+  return includesAll && excludesAll && meetsMinimumCounts && followsRequiredOrder;
+}
+
 export class Evaluator {
   /**
    * Evaluates submitted code for a specific curriculum task.
@@ -2399,6 +2527,14 @@ export class Evaluator {
         passed: code.includes("output !== frame") && code.includes("controller.enqueue(frame)") && code.includes("{ signal }"),
         detail: "Preserves the original encoded frame and allows lifecycle cancellation through AbortSignal",
       });
+    } else if (task.category === "css" && CSS_TASK_CHECKS[id]) {
+      for (const check of CSS_TASK_CHECKS[id]) {
+        results.push({
+          name: check.name,
+          passed: cssCheckPassed(code, check),
+          detail: check.name,
+        });
+      }
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",

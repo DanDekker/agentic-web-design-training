@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 148 exercises across 41 categories and 20 tracks.
+ * Web development curriculum: 170 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -107,10 +107,15 @@ import webnnLossSolution from "../exercises/platform/webnn/context_loss_runner/s
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
 export const CURRICULUM_TRACKS = Object.freeze({
+  "css-engineering": {
+    id: "css-engineering",
+    name: "CSS Renewal: Foundations, Modernization, Accessibility & Emerging Features",
+    categories: ["css"],
+  },
   "core-engineering": {
     id: "core-engineering",
     name: "Core Web, Async, Performance & Architecture",
-    categories: ["async", "performance", "architecture", "css", "accessibility", "security"],
+    categories: ["async", "performance", "architecture", "accessibility", "security"],
   },
   "distributed-data": {
     id: "distributed-data",
@@ -213,7 +218,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   async: "core-engineering",
   performance: "core-engineering",
   architecture: "core-engineering",
-  css: "core-engineering",
+  css: "css-engineering",
   accessibility: "core-engineering",
   security: "core-engineering",
   database: "distributed-data",
@@ -2783,7 +2788,811 @@ export function benchmarkTwoUserChatFanout(iterations = 200, capacity = 64) {
     ],
   },
 
-  /* ── 7. Advanced Modern CSS Architecture (Container Queries, @layer OKLCH, Scroll Timelines, Anchor Positioning) ── */
+  /* ── 7. CSS Renewal: Foundations, Legacy Upgrades, and Production Patterns ── */
+  {
+    id: "task_css_reset_baseline_renewal",
+    title: "Renew a Fragile Global Reset into a Small, Layered CSS Baseline",
+    category: "css",
+    difficulty: "beginner",
+    tags: ["css", "reset", "cascade-layers", "box-sizing", "renewal"],
+    instructions:
+      "A legacy reset removes every margin and padding from every element, forces all images to fill their containers, and leaves form controls with unrelated default fonts. Replace it with a small reset in a named cascade layer: establish predictable box sizing, preserve useful browser defaults, remove only the page body's default margin, make media fit their available inline size, and let form controls inherit the surrounding font. Avoid blanket !important rules and destructive resets that each component must rebuild.",
+    starterCode: `/* Legacy reset that erases useful defaults and stretches every image */
+* {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+img {
+  width: 100%;
+  height: auto;
+}
+button,
+input,
+select,
+textarea {
+  font-family: Arial, sans-serif;
+}`,
+    solutionCode: `@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    line-height: 1.5;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-inline-size: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}`,
+    criteria: [
+      "Places the reset in an explicit @layer and applies border-box sizing to elements and pseudo-elements",
+      "Preserves browser defaults by limiting resets to the body margin, responsive media sizing, and inherited form fonts",
+      "Removes blanket !important resets and does not force all images to width: 100%",
+    ],
+  },
+  {
+    id: "task_css_physical_to_logical_properties",
+    title: "Renew Directional CSS with Logical Properties and Writing-Mode-Safe Sizing",
+    category: "css",
+    difficulty: "beginner",
+    tags: ["css", "logical-properties", "internationalization", "writing-modes", "renewal"],
+    instructions:
+      "A callout component hardcodes width, left/right offsets, and left borders, so it breaks in right-to-left interfaces and vertical writing modes. Replace physical dimensions and offsets with inline/block sizing, logical margins and padding, a logical border, and an inline-direction float. Preserve the original max-width behavior and keep the callout from exceeding a narrow parent.",
+    starterCode: `/* Physical left/right values assume a left-to-right horizontal page */
+.callout {
+  float: left;
+  width: 240px;
+  margin-right: 24px;
+  margin-bottom: 16px;
+  padding-left: 16px;
+  border-left: 4px solid royalblue;
+}`,
+    solutionCode: `.callout {
+  float: inline-start;
+  inline-size: min(100%, 15rem);
+  margin-inline-end: 1.5rem;
+  margin-block-end: 1rem;
+  padding-inline-start: 1rem;
+  border-inline-start: 0.25rem solid royalblue;
+}`,
+    criteria: [
+      "Uses inline-size instead of a physical width and constrains the callout to its containing inline size",
+      "Replaces left/right spacing and borders with margin-inline, margin-block, padding-inline, and border-inline properties",
+      "Uses float: inline-start so the component follows the writing direction",
+    ],
+  },
+  {
+    id: "task_css_float_navigation_to_flex",
+    title: "Replace a Float-Based Header and Navigation with Wrapping Flex Layout",
+    category: "css",
+    difficulty: "beginner",
+    tags: ["css", "flexbox", "navigation", "legacy-floats", "renewal"],
+    instructions:
+      "A site header floats its logo left and every navigation link right, then uses a clearfix to contain the floated children. Refactor the header and navigation list to Flexbox with a real gap, alignment, and wrapping so the links remain usable in a narrow viewport. Remove the clearfix and avoid fixed link widths or viewport-specific positioning hacks.",
+    starterCode: `/* Float layout plus a clearfix and fixed link spacing */
+.site-header::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+.site-logo {
+  float: left;
+}
+.site-nav li {
+  float: right;
+  margin-left: 24px;
+}
+.site-nav a {
+  display: block;
+  width: 120px;
+}`,
+    solutionCode: `.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav a {
+  display: block;
+  padding: 0.5rem;
+}`,
+    criteria: [
+      "Uses display: flex for the header and navigation list with wrapping enabled",
+      "Uses gap for spacing instead of floated items, fixed link widths, and margin-based navigation hacks",
+      "Removes the clearfix pseudo-element and supports narrow layouts without fixed positioning",
+    ],
+  },
+  {
+    id: "task_css_float_columns_to_responsive_grid",
+    title: "Migrate Fixed Float Columns to an Intrinsic Responsive CSS Grid",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "grid", "intrinsic-sizing", "responsive-layout", "legacy-floats"],
+    instructions:
+      "A legacy product listing uses three 33.333% floated columns, hard-coded card widths, and nth-child margin corrections. Replace it with an intrinsic CSS Grid that creates as many columns as fit, keeps a sensible minimum card size without overflowing a narrow container, and uses a consistent gap. Constrain the overall listing width with a logical max-size and center it with logical margins.",
+    starterCode: `/* Fixed float columns overflow narrow sidebars and need margin patches */
+.product-list {
+  width: 960px;
+  margin: 0 auto;
+}
+.product-card {
+  float: left;
+  width: 320px;
+  margin-right: 16px;
+}
+.product-card:nth-child(3n) {
+  margin-right: 0;
+}`,
+    solutionCode: `.product-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: clamp(1rem, 2vw, 1.75rem);
+  inline-size: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+}
+
+.product-card {
+  min-inline-size: 0;
+}`,
+    criteria: [
+      "Builds responsive columns with repeat(auto-fit) and minmax() including a min(100%, ...) overflow guard",
+      "Uses gap for card spacing and removes fixed column widths, floats, and nth-child margin corrections",
+      "Constrains and centers the grid with logical inline sizing and margin properties",
+    ],
+  },
+  {
+    id: "task_css_breakpoints_to_fluid_type",
+    title: "Replace Breakpoint-Jump Heading Sizes with a Fluid, Readable Type Scale",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "fluid-typography", "clamp", "responsive-design", "readability"],
+    instructions:
+      "A landing page changes heading size in three media queries, producing abrupt jumps, while paragraph text grows beyond a readable line length on large screens. Replace the stepped heading rules with a clamp()-based fluid size, keep line height unitless, cap prose measure in ch units, and use text-wrap: balance for the short display heading. Preserve a comfortable base font size and do not use viewport units without lower and upper bounds.",
+    starterCode: `/* Stepped heading sizes jump at arbitrary viewport widths */
+.hero-title {
+  font-size: 24px;
+}
+@media (min-width: 600px) {
+  .hero-title { font-size: 40px; }
+}
+@media (min-width: 900px) {
+  .hero-title { font-size: 64px; }
+}
+.article-copy {
+  font-size: 18px;
+}`,
+    solutionCode: `.hero-title {
+  max-inline-size: 18ch;
+  margin-block: 0 0.75em;
+  font-size: clamp(1.75rem, 1.1rem + 2.5vw, 4rem);
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.article-copy {
+  max-inline-size: 68ch;
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  line-height: 1.65;
+}`,
+    criteria: [
+      "Replaces stepped heading media queries with a bounded clamp() fluid size",
+      "Uses unitless line-height and caps paragraph measure with a ch-based max-inline-size",
+      "Uses text-wrap: balance for the display heading without relying on unbounded viewport-only sizing",
+    ],
+  },
+  {
+    id: "task_css_fixed_media_to_aspect_ratio",
+    title: "Renew Fixed Image Crops with Aspect Ratio and Object Position",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "responsive-images", "aspect-ratio", "object-fit", "renewal"],
+    instructions:
+      "A card image is stretched with width: 100% and a fixed height, while another rule sets a different height at each breakpoint. Preserve a predictable crop without distorting the source, declare the intended ratio, make the image responsive, and set an intentional focal position. Keep the image element's inline size bounded by its container and remove the breakpoint-specific height ladder.",
+    starterCode: `/* Breakpoint-specific fixed image heights distort content cards */
+.story-image {
+  width: 100%;
+  height: 280px;
+}
+@media (max-width: 700px) {
+  .story-image { height: 180px; }
+}
+@media (min-width: 1100px) {
+  .story-image { height: 360px; }
+}`,
+    solutionCode: `.story-image {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: 50% 35%;
+}`,
+    criteria: [
+      "Declares the image's geometry with aspect-ratio instead of breakpoint-specific fixed heights",
+      "Uses object-fit: cover and an explicit object-position to crop without distorting the source image",
+      "Constrains the image to its container with logical inline sizing and removes the height media-query ladder",
+    ],
+  },
+  {
+    id: "task_css_sass_to_native_nesting",
+    title: "Migrate Sass-Only Component Rules to Native CSS Nesting and Custom Properties",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "native-nesting", "custom-properties", "sass-migration", "renewal"],
+    instructions:
+      "A small component stylesheet requires a preprocessor only for nested selectors, a Sass color variable, and a one-use mixin. Migrate it to browser CSS using custom properties for reusable theme values and native CSS nesting for the component states. Keep the nested relationship local, write the parent selector explicitly when it is part of a compound selector, and remove Sass-only variables, mixins, and include directives.",
+    starterCode: `/* Sass-only card rules require a compile step for three small features */
+$card-ink: #172033;
+$card-surface: white;
+
+@mixin card-focus {
+  outline: 3px solid royalblue;
+  outline-offset: 3px;
+}
+
+.card {
+  color: $card-ink;
+  background: $card-surface;
+  .card__title { margin: 0; }
+  &:focus-within { @include card-focus; }
+}`,
+    solutionCode: `:root {
+  --card-ink: #172033;
+  --card-surface: white;
+  --focus-ring: 3px solid royalblue;
+}
+
+.card {
+  color: var(--card-ink);
+  background: var(--card-surface);
+
+  .card__title {
+    margin: 0;
+  }
+
+  &:focus-within {
+    outline: var(--focus-ring);
+    outline-offset: 3px;
+  }
+}`,
+    criteria: [
+      "Replaces Sass variables with browser-native --custom-properties and var() references",
+      "Uses native CSS nesting for the child title and parent focus-within state",
+      "Removes Sass-only $variables, @mixin definitions, and @include directives",
+    ],
+  },
+  {
+    id: "task_css_specificity_wars_to_layers",
+    title: "Renew Specificity Wars with Cascade Layers and Low-Specificity Resets",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "cascade", "specificity", "cascade-layers", "renewal"],
+    instructions:
+      "A stylesheet has accumulated ID selectors, repeated class chains, and !important overrides to beat vendor and utility rules. Establish the intended layer order explicitly, place resets, vendor styles, components, and utilities in their own layers, use :where() for low-specificity reset selectors, and delete the escalation rules. Keep normal component selectors readable and make the layer order—not selector weight—the primary override policy.",
+    starterCode: `/* Escalating specificity hides the actual component contract */
+#app .panel .toolbar .button.primary {
+  background: royalblue !important;
+}
+html body #app .panel .toolbar .button.primary:hover {
+  background: navy !important;
+}
+* { box-sizing: border-box !important; }`,
+    solutionCode: `@layer reset, vendor, components, utilities;
+
+@layer reset {
+  :where(*, *::before, *::after) {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .button-primary {
+    background: royalblue;
+    color: white;
+  }
+
+  .button-primary:hover,
+  .button-primary:focus-visible {
+    background: navy;
+  }
+}
+
+@layer utilities {
+  .u-visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}`,
+    criteria: [
+      "Declares an explicit layer order for reset, vendor, components, and utilities",
+      "Uses :where() for a zero-specificity reset and readable component selectors without ID chains",
+      "Removes !important overrides and lets cascade layer order govern normal author rules",
+    ],
+  },
+  {
+    id: "task_css_supports_progressive_enhancement",
+    title: "Add Parse-Time Fallbacks Before Modern CSS Enhancements",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "supports", "progressive-enhancement", "compatibility", "renewal"],
+    instructions:
+      "A product card depends on :has() and OKLCH color syntax, so older browsers lose both its selected-state styling and a usable surface color. Keep complete base declarations first, then add selector and value enhancements in separate @supports blocks. Do not use unsupported declarations as the only source of layout or contrast, and ensure the fallback still communicates the selected state with a border and text or another non-color cue.",
+    starterCode: `/* Unsupported selector and color syntax are the only styling path */
+.product-card:has(.product-card__favorite[aria-pressed="true"]) {
+  outline: 2px solid oklch(55% 0.2 260);
+  background: color-mix(in oklch, white 85%, royalblue);
+}`,
+    solutionCode: `.product-card {
+  border: 2px solid #667085;
+  background: #fff;
+  color: #172033;
+}
+
+.product-card[data-selected="true"] {
+  border-color: #174ea6;
+  border-style: double;
+}
+
+@supports (color: oklch(55% 0.2 260)) {
+  .product-card[data-selected="true"] {
+    border-color: oklch(48% 0.16 260);
+    background: color-mix(in oklch, white 85%, royalblue);
+  }
+}
+
+@supports selector(.product-card:has(> .product-card__favorite)) {
+  .product-card:has(> .product-card__favorite[aria-pressed="true"]) {
+    border-width: 4px;
+  }
+}`,
+    criteria: [
+      "Provides base surface, text, and selected-state styles before any @supports enhancements",
+      "Feature-detects the advanced color value and :has() selector with separate @supports conditions",
+      "Keeps selection perceivable through a border treatment rather than color alone",
+    ],
+  },
+  {
+    id: "task_css_accessible_focus_motion_refresh",
+    title: "Renew Hover-Only Interactions with Visible Focus, Reduced Motion, and Forced Colors",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "accessibility", "focus-visible", "reduced-motion", "forced-colors"],
+    instructions:
+      "An older button skin removes outlines, shows feedback only on hover, and relies on a colored shadow to identify the selected state. Restore a strong keyboard focus indicator with :focus-visible, keep a non-color state cue, provide a targeted reduced-motion override for the component's animation, and make the control legible in forced-colors mode using system colors. Do not remove the browser's outline without supplying an equivalent.",
+    starterCode: `/* Keyboard users receive no state feedback and motion cannot be reduced */
+.action-button {
+  outline: none;
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+.action-button:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 4px royalblue;
+}`,
+    solutionCode: `.action-button {
+  border: 2px solid currentColor;
+  transition: transform 180ms ease;
+}
+
+.action-button:hover,
+.action-button[aria-pressed="true"] {
+  transform: translateY(-1px);
+  border-width: 3px;
+}
+
+.action-button:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-button {
+    scroll-behavior: auto;
+    transition: none;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .action-button {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+
+  .action-button:focus-visible {
+    outline-color: Highlight;
+  }
+}`,
+    criteria: [
+      "Provides a visible :focus-visible outline and does not suppress it without a replacement",
+      "Adds a component-scoped prefers-reduced-motion rule that removes the transform transition",
+      "Uses forced-colors system colors and a state cue beyond color alone",
+    ],
+  },
+  {
+    id: "task_css_layout_animations_to_transforms",
+    title: "Move Hover Motion Off Layout Properties and Respect Reduced Motion",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "animation-performance", "transforms", "transitions", "renewal"],
+    instructions:
+      "A promotional tile animates top, left, width, and height on hover, forcing layout work during each animation frame. Preserve the visual lift and reveal while animating transform and opacity instead of geometry, use a short transition, and disable that motion for users who request reduced motion. Do not claim that every transform is automatically compositor-only; the goal is to avoid repeatedly changing layout dimensions and offsets.",
+    starterCode: `/* Animating layout geometry causes repeated layout work */
+.promo-tile {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 220px;
+  transition: top 300ms, left 300ms, width 300ms, height 300ms;
+}
+.promo-tile:hover {
+  top: -8px;
+  left: 0;
+  width: 336px;
+  height: 232px;
+}`,
+    solutionCode: `.promo-tile {
+  transform: translateY(0) scale(1);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.promo-tile:hover,
+.promo-tile:focus-within {
+  transform: translateY(-0.5rem) scale(1.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-tile {
+    transition: none;
+  }
+
+  .promo-tile:hover,
+  .promo-tile:focus-within {
+    transform: none;
+  }
+}`,
+    criteria: [
+      "Replaces transitions of top, left, width, or height with transform-based visual movement",
+      "Includes keyboard-operable focus-within feedback alongside hover feedback",
+      "Removes tile motion and transitions under prefers-reduced-motion",
+    ],
+  },
+  {
+    id: "task_css_offscreen_content_visibility",
+    title: "Reduce Long-Document Rendering Work with content-visibility and Intrinsic Size",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "content-visibility", "rendering-performance", "containment", "renewal"],
+    instructions:
+      "A long report renders every chapter immediately even though most chapters are far below the viewport. Apply content-visibility: auto to independently renderable chapters and reserve a realistic intrinsic block size to reduce layout shifts while content is skipped. Keep the document's normal flow and avoid hiding content with display:none or replacing real text with a screenshot; include a comment that the estimated size should reflect the content's expected height.",
+    starterCode: `/* Every report section is forced through initial layout and paint */
+.report-chapter {
+  display: block;
+  width: 100%;
+  min-height: 900px;
+}`,
+    solutionCode: `.report-chapter {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 56rem; /* Tune the reserved block size to typical chapter content. */
+}
+
+.report-chapter__body {
+  max-inline-size: 72ch;
+  margin-inline: auto;
+}`,
+    criteria: [
+      "Uses content-visibility: auto on independently renderable long-document sections",
+      "Reserves an estimated block size with contain-intrinsic-size to reduce skipped-content layout shifts",
+      "Keeps semantic content in the document flow and does not hide sections with display: none",
+    ],
+  },
+  {
+    id: "task_css_scroll_snap_gallery",
+    title: "Renew a Scripted Horizontal Gallery with CSS Scroll Snap",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "scroll-snap", "overflow", "touch-interaction", "renewal"],
+    instructions:
+      "A horizontal gallery listens for scroll events and rounds the scroll position to the nearest card in JavaScript. Replace that behavior with a native horizontal overflow container and CSS Scroll Snap. Keep cards sized relative to the available inline width, provide scroll padding and alignment, and avoid mandatory snapping for users who prefer reduced motion or need to move freely through content.",
+    starterCode: `/* JavaScript repeatedly rounds this scroll position to card widths */
+.gallery {
+  display: flex;
+  overflow-x: hidden;
+}
+.gallery-card {
+  width: 420px;
+  flex: none;
+}`,
+    solutionCode: `.gallery {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(min(100%, 22rem), 82%);
+  gap: 1rem;
+  overflow-x: auto;
+  padding-inline: 1rem;
+  scroll-padding-inline: 1rem;
+  scroll-snap-type: inline proximity;
+  overscroll-behavior-inline: contain;
+}
+
+.gallery-card {
+  min-inline-size: 0;
+  scroll-snap-align: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery {
+    scroll-behavior: auto;
+    scroll-snap-type: inline proximity;
+  }
+}`,
+    criteria: [
+      "Uses a native overflow scroller with scroll-snap-type and scroll-snap-align instead of position-rounding JavaScript",
+      "Sizes gallery cards with a bounded intrinsic grid track and supplies scroll padding",
+      "Keeps snap behavior at proximity and avoids smooth forced motion for reduced-motion users",
+    ],
+  },
+  {
+    id: "task_css_print_stylesheet_recovery",
+    title: "Recover a Screen-Only Report with Dedicated Print Styles",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "print", "media-queries", "page-breaks", "renewal"],
+    instructions:
+      "An invoice is a dark, fixed-width web layout with sticky navigation, decorative backgrounds, and cards that split across printed pages. Add a focused @media print layer that restores ink-friendly colors, removes navigation and interactive-only controls, lets the content use the printable page width, avoids breaking key cards across pages, and prints a link's destination when useful. Keep the screen layout outside the print query.",
+    starterCode: `/* Screen-only styles make the report unreadable on paper */
+.invoice {
+  width: 1100px;
+  color: white;
+  background: #10131a;
+}
+.site-nav {
+  position: sticky;
+  top: 0;
+}
+.invoice-card {
+  break-inside: auto;
+}`,
+    solutionCode: `@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body,
+  .invoice {
+    inline-size: auto;
+    color: #000;
+    background: #fff;
+  }
+
+  .site-nav,
+  .invoice-actions,
+  .screen-only {
+    display: none;
+  }
+
+  .invoice-card {
+    break-inside: avoid;
+    border: 1px solid #777;
+  }
+
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    overflow-wrap: anywhere;
+  }
+}`,
+    criteria: [
+      "Places paper-specific rules inside @media print and leaves normal screen styles intact",
+      "Removes screen-only navigation and controls and restores readable ink-friendly colors",
+      "Uses page-break protection for invoice cards and can expose useful link destinations in print",
+    ],
+  },
+  {
+    id: "task_css_js_class_to_has_state",
+    title: "Replace Parent-State JavaScript Classes with the Relational :has() Selector",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "has-selector", "relational-selectors", "component-state", "renewal"],
+    instructions:
+      "A component script adds and removes .is-favorited from a card whenever its child favorite button changes aria-pressed. Remove the duplicated parent class and express the visual card state from the child control's existing semantic state with :has(). Keep the card's default appearance complete for browsers that do not support :has(), and avoid using the selector to replace actual application state or accessibility semantics.",
+    starterCode: `/* JavaScript mirrors the child's state onto a parent class */
+.product-card {
+  border: 1px solid #aaa;
+}
+.product-card.is-favorited {
+  border: 3px solid crimson;
+  box-shadow: 0 0 0 3px rgb(220 20 60 / 20%);
+}`,
+    solutionCode: `.product-card {
+  border: 1px solid #aaa;
+}
+
+@supports selector(.product-card:has(> .favorite-toggle)) {
+  .product-card:has(> .favorite-toggle[aria-pressed="true"]) {
+    border: 3px solid crimson;
+    box-shadow: 0 0 0 3px rgb(220 20 60 / 20%);
+  }
+}`,
+    criteria: [
+      "Derives parent styling from a child control's aria-pressed state with :has()",
+      "Provides a base card style and feature-detects :has() with @supports selector()",
+      "Does not replace the child control's semantic state with a styling-only parent class",
+    ],
+  },
+  {
+    id: "task_css_popover_starting_style",
+    title: "Animate Native Popover Entry and Exit with Discrete Transitions",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "popover", "starting-style", "discrete-transitions", "renewal"],
+    instructions:
+      "A custom menu animates opacity only after JavaScript toggles a class, but its hidden-to-open display change cannot transition cleanly. Use the native [popover] and :popover-open states, transition opacity and transform, opt display and overlay into discrete transitions with transition-behavior: allow-discrete, and define the entry state with @starting-style. Include a reduced-motion override and leave opening, focus, and dismissal behavior to the native popover mechanism.",
+    starterCode: `/* Script toggles this class; display:none prevents a clean entry transition */
+.menu {
+  display: none;
+  opacity: 0;
+  transform: translateY(8px);
+}
+.menu.is-open {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms, transform 200ms;
+}`,
+    solutionCode: `[popover] {
+  opacity: 0;
+  transform: translateY(0.5rem) scale(0.98);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    display 180ms allow-discrete,
+    overlay 180ms allow-discrete;
+}
+
+[popover]:popover-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@starting-style {
+  [popover]:popover-open {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [popover] {
+    transition: none;
+    transform: none;
+  }
+}`,
+    criteria: [
+      "Styles the native [popover]:popover-open state rather than relying on a JavaScript-only open class",
+      "Uses @starting-style and allow-discrete transitions for display and overlay entry and exit",
+      "Disables popover motion under prefers-reduced-motion",
+    ],
+  },
+  {
+    id: "task_css_mobile_viewport_unit_migration",
+    title: "Renew Mobile 100vh Panels with Dynamic Viewport Units and Safe Areas",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "viewport-units", "mobile-layout", "safe-area", "renewal"],
+    instructions:
+      "A mobile sign-in screen uses min-height: 100vh and places its footer flush against the device edge. Browser chrome makes the visible height change while scrolling, and notched devices can obscure the footer. Keep a legacy fallback, then use small and dynamic viewport units for stable and current visible-height behavior, and pad the logical inline and block edges with safe-area environment variables. Preserve content growth by using min-block-size rather than a fixed block-size.",
+    starterCode: `/* 100vh can extend behind mobile browser chrome and device cutouts */
+.sign-in-shell {
+  height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}`,
+    solutionCode: `.sign-in-shell {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100vh;
+  min-block-size: 100svh;
+  min-block-size: 100dvh;
+  padding-block-start: max(1.5rem, env(safe-area-inset-top, 0px));
+  padding-block-end: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  padding-inline-start: max(1.5rem, env(safe-area-inset-left, 0px));
+  padding-inline-end: max(1.5rem, env(safe-area-inset-right, 0px));
+}`,
+    criteria: [
+      "Keeps a 100vh fallback and progressively overrides it with 100svh and 100dvh",
+      "Uses min-block-size so the screen can grow beyond the viewport when content needs more room",
+      "Applies env(safe-area-inset-*) padding through logical block and inline edges",
+    ],
+  },
+  {
+    id: "task_css_font_face_variable_migration",
+    title: "Renew Blocking Font Files with a Variable Font Face and Stable Fallback Metrics",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "web-fonts", "variable-fonts", "font-display", "renewal"],
+    instructions:
+      "A design system downloads separate regular, semibold, and bold font files, blocks text while they load, and uses a synthetic bold for headings. Consolidate the family into one variable @font-face with an explicit weight range, use font-display: swap, define a reliable system fallback stack, and enable optical sizing. Add font-size-adjust to reduce fallback metric shifts where supported, while keeping a normal font-size fallback declaration first.",
+    starterCode: `/* Separate static files block text and synthesize intermediate weights */
+@font-face {
+  font-family: "Brand";
+  src: url("brand-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: "Brand";
+  src: url("brand-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: block;
+}`,
+    solutionCode: `@font-face {
+  font-family: "Brand Variable";
+  src: url("brand-variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: "Brand Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-size-adjust: 0.52;
+  font-optical-sizing: auto;
+}
+
+.heading {
+  font-weight: 650;
+}`,
+    criteria: [
+      "Defines one variable @font-face with a font-weight range and font-display: swap",
+      "Provides a system fallback stack and uses font-optical-sizing: auto",
+      "Declares a normal font-size before font-size-adjust to reduce fallback metric shifts progressively",
+    ],
+  },
+
+  /* ── 8. Modern CSS Platform Features and Emerging Draft Proposals ── */
   {
     id: "task_css_container_style_subgrid",
     title: "Refactor Viewport Media Query Card Deck to CSS Container Size/Style Queries & Subgrid Alignment",
@@ -3037,6 +3846,179 @@ function positionTooltip(triggerEl, tooltipEl) {
       "Tethers popover to trigger element declaratively via anchor-name, position-anchor, and anchor() functions",
       "Handles viewport edge overflow automatically using position-try-fallbacks and custom @position-try rules",
       "Highlights the parent container when its child popover is open using relational :has([popover]:popover-open)",
+    ],
+  },
+  {
+    id: "task_css_scope_proximity_limits",
+    title: "Resolve Nested Component Style Collisions with @scope Boundaries and Scope Proximity",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "scope", "cascade", "components", "encapsulation"],
+    instructions:
+      "A dashboard and an embedded analytics widget both style .toolbar-action, so the outer dashboard's appearance leaks into the widget. Replace global selectors with bounded @scope rules rooted at .dashboard-shell and .widget-shell, stop each scope at nested .embedded-app boundaries, and use :scope to assign each root its own action token. Keep the inner and outer .toolbar-action selectors equally specific so the nearer scope wins by scope proximity. Explain that selectors do not inherit specificity from the @scope prelude. This CSS Cascading Level 6 text is an evolving W3C draft.",
+    starterCode: `/* Global component selectors leak across nested dashboards */
+.toolbar-action {
+  color: navy;
+}
+.dashboard-shell .toolbar-action {
+  color: royalblue;
+}
+.widget-shell .toolbar-action {
+  color: seagreen;
+}`,
+    solutionCode: `/* Bounded scopes isolate tokens; equally specific selectors let proximity resolve overlap. */
+@layer components {
+  @scope (.dashboard-shell) to (.embedded-app) {
+    :scope {
+      --action-color: var(--dashboard-action);
+    }
+
+    .toolbar-action {
+      color: var(--action-color);
+    }
+  }
+
+  @scope (.widget-shell) to (.embedded-app) {
+    :scope {
+      --action-color: var(--widget-action);
+    }
+
+    .toolbar-action {
+      color: var(--action-color);
+    }
+  }
+}
+
+/* Both scoped selectors have the same specificity; the closer root wins. */`,
+    criteria: [
+      "Defines separate @scope roots for dashboard and widget components, with .embedded-app scoping limits",
+      "Uses :scope to assign root-local tokens and styles the same .toolbar-action selector inside both scopes",
+      "Keeps the scoped target selectors equally specific so the closer root wins by scope proximity without selector-chain escalation",
+    ],
+  },
+  {
+    id: "task_css_custom_fluid_functions",
+    title: "Replace Repeated Fluid Spacing Math with Typed CSS Custom Functions",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "custom-functions", "design-tokens", "fluid-layout", "css-drafts"],
+    instructions:
+      "A design system repeats clamp() expressions for card gaps and section padding, and small edits have made those expressions inconsistent. Prototype a reusable CSS custom function with a dashed name, typed <length> parameters, a default maximum, a returns <length> annotation, and a result descriptor. Use the function in multiple declarations and keep its math type-safe. The CSS Functions and Mixins document is a First Public Working Draft, so label the syntax as experimental and describe a build-time fallback for browsers that do not implement it; do not imply uniform browser support.",
+    starterCode: `/* Duplicated fluid spacing formulas drift across components */
+.article-stack {
+  gap: clamp(0.75rem, calc(0.5rem + 1vw), 4rem);
+}
+.section-shell {
+  padding-inline: clamp(1rem, calc(0.75rem + 1.5vw), 5rem);
+}`,
+    solutionCode: `/* Experimental CSS custom-function syntax: provide build-time fallbacks for production. */
+@function --fluid-space(--minimum <length>, --preferred <length>, --maximum <length> : 4rem) returns <length> {
+  result: clamp(var(--minimum), var(--preferred), var(--maximum));
+}
+
+.article-stack {
+  gap: --fluid-space(0.75rem, calc(0.5rem + 1vw));
+}
+
+.section-shell {
+  padding-inline: --fluid-space(1rem, calc(0.75rem + 1.5vw), 5rem);
+}`,
+    criteria: [
+      "Defines a dashed @function with typed length parameters and a returns <length> type annotation",
+      "Uses a default value for the optional maximum parameter and returns a value through the result descriptor",
+      "Calls the custom function from multiple CSS properties using clamp-based type-safe fluid spacing math and documents its draft support status",
+    ],
+  },
+  {
+    id: "task_css_if_conditional_values",
+    title: "Build Responsive Design Tokens with the Draft CSS if() Value Function",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "if-function", "conditional-values", "progressive-enhancement", "css-drafts"],
+    instructions:
+      "A card theme duplicates declarations across media and feature-query blocks, making its spacing and accent color hard to maintain. Add ordinary CSS declarations first as parse-time fallbacks, then use the proposed if() value function to select values with media() and supports() conditions and an explicit else branch. Conditions are checked in order, and a false condition does not roll back the cascade, so every if() needs a suitable inline fallback. Mark CSS Values and Units Level 5 if() syntax as an evolving draft and do not claim uniform support.",
+    starterCode: `/* Repeated conditional overrides make the card theme hard to audit */
+.feature-card {
+  padding: 1rem;
+  background: #f4f6f8;
+}
+@media (width >= 60rem) {
+  .feature-card {
+    padding: 2rem;
+  }
+}
+@supports (color: color(display-p3 1 0 0)) {
+  .feature-card {
+    background: color(display-p3 0.96 0.97 0.99);
+  }
+}`,
+    solutionCode: `/* Experimental CSS Values Level 5 if() syntax; keep the declarations above as fallbacks. */
+.feature-card {
+  padding: 1rem;
+  padding: if(media(width >= 60rem): 2rem; else: 1rem);
+
+  background-color: #f4f6f8;
+  background-color: if(
+    supports(color: color(display-p3 1 0 0)): color(display-p3 0.96 0.97 0.99);
+    else: #f4f6f8
+  );
+}`,
+    criteria: [
+      "Preserves ordinary CSS declarations before newer if() declarations so parsers without the draft syntax retain a baseline value",
+      "Selects values using ordered media() and supports() conditions inside if()",
+      "Includes an explicit else value for each conditional and explains that false if() conditions do not roll back the cascade",
+    ],
+  },
+  {
+    id: "task_css_cross_document_transition_classes",
+    title: "Compose Cross-Document View Transitions with Named Elements and Transition Classes",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "view-transitions", "cross-document", "navigation", "accessibility"],
+    instructions:
+      "A same-origin product listing and detail page switch abruptly, and each page has different elements that need a shared transition treatment. Opt both documents into cross-document navigation transitions with @view-transition, assign stable unique view-transition-name values to elements that should match, and use view-transition-class to share pseudo-element styling across differently named elements. Honor reduced motion by disabling navigation transitions in that media query. Remember that a transition class styles captured pseudo-elements but does not capture an element by itself. CSS View Transitions Level 2 is an evolving W3C draft.",
+    starterCode: `/* Listing and detail page have no shared navigation transition styles */
+.product-card {
+  transform: translateY(0);
+}
+.product-hero {
+  transform: translateY(0);
+}`,
+    solutionCode: `/* Put the opt-in and these styles in both same-origin documents. */
+@view-transition {
+  navigation: auto;
+}
+
+.featured-product {
+  view-transition-name: featured-product;
+  view-transition-class: commerce-item;
+}
+
+.price-summary {
+  view-transition-name: price-summary;
+  view-transition-class: commerce-item;
+}
+
+/* The class styles captured pseudo-elements; view-transition-name still opts in. */
+::view-transition-group(*.commerce-item) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}`,
+    criteria: [
+      "Opts both same-origin documents into cross-document navigation transitions with @view-transition and navigation: auto",
+      "Assigns unique view-transition-name values and uses view-transition-class for shared ::view-transition-group() styling",
+      "Disables navigation transitions under prefers-reduced-motion and notes that a transition class alone does not capture an element",
     ],
   },
 
