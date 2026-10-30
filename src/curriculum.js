@@ -51,6 +51,8 @@ import ap2MandateStarter from "../exercises/platform/agentic_commerce/ap2_mandat
 import ap2MandateSolution from "../exercises/platform/agentic_commerce/ap2_mandate_verification/solution.js" with { type: "text" };
 import gpuDispatchStarter from "../exercises/platform/webgpu/dispatch_tiling/starter.js" with { type: "text" };
 import gpuDispatchSolution from "../exercises/platform/webgpu/dispatch_tiling/solution.js" with { type: "text" };
+import gpuCapabilitiesStarter from "../exercises/platform/webgpu/capability_selection/starter.js" with { type: "text" };
+import gpuCapabilitiesSolution from "../exercises/platform/webgpu/capability_selection/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10116,6 +10118,23 @@ export class VirtualizedShadowListEngine {
       "Splits large workloads into contiguous baseIndex batches within the workgroup limit",
       "Rounds the final workgroup count up while keeping the final itemCount exact",
       "Covers empty workloads without submitting an unnecessary GPU dispatch",
+    ],
+  },
+  {
+    id: "task_webgpu_capability_selection",
+    title: "Negotiate Optional GPU Features and the Smallest Sufficient Limits",
+    category: "webgpu",
+    difficulty: "advanced",
+    tags: ["webgpu", "adapter", "features", "device-limits", "portability"],
+    instructions:
+      "A rendering app requests every feature and the maximum value of every device limit, so otherwise-capable GPUs reject its request. Build a device descriptor from explicit required features, optional feature groups that must be available together, mandatory limits that must be satisfied, and optional limits that should be capped to the adapter's support. Report unsatisfied mandatory requirements clearly.",
+    starterCode: gpuCapabilitiesStarter,
+    solutionCode: gpuCapabilitiesSolution,
+    criteria: [
+      "Fails with NotSupportedError when a mandatory feature or GPU limit is unavailable",
+      "Enables an optional feature group only when every feature in the group is supported",
+      "Deduplicates and deterministically sorts the requested GPU feature names",
+      "Clamps optional limits to adapter support and omits unknown optional limits",
     ],
   },
 ];
