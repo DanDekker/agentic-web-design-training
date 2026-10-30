@@ -234,9 +234,11 @@ These exercises track live 2026 drafts and protocols. The primary sources behind
 
 ## How evaluation works
 
-The [evaluator](src/evaluator.js) combines structural checks with task-specific runtime assertions. It reports pass/fail results, a score, execution time, and a line diff. TypeScript submissions are transpiled with Bun before evaluation. The [benchmark suite](src/benchmark.js) runs those same checks against the bundled reference solutions, either for one category or for the full catalog. Its category choices and counts come from the current catalog; downloading a Markdown report uses the selected category.
+The [evaluator](src/evaluator.js) combines structural checks with task-specific runtime assertions. It reports pass/fail results, a score, execution time, and a line diff. TypeScript submissions are transpiled with Bun before evaluation. Each run uses a disposable worker with a five-second deadline; a timeout produces a failed execution assertion and the worker is stopped. Up to four evaluations run at once, with a queue of 32 and a three-second maximum queue wait. If capacity is exhausted, the API returns a retryable 503 response. Disconnecting a request cancels its queued or running evaluations.
 
-Evaluation uses `node:vm` to run submitted code. **A VM context is not a security boundary.** Run this application locally with code you trust; do not expose the evaluator as a public service for untrusted submissions.
+The [benchmark suite](src/benchmark.js) runs those same checks against the bundled reference solutions, either for one category or for the full catalog. It runs up to four evaluations concurrently and preserves catalog order in its report. Individual execution times measure the checks inside each worker; total benchmark duration also includes worker startup and queueing. Its category choices and counts come from the current catalog; downloading a Markdown report uses the selected category.
+
+Evaluation uses `node:vm` inside workers. **Neither VM contexts nor workers are a security boundary for untrusted code.** The deadline is intended to contain ordinary runaway evaluations, not to enforce memory or operating-system isolation. Run this application locally with code you trust; do not expose the evaluator as a public service for untrusted submissions.
 
 ### Source-level SEO audit
 
@@ -265,7 +267,8 @@ The audit parses the supplied HTML with [parse5](https://parse5.js.org/functions
 | [`src/curriculum.js`](src/curriculum.js) | Exercise catalog and tracks |
 | [`exercises/frameworks/`](exercises/frameworks/) | TypeScript starter and reference files for framework challenges |
 | [`exercises/platform/`](exercises/platform/) | Starter and reference files for browser platforms, GPU, realtime media, and agentic-web challenges |
-| [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
+| [`src/evaluator.js`](src/evaluator.js), [`src/evaluator-engine.js`](src/evaluator-engine.js) | Worker-based evaluation, solution checks, and runtime assertions |
+| [`src/evaluation-pool.js`](src/evaluation-pool.js), [`src/evaluator-worker.js`](src/evaluator-worker.js) | Evaluation capacity, deadlines, and worker lifecycle |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
 | [`src/seo.js`](src/seo.js) | Parsed HTML and structured-data audit |
 | [`src/server.js`](src/server.js), [`src/http.js`](src/http.js), and [`src/api.js`](src/api.js) | Bun server, request routing, and HTTP endpoints |
