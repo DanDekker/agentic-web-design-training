@@ -4410,7 +4410,7 @@ clinic-dose-field {
 clinic-dose-field::part(control) {
   border-radius: 0.75rem;
 }
-}`,
+`,
     criteria: [
       "Uses :host and a density attribute to expose compact spacing and radius tokens through the shadow boundary",
       "Styles the ElementInternals invalid custom state, exposes the input as ::part(control), and preserves keyboard focus",
