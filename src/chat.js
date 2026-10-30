@@ -8,6 +8,7 @@ import { ValidationError } from "./store.js";
 export const CHAT_MESSAGE_MAX = 2000;
 export const DEFAULT_ROOM_CAPACITY = 500;
 export const DEFAULT_TYPING_TTL_MS = 4000;
+export const MAX_REORDER_AHEAD = 256;
 
 export function canonicalRoomId(userA, userB) {
   const a = String(userA || "").trim().toLowerCase();
@@ -85,6 +86,7 @@ export class ChatEngine {
         messages: [], // bounded ring buffer (FIFO array capped at #maxMessagesPerRoom)
         clientMsgIndex: new Map(), // clientMsgId -> message
         reorderBuffer: new Map(), // expectedSeq -> rawPayload
+        pendingMsgIndex: new Map(), // clientMsgId -> { seq, payload }
         typing: new Map(), // username -> expiresAtMs
         readWatermarks: new Map(participants.map((u) => [u, 0])), // username -> lastReadSeq
         presence: new Map(participants.map((u) => [u, { status: "online", lastSeenAt: Date.now() }])),
@@ -136,6 +138,12 @@ export class ChatEngine {
     if (cleanText.length > CHAT_MESSAGE_MAX) {
       throw new ValidationError(`Keep chat messages under ${CHAT_MESSAGE_MAX} characters.`);
     }
+    if (clientMsgId !== null && (typeof clientMsgId !== "string" || !clientMsgId || clientMsgId.length > 128)) {
+      throw new ValidationError("Client message ID must be 1–128 characters.");
+    }
+    if (expectedSeq !== null && (!Number.isSafeInteger(expectedSeq) || expectedSeq < 1)) {
+      throw new ValidationError("Expected sequence must be a positive safe integer.");
+    }
 
     let room = roomId ? this.#rooms.get(roomId) : null;
     if (!room) {
@@ -144,25 +152,49 @@ export class ChatEngine {
       room = this.#rooms.get(created.id);
     }
 
-    // 1. Idempotency check (suppress duplicate retries on flaky connections)
+    const resolvedRecipient = cleanRecipient || room.participants.find((p) => p !== cleanSender) || "peer";
+    const normalizedReply = Number.isInteger(replyToSeq) ? replyToSeq : null;
+    const matches = (existing, seq) =>
+      existing.sender === cleanSender && existing.recipient === resolvedRecipient && existing.text === cleanText &&
+      existing.replyToSeq === normalizedReply && (expectedSeq === null || expectedSeq === seq);
+
+    // Suppress retries for retained messages and messages still waiting for a gap.
     if (clientMsgId && room.clientMsgIndex.has(clientMsgId)) {
-      this.#telemetry.duplicatesSuppressed++;
       const existing = room.clientMsgIndex.get(clientMsgId);
+      if (!matches(existing, existing.seq)) throw new ValidationError("Client message ID was already used for a different message.");
+      this.#telemetry.duplicatesSuppressed++;
       this.#recordLatency(performance.now() - t0);
       return { message: { ...existing }, deduplicated: true, buffered: false };
     }
+    if (clientMsgId && room.pendingMsgIndex.has(clientMsgId)) {
+      const pending = room.pendingMsgIndex.get(clientMsgId);
+      if (!matches(pending.payload, pending.seq)) throw new ValidationError("Client message ID was already used for a different message.");
+      this.#telemetry.duplicatesSuppressed++;
+      this.#recordLatency(performance.now() - t0);
+      return { message: null, deduplicated: true, buffered: true, bufferedSeq: pending.seq, waitingForSeq: room.seq + 1 };
+    }
 
-    // 2. Out-of-order causal sequence check (if caller specifies expectedSeq > room.seq + 1)
-    if (Number.isInteger(expectedSeq) && expectedSeq > room.seq + 1) {
-      this.#telemetry.outOfOrderBuffered++;
-      room.reorderBuffer.set(expectedSeq, {
+    if (expectedSeq !== null && expectedSeq <= room.seq) {
+      throw new ValidationError("Expected sequence has already passed.");
+    }
+    if (expectedSeq !== null && expectedSeq > room.seq + MAX_REORDER_AHEAD) {
+      throw new ValidationError(`Expected sequence must be within ${MAX_REORDER_AHEAD} messages of the current sequence.`);
+    }
+
+    // Hold future messages without allowing another packet to overwrite their slot.
+    if (expectedSeq !== null && expectedSeq > room.seq + 1) {
+      if (room.reorderBuffer.has(expectedSeq)) throw new ValidationError("Expected sequence is already buffered.");
+      const payload = {
         sender: cleanSender,
-        recipient: cleanRecipient || room.participants.find((p) => p !== cleanSender) || "peer",
+        recipient: resolvedRecipient,
         text: cleanText,
         clientMsgId,
-        replyToSeq,
+        replyToSeq: normalizedReply,
         nowMs,
-      });
+      };
+      this.#telemetry.outOfOrderBuffered++;
+      room.reorderBuffer.set(expectedSeq, payload);
+      if (clientMsgId) room.pendingMsgIndex.set(clientMsgId, { seq: expectedSeq, payload });
       this.#recordLatency(performance.now() - t0);
       return {
         message: null,
@@ -175,10 +207,10 @@ export class ChatEngine {
 
     const msg = this.#commitMessage(room, {
       sender: cleanSender,
-      recipient: cleanRecipient || room.participants.find((p) => p !== cleanSender) || "peer",
+      recipient: resolvedRecipient,
       text: cleanText,
       clientMsgId,
-      replyToSeq,
+      replyToSeq: normalizedReply,
       nowMs,
     });
 
@@ -190,6 +222,7 @@ export class ChatEngine {
     while (room.reorderBuffer.has(room.seq + 1)) {
       const nextPayload = room.reorderBuffer.get(room.seq + 1);
       room.reorderBuffer.delete(room.seq + 1);
+      if (nextPayload.clientMsgId) room.pendingMsgIndex.delete(nextPayload.clientMsgId);
       this.#telemetry.outOfOrderFlushed++;
       flushed.push(this.#commitMessage(room, nextPayload));
     }

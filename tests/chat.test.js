@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ChatEngine, canonicalRoomId } from "../src/chat.js";
+import { ChatEngine, canonicalRoomId, MAX_REORDER_AHEAD } from "../src/chat.js";
 import { TaskStore } from "../src/store.js";
 import { AuthStore } from "../src/auth.js";
 import { OAuthServer } from "../src/oauth.js";
@@ -101,6 +101,28 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
     });
     expect(gapFill.flushedMessages).toHaveLength(2);
     expect(gapFill.flushedMessages.map((m) => m.seq)).toEqual([1, 2]);
+  });
+
+  test("bounds pending sequences and deduplicates retries without replacing buffered messages", () => {
+    const chat = new ChatEngine();
+    const room = chat.ensureRoom("alice", "bob");
+    const future = { roomId: room.id, sender: "alice", recipient: "bob", text: "Third", clientMsgId: "third", expectedSeq: 3 };
+    expect(chat.sendMessage(future)).toMatchObject({ buffered: true, deduplicated: false, bufferedSeq: 3 });
+    expect(chat.sendMessage(future)).toMatchObject({ buffered: true, deduplicated: true, bufferedSeq: 3 });
+    expect(() => chat.sendMessage({ ...future, text: "Replaced" })).toThrow("different message");
+    expect(() => chat.sendMessage({ ...future, clientMsgId: "other" })).toThrow("already buffered");
+    expect(() => chat.sendMessage({ ...future, clientMsgId: "far", expectedSeq: MAX_REORDER_AHEAD + 1 })).toThrow("within");
+    for (const expectedSeq of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => chat.sendMessage({ ...future, clientMsgId: "bad", expectedSeq })).toThrow("positive safe integer");
+    }
+
+    chat.sendMessage({ roomId: room.id, sender: "bob", recipient: "alice", text: "First", expectedSeq: 1 });
+    const second = chat.sendMessage({ roomId: room.id, sender: "bob", recipient: "alice", text: "Second", expectedSeq: 2 });
+    expect(second.flushedMessages.map((message) => message.text)).toEqual(["Second", "Third"]);
+    expect(chat.sendMessage(future)).toMatchObject({ buffered: false, deduplicated: true, message: { seq: 3 } });
+    expect(() => chat.sendMessage({ ...future, clientMsgId: "new", expectedSeq: 1 })).toThrow("already passed");
+    expect(chat.getMessages(room.id).messages.map((message) => message.text)).toEqual(["First", "Second", "Third"]);
+    expect(chat.runDiagnostics(room.id).healthy).toBe(true);
   });
 
   test("runs protocol diagnostics and high-throughput two-user benchmark", () => {
