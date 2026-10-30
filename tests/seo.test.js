@@ -144,4 +144,26 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     const emptyTitle = auditHtmlSeoAndStructuredData('<head><title>&#32;&nbsp;</title><meta name="description" content="x"><meta property="og:title" content="x"></head>');
     expect(emptyTitle.checks.find((item) => item.id === "technical_seo_head").passed).toBe(false);
   });
+
+  test("reports Google robots meta restrictions without treating intentional noindex as a failed check", async () => {
+    const html = `<!doctype html><html><head><title>Private page</title>
+      <meta name="description" content="A private page"><meta property="og:title" content="Private page">
+      <meta name="robots" content="index, nofollow, max-image-preview: none">
+      <meta name="GOOGLEBOT" content="NOINDEX, indexifembedded">
+      <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage"}</script>
+      </head><body><header></header><main><h1>Private page</h1><search></search></main></body></html>`;
+    const report = auditHtmlSeoAndStructuredData(html);
+    expect(report.passed).toBe(true);
+    expect(report.robotsMeta.robots).toEqual(["index", "nofollow"]);
+    expect(report.robotsMeta.googlebot).toEqual(["noindex", "indexifembedded"]);
+    expect(report.robotsMeta.googleSearch).toEqual({ noindex: true, nofollow: true, indexIfEmbedded: true });
+    const response = await call("POST", "/api/seo/audit", { html });
+    expect((await response.json()).robotsMeta).toEqual(report.robotsMeta);
+
+    const none = auditHtmlSeoAndStructuredData('<body><meta name="robots" content="none"><template><meta name="googlebot" content="noindex"></template></body>');
+    expect(none.robotsMeta.googleSearch).toEqual({ noindex: true, nofollow: true, indexIfEmbedded: false });
+    expect(none.robotsMeta.googlebot).toEqual([]);
+    const preview = auditHtmlSeoAndStructuredData('<meta name="robots" content="max-image-preview: none"><meta name="googlebot-news" content="noindex">');
+    expect(preview.robotsMeta.googleSearch).toEqual({ noindex: false, nofollow: false, indexIfEmbedded: false });
+  });
 });

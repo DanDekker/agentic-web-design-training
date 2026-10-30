@@ -162,6 +162,32 @@ function isAbsoluteHttpUrl(value) {
   }
 }
 
+function inspectRobotsMeta(elements) {
+  const directives = { robots: new Set(), googlebot: new Set() };
+  const supported = new Set(["index", "noindex", "follow", "nofollow", "none", "indexifembedded"]);
+  for (const element of elements) {
+    if (element.tagName !== "meta") continue;
+    const name = attribute(element, "name")?.toLowerCase();
+    if (!Object.hasOwn(directives, name)) continue;
+    // Only standalone comma-separated directives count; "max-image-preview: none"
+    // must not be mistaken for the separate "none" indexing directive.
+    for (const item of (attribute(element, "content") || "").split(",")) {
+      const directive = item.trim().toLowerCase();
+      if (supported.has(directive)) directives[name].add(directive);
+    }
+  }
+  const combined = new Set([...directives.robots, ...directives.googlebot]);
+  return {
+    robots: [...directives.robots],
+    googlebot: [...directives.googlebot],
+    googleSearch: {
+      noindex: combined.has("noindex") || combined.has("none"),
+      nofollow: combined.has("nofollow") || combined.has("none"),
+      indexIfEmbedded: combined.has("indexifembedded") && (combined.has("noindex") || combined.has("none")),
+    },
+  };
+}
+
 export function auditHtmlSeoAndStructuredData(html) {
   const document = parse(String(html || ""));
   const all = htmlElements(document);
@@ -246,5 +272,6 @@ export function auditHtmlSeoAndStructuredData(html) {
     score: Math.round((passedCount / checks.length) * 100),
     checks,
     jsonLdBlocks,
+    robotsMeta: inspectRobotsMeta(all),
   };
 }
