@@ -187,6 +187,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Intentional Logical Float and Responsive Media", all: ["float: inline-start", "inline-size: min(40%, 18rem)", "aspect-ratio: 4 / 3", "object-fit: cover", "margin-inline-end: 1rem"] },
     { name: "Removes Legacy Float Containment Hacks", none: ["::after", "content:", "clear: both", "overflow: hidden"] },
   ],
+  task_css_positioning_stacking_context_alert_portal: [
+    { name: "Small Named Layer Scale and Body Portal Contract", all: ["@layer tokens, shell, global-overlays;", "--layer-shell: 0", "--layer-navigation: 20", "--layer-alert: 100", "#incident-alert-root to a direct child of body"] },
+    { name: "Sticky Nav and Inner Transform Placement", all: ["position: sticky", "inset-block-start: 0", "z-index: var(--layer-navigation)", ".ops-shell__canvas", "transform: translateZ(0)"], withinRules: [{ selector: ".ops-shell__canvas", all: ["transform: translateZ(0)"] }] },
+    { name: "Viewport Alert Outside the Trapped Context", all: ["position: fixed", "inset-inline-end: 1rem", "z-index: var(--layer-alert)", "pointer-events: none", "pointer-events: auto"], withinRules: [{ selector: "#incident-alert-root", all: ["position: fixed", "z-index: var(--layer-alert)", "pointer-events: none"] }] , none: ["z-index: 9999", "z-index: 2147483647"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
