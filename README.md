@@ -256,6 +256,8 @@ The server stores tasks, accounts, and OAuth clients in `data/`, which is ignore
 
 Writes are serialized within each store and use a temporary file and rename; run only one server against a data directory because there is no interprocess lock. An existing empty task store remains empty on restart. If a JSON file is malformed, the server moves it to a uniquely named `.corrupt-…` file before initializing a fresh store and logs the backup path. Read errors and unsupported data formats stop startup without replacing the file; preserve the backup before repairing or restoring data.
 
+Live events are notifications, not a replayable history. The browser reloads the current task state and any open chat when the event stream connects or reconnects; a subscriber that falls too far behind is disconnected to keep its queue bounded. Chat is an in-memory demo: messages and pending packets disappear on restart, and duplicate message IDs are retained only while their messages remain in the room history. Future sequence numbers are limited to 256 positions ahead, and conflicting retries or occupied sequence slots are rejected. Participant names are checked for consistency, but they are not authentication.
+
 ## CI and container releases
 
 GitHub Actions runs the Bun test suite on Linux and macOS for pushes and pull requests. It also builds the container and checks that the HTTP server responds. [Dependabot](.github/dependabot.yml) proposes updates for workflow actions and the Bun base image.
