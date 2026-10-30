@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **217 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **218 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -106,12 +106,14 @@ The repository currently includes **217 exercises in 42 categories and 21 tracks
 | Application systems | Realtime chat, commerce, storefronts, order lifecycles |
 | Web platform | HTML, structured data, cookies, storage, HTTP traffic |
 | UI engineering | Design tokens, interaction patterns, web components |
-| Developer tooling | TypeScript frameworks, migrations, package management |
+| Developer tooling | Express 5, TypeScript frameworks, migrations, package management |
 | Browser platform | Web Workers, streams, WebGPU compute, WebTransport, WebAssembly, WebNN, Digital Credentials |
 | Spatial and real-time media | WebXR depth sensing, WebRTC signaling and encoded transforms, SFrame, WebCodecs |
 | Agentic web | WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols |
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
+
+The framework migration track now includes a practical Express 4-to-5 claims API upgrade. It exercises Express 5 async rejection forwarding, an ordered unmatched-route 404 and four-argument error pipeline, RFC 9457 Problem Details, request ID validation, generic client-safe 500 responses, and delegation after response headers have been sent. See the [Express 5 references](links.md#express-5-api-migration-lab).
 
 The HTML Architecture track now includes a bidi-safe claims intake lab covering native field direction metadata, mixed-script text isolation, and direction-aware logical CSS, plus a find-in-page lab for collapsed support annexes using `hidden="until-found"`, `beforematch`, and layout containment.
 
