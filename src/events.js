@@ -5,6 +5,10 @@ export function createHub() {
   function stream() {
     let heartbeat;
     let entry;
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      if (entry) clients.delete(entry);
+    };
 
     const body = new ReadableStream({
       start(controller) {
@@ -14,17 +18,16 @@ export function createHub() {
             try {
               controller.enqueue(encoder.encode(frame));
             } catch {
-              clients.delete(entry);
+              cleanup();
             }
           },
         };
         clients.add(entry);
-        entry.send(": connected\n\n");
         heartbeat = setInterval(() => entry.send(": ping\n\n"), 20000);
+        entry.send(": connected\n\n");
       },
       cancel() {
-        clearInterval(heartbeat);
-        if (entry) clients.delete(entry);
+        cleanup();
       },
     });
 

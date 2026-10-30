@@ -5,6 +5,7 @@ import { OAuthServer } from "./oauth.js";
 import { createHandler } from "./api.js";
 import { createStatic } from "./static.js";
 import { createHub } from "./events.js";
+import { createRequestHandler } from "./http.js";
 import { ChatEngine } from "./chat.js";
 
 const ROOT = join(import.meta.dir, "..");
@@ -32,23 +33,7 @@ const server = Bun.serve({
   port: PORT,
   hostname: HOSTNAME,
   development: process.env.NODE_ENV !== "production",
-  async fetch(req) {
-    const { pathname } = new URL(req.url);
-
-    if (
-      pathname.startsWith("/api/") ||
-      pathname.startsWith("/oauth/") ||
-      pathname.startsWith("/.well-known/")
-    ) {
-      const res = await handleApi(req);
-      if (!["GET", "HEAD"].includes(req.method) && res.status < 400) {
-        hub.broadcast({ type: "state", at: Date.now() });
-      }
-      return res;
-    }
-
-    return serveStatic(pathname);
-  },
+  fetch: createRequestHandler({ handleApi, serveStatic, hub }),
 });
 
 console.log(`gauntlet-web  →  ${server.url.href} (listening on ${server.hostname})`);
