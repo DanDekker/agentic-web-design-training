@@ -191,6 +191,18 @@ describe("TaskStore", () => {
     expect((await new TaskStore(file).load()).get(first[0].id).done).toBe(true);
   });
 
+  test("first-run curriculum initialization writes the complete store once", async () => {
+    const snapshots = [];
+    const store = await new TaskStore(file, { seedCurriculumOnCreate: true, write: async (path, contents) => {
+      snapshots.push(JSON.parse(contents));
+      await writeJsonFile(path, contents);
+    } }).load();
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0].tasks).toHaveLength(REFACTORING_CURRICULUM_TASKS.length);
+    expect(store.list()).toHaveLength(REFACTORING_CURRICULUM_TASKS.length);
+    expect((await new TaskStore(file).load()).list()).toHaveLength(REFACTORING_CURRICULUM_TASKS.length);
+  });
+
   test("reorders, keeping tasks the client did not mention", async () => {
     const store = await new TaskStore(file).load();
     const a = await store.add("a");

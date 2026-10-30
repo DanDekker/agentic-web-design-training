@@ -1,8 +1,8 @@
 /**
  * Board + task persistence: an ordered, in-memory model backed by one JSON file.
- * Writes are serialised and atomic (tmp file + rename), so a crash never leaves a
- * half-written data file behind. Supports single-list legacy calls and multi-board
- * rich refactoring task workflows.
+ * Changes are serialized within this store and become visible after an atomic
+ * temporary-file replacement. Supports single-list legacy calls and multi-board
+ * rich refactoring task workflows; it does not lock out other server processes.
  */
 import { randomUUID } from "node:crypto";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
@@ -81,36 +81,29 @@ export class TaskStore {
   #tasks = [];
   #queue = Promise.resolve();
   #write;
-  #initializedFresh = false;
+  #seedOnCreate;
 
-  constructor(file, { write = writeJsonFile } = {}) {
+  constructor(file, { write = writeJsonFile, seedCurriculumOnCreate = false } = {}) {
     this.#file = file;
     this.#write = write;
+    this.#seedOnCreate = seedCurriculumOnCreate;
   }
 
   async load() {
     const stored = await readJsonStore(this.#file, "store");
-    if (stored.found) {
-      this.#hydrate(stored.value);
-      this.#initializedFresh = false;
-    } else {
-      await this.#seedFresh();
-      this.#initializedFresh = true;
-    }
+    if (stored.found) this.#hydrate(stored.value);
+    else await this.#seedFresh();
     return this;
-  }
-
-  get initializedFresh() {
-    return this.#initializedFresh;
   }
 
   async #seedFresh() {
     const today = makeBoard("Today", "board_today");
     const refactorBoard = makeBoard("Agentic Refactoring", "board_refactor_curriculum");
-    const boards = [today, refactorBoard];
-    await this.#write(this.#file, JSON.stringify({ version: 1, boards, tasks: [] }, null, 2));
-    this.#boards = boards;
-    this.#tasks = [];
+    const state = { boards: [today, refactorBoard], tasks: [] };
+    if (this.#seedOnCreate) this.#populateCurriculum(state);
+    await this.#write(this.#file, JSON.stringify({ version: 1, ...state }, null, 2));
+    this.#boards = state.boards;
+    this.#tasks = state.tasks;
   }
 
   #hydrate(parsed) {
@@ -473,44 +466,46 @@ export class TaskStore {
   /**
    * Seed Agentic Curriculum Refactoring Tasks into the "Agentic Refactoring" board.
    */
-  async seedCurriculumTasks() {
-    return this.#transaction((state) => {
-      let board = state.boards.find((b) => b.id === "board_refactor_curriculum");
-      const boardCreated = !board;
-      if (!board) {
-        board = makeBoard("Agentic Refactoring", "board_refactor_curriculum");
-        board.slug = this.#uniqueSlug(state.boards, board.slug);
-        state.boards.push(board);
-      }
+  #populateCurriculum(state) {
+    let board = state.boards.find((b) => b.id === "board_refactor_curriculum");
+    const boardCreated = !board;
+    if (!board) {
+      board = makeBoard("Agentic Refactoring", "board_refactor_curriculum");
+      board.slug = this.#uniqueSlug(state.boards, board.slug);
+      state.boards.push(board);
+    }
 
-      const existing = new Set(state.tasks.map((task) => task.id));
-      const created = [];
-      for (const item of REFACTORING_CURRICULUM_TASKS) {
-        if (existing.has(item.id)) continue;
-        const task = this.#makeTask({
-          id: item.id,
-          boardId: board.id,
-          title: item.title,
-          category: item.category,
-          tags: item.tags,
-          priority: item.difficulty === "advanced" ? 2 : item.difficulty === "intermediate" ? 1 : 0,
-          notes: `${item.instructions}\n\n[Refactoring Criteria]\n${item.criteria.map((c) => `- ${c}`).join("\n")}`,
-          refactorData: {
-            difficulty: item.difficulty,
-            track: item.track,
-            order: item.order,
-            instructions: item.instructions,
-            starterCode: item.starterCode,
-            solutionCode: item.solutionCode,
-            criteria: item.criteria,
-          },
-        }, state);
-        this.#insert(state.tasks, task);
-        existing.add(task.id);
-        created.push(task);
-      }
-      return { value: created, changed: boardCreated || created.length > 0 };
-    });
+    const existing = new Set(state.tasks.map((task) => task.id));
+    const created = [];
+    for (const item of REFACTORING_CURRICULUM_TASKS) {
+      if (existing.has(item.id)) continue;
+      const task = this.#makeTask({
+        id: item.id,
+        boardId: board.id,
+        title: item.title,
+        category: item.category,
+        tags: item.tags,
+        priority: item.difficulty === "advanced" ? 2 : item.difficulty === "intermediate" ? 1 : 0,
+        notes: `${item.instructions}\n\n[Refactoring Criteria]\n${item.criteria.map((c) => `- ${c}`).join("\n")}`,
+        refactorData: {
+          difficulty: item.difficulty,
+          track: item.track,
+          order: item.order,
+          instructions: item.instructions,
+          starterCode: item.starterCode,
+          solutionCode: item.solutionCode,
+          criteria: item.criteria,
+        },
+      }, state);
+      this.#insert(state.tasks, task);
+      existing.add(task.id);
+      created.push(task);
+    }
+    return { value: created, changed: boardCreated || created.length > 0 };
+  }
+
+  async seedCurriculumTasks() {
+    return this.#transaction((state) => this.#populateCurriculum(state));
   }
 
   /* ── persistence ───────────────────────────────────────── */
