@@ -234,7 +234,7 @@ export class ChatEngine {
     while (room.messages.length > this.#maxMessagesPerRoom) {
       const evicted = room.messages.shift();
       this.#telemetry.ringBufferEvictions++;
-      if (evicted?.clientMsgId) {
+      if (evicted?.clientMsgId && room.clientMsgIndex.get(evicted.clientMsgId) === evicted) {
         room.clientMsgIndex.delete(evicted.clientMsgId);
       }
     }
