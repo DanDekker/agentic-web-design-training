@@ -96,6 +96,19 @@ The WebTransport and WebNN exercises follow their evolving W3C specifications. T
 JSPI task is explicitly proposal-level and injects the runtime API so it can be learned
 and evaluated even where JSPI is not implemented.
 
+**Emerging browser capabilities**
+
+| Technology | Current primary specification |
+| --- | --- |
+| Digital Credentials API | <https://www.w3.org/TR/digital-credentials/> |
+| WebXR Depth Sensing Module | <https://www.w3.org/TR/webxr-depth-sensing-1/> |
+| WebRTC Encoded Transform | <https://www.w3.org/TR/webrtc-encoded-transform/> |
+| SFrame media encryption | <https://www.rfc-editor.org/rfc/rfc9605.html> |
+
+These are evolving drafts or recently integrated browser capabilities. The curriculum
+uses protocol feature checks, explicit user mediation, and injected device/worker shims;
+it does not assume uniform browser or hardware support.
+
 **Payments**
 
 | Technology | URL |

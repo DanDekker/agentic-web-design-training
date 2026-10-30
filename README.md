@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **139 exercises in 38 categories and 17 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **148 exercises in 41 categories and 20 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -107,8 +107,8 @@ The repository currently includes **139 exercises in 38 categories and 17 tracks
 | Web platform | HTML, structured data, cookies, storage, HTTP traffic |
 | UI engineering | Design tokens, interaction patterns, web components |
 | Developer tooling | TypeScript frameworks, migrations, package management |
-| Browser platform | Web Workers, streams, WebGPU compute, WebTransport, WebAssembly, WebNN |
-| Real-time media | WebRTC signaling and data channels, WebCodecs encoding and decoding |
+| Browser platform | Web Workers, streams, WebGPU compute, WebTransport, WebAssembly, WebNN, Digital Credentials |
+| Spatial and real-time media | WebXR depth sensing, WebRTC signaling and encoded transforms, SFrame, WebCodecs |
 | Agentic web | WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols |
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
@@ -153,6 +153,20 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | WebNN | [Run a graph with permissioned tensors and cleanup](exercises/platform/webnn/tensor_inference/starter.js) |
 | WebNN | [Serialize concurrent runs over shared tensors](exercises/platform/webnn/shared_tensor_queue/starter.js) |
 | WebNN | [Recover inference sessions after context loss](exercises/platform/webnn/context_loss_runner/starter.js) |
+| Digital Credentials | [Build capability-gated presentation and issuance requests](exercises/platform/digital_credentials/request_builder/starter.js) |
+| Digital Credentials | [Preserve user activation and single-flight credential choosers](exercises/platform/digital_credentials/prompt_coordinator/starter.js) |
+| Digital Credentials | [Forward opaque responses to a same-origin verifier](exercises/platform/digital_credentials/server_verification/starter.js) |
+| WebXR Depth Sensing | [Negotiate required or optional depth features](exercises/platform/webxr_depth/session_options/starter.js) |
+| WebXR Depth Sensing | [Sample depth in meters without assuming buffer encoding](exercises/platform/webxr_depth/depth_sampling/starter.js) |
+| WebXR Depth Sensing | [Run a failure-safe per-view depth frame loop](exercises/platform/webxr_depth/frame_loop/starter.js) |
+| WebRTC Encoded Transform | [Attach a worker-based RTCRtpScriptTransform](exercises/platform/webrtc_encoded_transform/script_transform/starter.js) |
+| WebRTC SFrame | [Rotate keys without an undecryptable media window](exercises/platform/webrtc_encoded_transform/sframe_key_rotation/starter.js) |
+| WebRTC Encoded Transform | [Keep frame transforms synchronous and ownership-safe](exercises/platform/webrtc_encoded_transform/frame_pipe/starter.js) |
+
+Digital Credentials, WebXR depth sensing, and WebRTC Encoded Transform are evolving
+W3C drafts. Their exercises use injected APIs and device shims, and separate optional
+capabilities from required ones so they can be evaluated without a wallet, headset, or
+browser-specific media implementation. See [links.md](links.md) for primary specs.
 
 ### Agentic web exercises
 
