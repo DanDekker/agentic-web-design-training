@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHub } from "../src/events.js";
 import { createRequestHandler } from "../src/http.js";
+import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
 
-test("the standalone server listens on loopback by default", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-server-"));
+async function startServer(dir) {
   const env = { ...process.env, PORT: "0", GUANTLET_WEB_DATA_DIR: dir };
   for (const name of ["GUANTLET_WEB_HOST", "GUANTLET_WEB_DATA", "GUANTLET_WEB_AUTH_DATA", "GUANTLET_WEB_OAUTH_DATA"]) delete env[name];
   const child = Bun.spawn([process.execPath, "src/server.js"], {
@@ -28,18 +28,62 @@ test("the standalone server listens on loopback by default", async () => {
     })();
     const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Server did not start")), 8000); });
     const [, address, hostname] = await Promise.race([started, timeout]);
-    expect(hostname).toBe("127.0.0.1");
-    const response = await fetch(new URL("/api/health", address));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
-  } finally {
-    clearTimeout(timer);
+    let stopped = false;
+    return { address, hostname, async stop() {
+      if (stopped) return;
+      stopped = true;
+      child.kill();
+      await child.exited;
+      await reader.cancel().catch(() => {});
+    } };
+  } catch (error) {
     child.kill();
     await child.exited;
     await reader.cancel().catch(() => {});
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+test("the standalone server listens on loopback and seeds a fresh store", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-server-"));
+  let server;
+  try {
+    server = await startServer(dir);
+    expect(server.hostname).toBe("127.0.0.1");
+    const response = await fetch(new URL("/api/health", server.address));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    const tasks = await (await fetch(new URL("/api/tasks", server.address))).json();
+    expect(tasks.tasks).toHaveLength(REFACTORING_CURRICULUM_TASKS.length);
+  } finally {
+    await server?.stop();
     await rm(dir, { recursive: true, force: true });
   }
 }, 12000);
+
+test("restarting an existing empty store does not recreate curriculum tasks", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-server-"));
+  let server;
+  try {
+    await writeFile(join(dir, "tasks.json"), JSON.stringify({
+      version: 1, boards: [{ id: "board_today", name: "Today", slug: "today" }], tasks: [],
+    }));
+    server = await startServer(dir);
+    expect((await (await fetch(new URL("/api/tasks", server.address))).json()).tasks).toEqual([]);
+    const created = await (await fetch(new URL("/api/tasks", server.address), {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Temporary" }),
+    })).json();
+    expect((await fetch(new URL(`/api/tasks/${created.id}`, server.address), { method: "DELETE" })).status).toBe(204);
+    await server.stop();
+    server = await startServer(dir);
+    expect((await (await fetch(new URL("/api/tasks", server.address))).json()).tasks).toEqual([]);
+  } finally {
+    await server?.stop();
+    await rm(dir, { recursive: true, force: true });
+  }
+}, 20000);
 
 test("event streams stay open across the server idle timeout and deliver later updates", async () => {
   const hub = createHub();
