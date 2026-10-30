@@ -69,6 +69,8 @@ import codecRouterStarter from "../exercises/platform/webcodecs/decoder_config_r
 import codecRouterSolution from "../exercises/platform/webcodecs/decoder_config_router/solution.js" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
+import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
+import webtransportFramedSolution from "../exercises/platform/webtransport/framed_stream/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10296,6 +10298,23 @@ export class VirtualizedShadowListEngine {
       "Serializes concurrent sends so each waits for readiness before the next datagram is queued",
       "Preserves typed-array byte offsets and lengths and rejects unsupported payloads",
       "Closes once, rejects later sends, and releases the writer lock in a finally block",
+    ],
+  },
+  {
+    id: "task_webtransport_framed_stream",
+    title: "Reassemble Length-Prefixed Messages Across WebTransport Stream Chunks",
+    category: "webtransport",
+    difficulty: "advanced",
+    tags: ["webtransport", "streams", "framing", "backpressure", "protocol"],
+    instructions:
+      "A reliable WebTransport stream carries messages preceded by a four-byte unsigned big-endian length. The sender's write boundaries are unrelated to the receiver's read boundaries: prefixes and bodies can split or several messages can merge in one read. Decode incrementally, reject lengths above a configurable cap before buffering a body, await the consumer callback for backpressure, and fail if the stream closes with a partial header or payload.",
+    starterCode: webtransportFramedStarter,
+    solutionCode: webtransportFramedSolution,
+    criteria: [
+      "Reassembles prefixes and payloads across arbitrary stream chunk boundaries",
+      "Decodes the unsigned big-endian length and enforces the maximum before accepting the body",
+      "Awaits each frame callback so consumer work applies backpressure",
+      "Reports truncated headers and payloads at end-of-stream and releases the reader lock",
     ],
   },
 ];
