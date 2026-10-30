@@ -1,7 +1,8 @@
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ValidationError } from "./store.js";
+import { readJsonStore } from "./persistence.js";
 
 export const OAUTH_SCOPES = Object.freeze(["read:tasks", "write:tasks", "read:user", "tasks:refactor", "offline_access"]);
 const SCOPE_TOKEN = /^[\x21\x23-\x5B\x5D-\x7E]+$/;
@@ -67,16 +68,20 @@ export class OAuthServer {
   }
 
   async load() {
-    try {
-      const raw = await readFile(this.#file, "utf8");
-      const parsed = JSON.parse(raw);
-      this.#clients = Array.isArray(parsed?.clients) ? parsed.clients : [];
-    } catch {
-      this.#clients = [];
-    }
-    if (this.#clients.length === 0) {
+    const stored = await readJsonStore(this.#file, "oauth");
+    if (!stored.found) {
       this.#seedDefaultClients();
       await this.#persist();
+    } else {
+      const parsed = stored.value;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
+          (parsed.version !== undefined && parsed.version !== 1) || !Array.isArray(parsed.clients) ||
+          !parsed.clients.every((client) => client && typeof client === "object" &&
+            typeof client.clientId === "string" && typeof client.clientSecret === "string" &&
+            typeof client.name === "string" && Array.isArray(client.redirectUris) && Array.isArray(client.allowedScopes))) {
+        throw new Error("Invalid or unsupported OAuth client store format; the data file was left unchanged.");
+      }
+      this.#clients = parsed.clients;
     }
     return this;
   }
