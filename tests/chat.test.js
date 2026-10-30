@@ -15,6 +15,21 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
     expect(canonicalRoomId("Agent", "PP")).toBe("dm:agent:pp");
   });
 
+  test("keeps messages, typing, receipts, and custom room IDs within the two participants", () => {
+    const chat = new ChatEngine();
+    const room = chat.ensureRoom("alice", "bob", "claims-room");
+    expect(chat.ensureRoom("bob", "alice", "claims-room").participants).toEqual(["alice", "bob"]);
+    expect(() => chat.ensureRoom("bob", "mallory", "claims-room")).toThrow("different participants");
+    expect(() => chat.sendMessage({ roomId: room.id, sender: "mallory", recipient: "bob", text: "Imposter" })).toThrow("room participants");
+    expect(() => chat.sendMessage({ roomId: room.id, sender: "alice", recipient: "mallory", text: "Wrong recipient" })).toThrow("room participants");
+    expect(() => chat.setTyping({ roomId: room.id, username: "mallory" })).toThrow("room participant");
+    expect(() => chat.markRead({ roomId: room.id, username: "mallory" })).toThrow("room participant");
+    const history = chat.getMessages(room.id);
+    expect(history.messages).toEqual([]);
+    expect(history.typingUsers).toEqual([]);
+    expect(history.readWatermarks).toEqual({ alice: 0, bob: 0 });
+  });
+
   test("delivers messages with monotonic sequence numbers, idempotency deduplication, and read receipts", () => {
     const chat = new ChatEngine();
     const room = chat.ensureRoom("alice", "bob");
@@ -161,6 +176,8 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
       expect((await send(gap)).status).toBe(201);
       expect(broadcasts).toHaveLength(1);
       expect((await send(future)).status).toBe(200);
+      expect(broadcasts).toHaveLength(1);
+      expect((await send({ ...gap, sender: "mallory", clientMsgId: "outsider", expectedSeq: 5 })).status).toBe(422);
       expect(broadcasts).toHaveLength(1);
       const history = await (await handle(new Request("http://gauntlet-web.test/api/chat/messages"))).json();
       expect(history.messages.slice(-2).map((message) => message.text)).toEqual(["Third", "Fourth"]);

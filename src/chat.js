@@ -77,8 +77,8 @@ export class ChatEngine {
     if (a === b) throw new ValidationError("Real-time chat requires two distinct users.");
 
     const roomId = customId || canonicalRoomId(a, b);
+    const participants = [a, b].sort();
     if (!this.#rooms.has(roomId)) {
-      const participants = [a, b].sort();
       this.#rooms.set(roomId, {
         id: roomId,
         participants,
@@ -93,6 +93,8 @@ export class ChatEngine {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
+    } else if (!participants.every((user, index) => this.#rooms.get(roomId).participants[index] === user)) {
+      throw new ValidationError("Room ID already belongs to different participants.");
     }
     return this.#serializeRoom(this.#rooms.get(roomId));
   }
@@ -153,6 +155,9 @@ export class ChatEngine {
     }
 
     const resolvedRecipient = cleanRecipient || room.participants.find((p) => p !== cleanSender) || "peer";
+    if (!room.participants.includes(cleanSender) || !room.participants.includes(resolvedRecipient) || cleanSender === resolvedRecipient) {
+      throw new ValidationError("Sender and recipient must be the two room participants.");
+    }
     const normalizedReply = Number.isInteger(replyToSeq) ? replyToSeq : null;
     const matches = (existing, seq) =>
       existing.sender === cleanSender && existing.recipient === resolvedRecipient && existing.text === cleanText &&
@@ -308,6 +313,7 @@ export class ChatEngine {
     if (!room) throw new ValidationError(`Unknown chat room '${roomId}'.`);
     const cleanUser = String(username || "").trim().toLowerCase();
     if (!cleanUser) throw new ValidationError("Username required for typing indicator.");
+    if (!room.participants.includes(cleanUser)) throw new ValidationError("Username must be a room participant.");
 
     this.#pruneTyping(room, nowMs);
     if (isTyping) {
@@ -329,6 +335,7 @@ export class ChatEngine {
     if (!room) throw new ValidationError(`Unknown chat room '${roomId}'.`);
     const cleanUser = String(username || "").trim().toLowerCase();
     if (!cleanUser) throw new ValidationError("Username required for read receipt.");
+    if (!room.participants.includes(cleanUser)) throw new ValidationError("Username must be a room participant.");
 
     const targetSeq = Number.isInteger(upToSeq) ? Math.min(upToSeq, room.seq) : room.seq;
     const prev = room.readWatermarks.get(cleanUser) || 0;
