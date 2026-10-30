@@ -464,13 +464,33 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies agentic web tasks (WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols)", async () => {
+    for (const cat of ["webmcp", "agentic-seo", "agentic-commerce"]) {
+      const tasksRes = await call("GET", `/api/curriculum/tasks?category=${cat}`);
+      expect(tasksRes.status).toBe(200);
+      const { tasks: catTasks } = await tasksRes.json();
+      expect(catTasks.length).toBe(3);
+
+      for (const task of catTasks) {
+        const evaluateRes = await call("POST", "/api/curriculum/evaluate", {
+          taskId: task.id,
+          code: task.solutionCode,
+        });
+        expect(evaluateRes.status).toBe(200);
+        const body = await evaluateRes.json();
+        expect(body.passed).toBe(true);
+        expect(body.score).toBe(100);
+      }
+    }
+  });
+
   test("validates normalized curriculum schema, categories, and domain tracks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(112);
-    expect(CURRICULUM_CATEGORIES.length).toBe(29);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(12);
+    expect(validation.totalTasks).toBe(121);
+    expect(CURRICULUM_CATEGORIES.length).toBe(32);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(13);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });

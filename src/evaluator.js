@@ -1752,6 +1752,207 @@ export class Evaluator {
         passed: code.includes("Math.imul") && code.includes(">>> 0"),
         detail: "Keeps the rolling hash in unsigned 32-bit space",
       });
+    } else if (id === "task_webmcp_tool_registry") {
+      results.push({
+        name: "Spec Tool Name Validation",
+        passed: code.includes("{1,128}") && code.includes("InvalidStateError"),
+        detail: "Enforces the draft's 1-128 character name rule and rejects duplicates",
+      });
+      results.push({
+        name: "Input Schema Serialisation",
+        passed: code.includes("JSON.stringify") && code.includes("JSON.parse"),
+        detail: "Stores the input schema as a JSON string and parses it back for discovery",
+      });
+      results.push({
+        name: "Name-Sorted Discovery",
+        passed: code.includes(".sort("),
+        detail: "Returns discovered tools sorted by name",
+      });
+      results.push({
+        name: "Abort-Driven Unregistration",
+        passed: code.includes("signal") && code.includes("abort"),
+        detail: "Unregisters a tool when the registration signal aborts",
+      });
+    } else if (id === "task_webmcp_tool_execution") {
+      results.push({
+        name: "DOMException Error Taxonomy",
+        passed:
+          code.includes("NotFoundError") &&
+          code.includes("DataError") &&
+          code.includes("OperationError") &&
+          code.includes("AbortError"),
+        detail: "Reports failures with the draft's platform-defined exception names",
+      });
+      results.push({
+        name: "JSON Input Round-Trip",
+        passed: code.includes("JSON.stringify") && code.includes("JSON.parse"),
+        detail: "Serialises the input to JSON before invoking the tool",
+      });
+      results.push({
+        name: "AbortSignal Delivery",
+        passed: code.includes("AbortController") && code.includes("signal"),
+        detail: "Hands the tool callback an AbortSignal and cancels on abort",
+      });
+      results.push({
+        name: "Stringified Tool Result",
+        passed: code.includes("JSON.stringify(value)"),
+        detail: "Resolves with the tool result as a JSON string",
+      });
+    } else if (id === "task_webmcp_origin_exposure") {
+      results.push({
+        name: "Exposure Allowlist",
+        passed: code.includes("exposedTo") && code.includes("exposedOrigins"),
+        detail: "Tracks the origins a tool is exposed to",
+      });
+      results.push({
+        name: "NotFoundError Masking",
+        passed: code.includes("NotFoundError"),
+        detail: "Hides tools the caller may not see behind NotFoundError",
+      });
+      results.push({
+        name: "Owner Origin Visibility",
+        passed: code.includes("ownerOrigin"),
+        detail: "Always exposes a tool to its owning origin",
+      });
+      results.push({
+        name: "Sorted Visible Tools",
+        passed: code.includes(".sort("),
+        detail: "Returns only the visible tools, sorted by name",
+      });
+    } else if (id === "task_seo_llms_txt_generator") {
+      results.push({
+        name: "Spec Markdown Structure",
+        passed: code.includes("## ") && code.includes("- [ "),
+        detail: "Emits H2 sections holding Markdown link lists",
+      });
+      results.push({
+        name: "Standard Link Relations",
+        passed: code.includes('rel="alternate"') && code.includes('rel="describedby"'),
+        detail: "Advertises the Markdown variant and the covering llms.txt",
+      });
+      results.push({
+        name: "Markdown Variant URLs",
+        passed: code.includes(".md"),
+        detail: "Derives the page's Markdown variant URL",
+      });
+      results.push({
+        name: "Blockquote Summary",
+        passed: code.includes("> "),
+        detail: "Includes the optional blockquote summary",
+      });
+    } else if (id === "task_seo_llms_txt_validator") {
+      results.push({
+        name: "H1 Requirement",
+        passed: code.includes("H1"),
+        detail: "Requires the H1 title as the first section",
+      });
+      results.push({
+        name: "Link List Validation",
+        passed: code.includes("Malformed link list entry"),
+        detail: "Rejects malformed link list entries",
+      });
+      results.push({
+        name: "Section Scoping",
+        passed: code.includes("outside of a section"),
+        detail: "Rejects link entries that appear outside an H2 section",
+      });
+      results.push({
+        name: "Most Specific File Resolution",
+        passed: code.includes("sort(") && code.includes("covers"),
+        detail: "Resolves the deepest llms.txt covering a page",
+      });
+    } else if (id === "task_seo_ai_crawler_policy") {
+      results.push({
+        name: "Content-Signal Directive",
+        passed: code.includes("Content-Signal") && code.includes("ai-train"),
+        detail: "Declares search, ai-input and ai-train usage signals",
+      });
+      results.push({
+        name: "Crawler Purpose Classification",
+        passed: code.includes("training") && code.includes("user-triggered"),
+        detail: "Separates training, search and user-triggered crawlers",
+      });
+      results.push({
+        name: "Longest-Match Path Evaluation",
+        passed: code.includes("pattern.length"),
+        detail: "Applies RFC 9309 longest-match path precedence",
+      });
+      results.push({
+        name: "Wildcard Fallback Semantics",
+        passed: code.includes('agent !== "*"'),
+        detail: "Treats the * group as a fallback that never overrides a specific group",
+      });
+    } else if (id === "task_acp_checkout_session") {
+      results.push({
+        name: "Integer Minor Units",
+        passed: code.includes("Math.round") && code.includes("Number.isInteger"),
+        detail: "Keeps every monetary amount an integer in minor units",
+      });
+      results.push({
+        name: "Idempotency Handling",
+        passed: code.includes("idempotency") && code.includes("409"),
+        detail: "Replays identical requests and rejects mismatched replays",
+      });
+      results.push({
+        name: "Session Status Machine",
+        passed:
+          code.includes("ready_for_payment") &&
+          code.includes("completed") &&
+          code.includes("canceled"),
+        detail: "Moves the session through the specification's statuses",
+      });
+      results.push({
+        name: "Order Creation",
+        passed: code.includes("permalink_url"),
+        detail: "Creates an order with a permalink when the session completes",
+      });
+    } else if (id === "task_x402_payment_gate") {
+      results.push({
+        name: "Payment Header Exchange",
+        passed:
+          code.includes("PAYMENT-REQUIRED") &&
+          code.includes("PAYMENT-SIGNATURE") &&
+          code.includes("PAYMENT-RESPONSE"),
+        detail: "Uses the three x402 v2 payment headers",
+      });
+      results.push({
+        name: "Base64 Header Encoding",
+        passed: code.includes("btoa") && code.includes("atob"),
+        detail: "Base64-encodes the JSON payloads carried in the headers",
+      });
+      results.push({
+        name: "CORS Header Disclosure",
+        passed:
+          code.includes("Access-Control-Expose-Headers") &&
+          code.includes("Access-Control-Allow-Headers"),
+        detail: "Exposes and allows the payment headers for browser clients",
+      });
+      results.push({
+        name: "Payment Amount Verification",
+        passed: code.includes("amount"),
+        detail: "Verifies the accepted scheme, network and amount",
+      });
+    } else if (id === "task_ap2_mandate_verification") {
+      results.push({
+        name: "Versioned vct Claim",
+        passed: code.includes("mandate.checkout.1") && code.includes("vct"),
+        detail: "Requires the exact versioned mandate type",
+      });
+      results.push({
+        name: "Checkout Hash Binding",
+        passed: code.includes("checkout_hash") && code.includes("SHA-256"),
+        detail: "Recomputes the Base64url SHA-256 hash of the checkout JWT",
+      });
+      results.push({
+        name: "Expiry Enforcement",
+        passed: code.includes("exp"),
+        detail: "Rejects an expired mandate",
+      });
+      results.push({
+        name: "Constraint Evaluation",
+        passed: code.includes("allowed_merchants"),
+        detail: "Evaluates the open mandate's allowed-merchants constraint",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -6199,6 +6400,362 @@ export class Evaluator {
         name: "Chunk-Boundary Independent Digest",
         passed: Boolean(res?.digestOk),
         detail: "Produces the same 8-character digest for split, whole and incremental input",
+      });
+    } else if (taskId === "task_webmcp_tool_registry") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const registry = new ToolRegistry("https://app.example.test");
+            await registry.registerTool({ name: "search_products", description: "Search", inputSchema: { type: "object" }, execute: async () => ({}) });
+            await registry.registerTool({ name: "add_to_cart", description: "Add to cart", execute: async () => ({}) });
+
+            const duplicate = await registry.registerTool({ name: "search_products", description: "dupe", execute: async () => ({}) }).then(() => null, (e) => e);
+            const invalidName = await registry.registerTool({ name: "bad name!", description: "x", execute: async () => ({}) }).then(() => null, (e) => e);
+            const emptyDescription = await registry.registerTool({ name: "valid_name", description: "", execute: async () => ({}) }).then(() => null, (e) => e);
+
+            const tools = await registry.getTools();
+            const names = tools.map((t) => t.name).join(",");
+            const schema = tools.find((t) => t.name === "search_products")?.inputSchema;
+
+            const controller = new AbortController();
+            await registry.registerTool({ name: "temp_tool", description: "temp", execute: async () => ({}) }, { signal: controller.signal });
+            const beforeAbort = (await registry.getTools()).length;
+            let changes = 0;
+            registry.onToolChange(() => { changes += 1; });
+            controller.abort();
+            const afterAbort = (await registry.getTools()).length;
+
+            return {
+              registryOk:
+                duplicate?.name === "InvalidStateError" &&
+                invalidName?.name === "InvalidStateError" &&
+                emptyDescription?.name === "InvalidStateError" &&
+                names === "add_to_cart,search_products" &&
+                schema?.type === "object" &&
+                beforeAbort === 3 &&
+                afterAbort === 2 &&
+                changes >= 1,
+            };
+          } catch (error) {
+            return { registryOk: false };
+          }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "WebMCP Tool Registration & Discovery",
+        passed: Boolean(res?.registryOk),
+        detail: "Rejects invalid names, duplicates and empty descriptions, sorts discovery, unregisters on abort",
+      });
+    } else if (taskId === "task_webmcp_tool_execution") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const executor = new ToolExecutor();
+            await executor.registerTool({ name: "echo", description: "Echo", execute: async (input, options) => ({ got: input, signalled: Boolean(options && options.signal) }) });
+            await executor.registerTool({ name: "boom", description: "Fails", execute: async () => { throw new Error("nope"); } });
+            await executor.registerTool({ name: "circular", description: "Bad", execute: async () => { const o = {}; o.self = o; return o; } });
+
+            const raw = await executor.executeTool("echo", { a: 1 });
+            const parsed = JSON.parse(raw);
+
+            const missing = await executor.executeTool("nope", {}).then(() => null, (e) => e);
+            const badInput = await executor.executeTool("echo", "not-an-object").then(() => null, (e) => e);
+            const rejected = await executor.executeTool("boom", {}).then(() => null, (e) => e);
+            const unserialisable = await executor.executeTool("circular", {}).then(() => null, (e) => e);
+
+            const controller = new AbortController();
+            const pending = executor.executeTool("echo", { a: 2 }, { signal: controller.signal });
+            controller.abort();
+            const cancelled = await pending.then(() => null, (e) => e);
+
+            return {
+              executionOk:
+                typeof raw === "string" &&
+                parsed.got.a === 1 &&
+                parsed.signalled === true &&
+                missing?.name === "NotFoundError" &&
+                badInput?.name === "DataError" &&
+                rejected?.name === "OperationError" &&
+                unserialisable?.name === "OperationError" &&
+                cancelled?.name === "AbortError",
+            };
+          } catch (error) {
+            return { executionOk: false };
+          }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "WebMCP Tool Execution & Error Taxonomy",
+        passed: Boolean(res?.executionOk),
+        detail: "Round-trips input, signals cancellation and maps failures to the draft's exception names",
+      });
+    } else if (taskId === "task_webmcp_origin_exposure") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const registry = new ToolExposure("https://shop.example.test");
+            await registry.registerTool({ name: "public_tool", description: "Public", execute: async () => ({}) });
+            await registry.registerTool({ name: "shared_tool", description: "Shared", execute: async () => ({}) }, { exposedTo: ["https://agent.example.test"] });
+
+            const visible = await registry.getTools("https://agent.example.test", { fromOrigins: ["https://shop.example.test"] });
+            const ownerVisible = await registry.getTools("https://shop.example.test");
+            const hidden = await registry.executeTool("https://agent.example.test", "public_tool", {}).then(() => null, (e) => e);
+            const allowed = await registry.executeTool("https://agent.example.test", "shared_tool", {}).then(() => null, (e) => e);
+
+            return {
+              exposureOk:
+                visible.length === 1 &&
+                visible[0].name === "shared_tool" &&
+                ownerVisible.length === 2 &&
+                hidden?.name === "NotFoundError" &&
+                allowed === null,
+            };
+          } catch (error) {
+            return { exposureOk: false };
+          }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "Cross-Origin Tool Exposure Without Enumeration",
+        passed: Boolean(res?.exposureOk),
+        detail: "Shows only exposed tools and reports a hidden tool as NotFoundError",
+      });
+    } else if (taskId === "task_seo_llms_txt_generator") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const site = {
+            title: "FastHTML",
+            summary: "A python library.",
+            details: "Important notes:",
+            sections: [{ name: "Docs", links: [{ title: "Quick start", url: "https://x.dev/q.html.md", notes: "Overview" }] }],
+            optional: [{ title: "Full docs", url: "https://gist/y.md" }],
+          };
+          const file = buildLlmsTxt(site);
+          const header = buildLinkHeader("https://x.dev/page.html", "https://x.dev/docs/llms.txt");
+          const variant = markdownVariantUrl("https://x.dev/page.html");
+          const extended = markdownVariantUrl("https://x.dev/guide");
+
+          return {
+            llmsOk:
+              file.startsWith("# FastHTML") &&
+              file.includes("> A python library.") &&
+              file.includes("## Docs") &&
+              file.includes("- [ Quick start ](https://x.dev/q.html.md) : Overview") &&
+              file.indexOf("## Optional") > file.indexOf("## Docs") &&
+              file.includes("- [ Full docs ](https://gist/y.md)") &&
+              header.includes('rel="alternate"') &&
+              header.includes('type="text/markdown"') &&
+              header.includes('rel="describedby"') &&
+              variant === "https://x.dev/page.md" &&
+              extended === "https://x.dev/guide.md",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "llms.txt v2 Structure & Link Relations",
+        passed: Boolean(res?.llmsOk),
+        detail: "Emits the H1 title, blockquote summary, H2 link lists and both standard link relations",
+      });
+    } else if (taskId === "task_seo_llms_txt_validator") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const nl = String.fromCharCode(10);
+          const join = (lines) => lines.join(nl);
+          const valid = validateLlmsTxt(join(["# Title", "", "> Summary", "", "## Docs", "", "- [ A ](https://x/a.md)", ""]));
+          const missingH1 = validateLlmsTxt(join(["## Docs", "", "- [ A ](https://x/a.md)", ""]));
+          const malformed = validateLlmsTxt(join(["# T", "", "## Docs", "", "- A without a link", ""]));
+          const stray = validateLlmsTxt(join(["# T", "", "- [ A ](https://x/a.md)", ""]));
+          const deep = validateLlmsTxt(join(["# T", "", "### Too deep", ""]));
+          const selected = selectLlmsTxt([{ path: "/llms.txt" }, { path: "/docs/llms.txt" }], "/docs/page.html");
+          const root = selectLlmsTxt([{ path: "/llms.txt" }], "/other.html");
+
+          return {
+            validatorOk:
+              valid.valid === true &&
+              missingH1.valid === false &&
+              malformed.valid === false &&
+              stray.valid === false &&
+              deep.valid === false &&
+              selected?.path === "/docs/llms.txt" &&
+              root?.path === "/llms.txt",
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "llms.txt Validation & Covering-File Resolution",
+        passed: Boolean(res?.validatorOk),
+        detail: "Rejects malformed files and resolves the most specific llms.txt for a page",
+      });
+    } else if (taskId === "task_seo_ai_crawler_policy") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const nl = String.fromCharCode(10);
+          const robots = buildAiRobotsTxt({ allowTraining: false, allowSearch: true, allowAiInput: true });
+          const kinds = [classifyCrawler("GPTBot"), classifyCrawler("OAI-SearchBot"), classifyCrawler("ChatGPT-User"), classifyCrawler("Mozilla/5.0")].join(",");
+          const longest = ["User-agent: *", "Disallow: /private", "Allow: /private/public", ""].join(nl);
+
+          return {
+            policyOk:
+              kinds === "training,search,user-triggered,unknown" &&
+              robots.includes("User-agent: GPTBot") &&
+              robots.includes("Content-Signal: search=yes, ai-input=yes, ai-train=no") &&
+              isPathAllowed(robots, "GPTBot", "/x") === false &&
+              isPathAllowed(robots, "OAI-SearchBot", "/x") === true &&
+              isPathAllowed(robots, "ChatGPT-User", "/x") === true &&
+              isPathAllowed(longest, "AnyBot", "/private/public/a") === true &&
+              isPathAllowed(longest, "AnyBot", "/private/secret") === false,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "AI Crawler Policy & RFC 9309 Matching",
+        passed: Boolean(res?.policyOk),
+        detail: "Classifies crawler purposes, emits usage signals and applies longest-match precedence",
+      });
+    } else if (taskId === "task_acp_checkout_session") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const service = new CheckoutService();
+          const session = service.createSession({ items: [{ id: "item_1", quantity: 2, unitAmount: 500 }], currency: "usd" });
+          const first = service.createSession({ items: [{ id: "i", quantity: 1, unitAmount: 100 }] }, { idempotencyKey: "key-1" });
+          const replay = service.createSession({ items: [{ id: "i", quantity: 1, unitAmount: 100 }] }, { idempotencyKey: "key-1" });
+
+          let conflict = null;
+          try { service.createSession({ items: [{ id: "i", quantity: 9, unitAmount: 100 }] }, { idempotencyKey: "key-1" }); } catch (e) { conflict = e; }
+          let badQuantity = null;
+          try { service.createSession({ items: [{ id: "i", quantity: 0, unitAmount: 100 }] }); } catch (e) { badQuantity = e; }
+
+          const completed = service.completeSession(first.id, { payment_data: { type: "card_token" } });
+          let cancelError = null;
+          try { service.cancelSession(first.id); } catch (e) { cancelError = e; }
+
+          const total = session.totals.find((t) => t.type === "total");
+          return {
+            acpOk:
+              session.status === "ready_for_payment" &&
+              session.currency === "usd" &&
+              Number.isInteger(session.line_items[0].total) &&
+              session.line_items[0].total === 1100 &&
+              total?.amount === 1200 &&
+              first.id === replay.id &&
+              conflict?.status === 409 &&
+              conflict?.code === "idempotency_conflict" &&
+              badQuantity?.status === 400 &&
+              completed.status === "completed" &&
+              completed.order?.checkout_session_id === first.id &&
+              cancelError?.status === 405,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Checkout Session Lifecycle & Idempotency",
+        passed: Boolean(res?.acpOk),
+        detail: "Prices in minor units, replays idempotent requests and enforces the completion and cancel rules",
+      });
+    } else if (taskId === "task_x402_payment_gate") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const gate = createPaymentGate({
+              resource: { url: "https://api.example.com/premium", description: "Premium data" },
+              accepts: [{ scheme: "exact", network: "eip155:84532", amount: "10000", asset: "0xA", payTo: "0xB", maxTimeoutSeconds: 60 }],
+              data: { hello: "world" },
+            });
+
+            const unpaid = await gate.handle({ method: "GET", headers: {} });
+            const required = decodeHeader(unpaid.headers["PAYMENT-REQUIRED"]);
+            const paid = await gate.handle({
+              method: "GET",
+              headers: { "PAYMENT-SIGNATURE": encodeHeader({ x402Version: 2, accepted: { scheme: "exact", network: "eip155:84532", amount: "10000" }, payload: { authorization: { from: "0xPAYER" } } }) },
+            });
+            const settlement = decodeHeader(paid.headers["PAYMENT-RESPONSE"]);
+            const underpaid = await gate.handle({
+              method: "GET",
+              headers: { "PAYMENT-SIGNATURE": encodeHeader({ x402Version: 2, accepted: { scheme: "exact", network: "eip155:84532", amount: "1" }, payload: { authorization: { from: "0xPAYER" } } }) },
+            });
+            const preflight = await gate.handle({ method: "OPTIONS", headers: {} });
+
+            return {
+              x402Ok:
+                unpaid.status === 402 &&
+                required?.x402Version === 2 &&
+                required?.accepts?.[0]?.network === "eip155:84532" &&
+                required?.error === "PAYMENT-SIGNATURE header is required" &&
+                paid.status === 200 &&
+                settlement?.success === true &&
+                settlement?.network === "eip155:84532" &&
+                settlement?.payer === "0xPAYER" &&
+                underpaid.status === 402 &&
+                decodeHeader(underpaid.headers["PAYMENT-RESPONSE"])?.errorReason === "insufficient_funds" &&
+                unpaid.headers["Access-Control-Expose-Headers"].includes("PAYMENT-REQUIRED") &&
+                unpaid.headers["Access-Control-Allow-Headers"].includes("PAYMENT-SIGNATURE") &&
+                preflight.status === 204 &&
+                preflight.headers["PAYMENT-REQUIRED"] === undefined,
+            };
+          } catch (error) {
+            return { x402Ok: false };
+          }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "x402 v2 Challenge, Settlement & CORS Headers",
+        passed: Boolean(res?.x402Ok),
+        detail: "Challenges with 402, verifies the payment payload, settles and exposes the payment headers",
+      });
+    } else if (taskId === "task_ap2_mandate_verification") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const checkoutJwt = "eyJhbGciOiJFUzI1NiJ9.eyJtIjoxfQ.sig";
+            const expectedHash = "AJ6gspp0-95E4UC4z1z52kdKPTYNpfkECTWiZdxuzD4";
+            const hash = await computeCheckoutHash(checkoutJwt);
+            const mandate = { vct: "mandate.checkout.1", checkout_jwt: checkoutJwt, checkout_hash: hash, merchant: { name: "M", website: "https://m.test" } };
+            const valid = await verifyCheckoutMandate(mandate);
+            const tampered = await verifyCheckoutMandate({ ...mandate, checkout_jwt: "tampered" });
+            const wrongVct = await verifyCheckoutMandate({ ...mandate, vct: "mandate.checkout.2" });
+            const expired = await verifyCheckoutMandate({ ...mandate, exp: 1000 });
+            const open = { vct: "mandate.checkout.open.1", constraints: [{ type: "checkout.allowed_merchants", allowed: [{ name: "M", website: "https://m.test" }] }] };
+            const denied = { vct: "mandate.checkout.open.1", constraints: [{ type: "checkout.allowed_merchants", allowed: [{ name: "Other", website: "https://other.test" }] }] };
+
+            return {
+              mandateOk:
+                hash === expectedHash &&
+                valid.valid === true &&
+                valid.errors.length === 0 &&
+                tampered.valid === false &&
+                tampered.errors.some((e) => e.includes("checkout_hash")) &&
+                wrongVct.valid === false &&
+                expired.valid === false &&
+                (await verifyCheckoutMandate(mandate, { openMandate: open })).valid === true &&
+                (await verifyCheckoutMandate(mandate, { openMandate: denied })).valid === false,
+            };
+          } catch (error) {
+            return { mandateOk: false };
+          }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 2000 });
+      results.push({
+        name: "AP2 Mandate Verification & Checkout Hash Binding",
+        passed: Boolean(res?.mandateOk),
+        detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
       });
     } else {
       // General syntax evaluation

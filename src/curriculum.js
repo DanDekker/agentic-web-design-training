@@ -1,6 +1,6 @@
 /**
- * Web development curriculum: 112 exercises across 29 categories and 12 tracks.
- * Framework and browser-platform challenge code is imported from standalone files.
+ * Web development curriculum: 121 exercises across 32 categories and 13 tracks.
+ * Framework, browser-platform and agentic-web challenge code is imported from standalone files.
  */
 
 import reactNextStarter from "../exercises/frameworks/ts_react_nextjs_server_actions/starter.ts" with { type: "text" };
@@ -31,6 +31,24 @@ import streamSseStarter from "../exercises/platform/web_streams/sse_reconnect_pa
 import streamSseSolution from "../exercises/platform/web_streams/sse_reconnect_parser/solution.js" with { type: "text" };
 import streamChecksumStarter from "../exercises/platform/web_streams/streaming_checksum/starter.js" with { type: "text" };
 import streamChecksumSolution from "../exercises/platform/web_streams/streaming_checksum/solution.js" with { type: "text" };
+import webmcpRegistryStarter from "../exercises/platform/webmcp/tool_registry/starter.js" with { type: "text" };
+import webmcpRegistrySolution from "../exercises/platform/webmcp/tool_registry/solution.js" with { type: "text" };
+import webmcpExecutionStarter from "../exercises/platform/webmcp/tool_execution/starter.js" with { type: "text" };
+import webmcpExecutionSolution from "../exercises/platform/webmcp/tool_execution/solution.js" with { type: "text" };
+import webmcpExposureStarter from "../exercises/platform/webmcp/origin_exposure/starter.js" with { type: "text" };
+import webmcpExposureSolution from "../exercises/platform/webmcp/origin_exposure/solution.js" with { type: "text" };
+import llmsTxtGeneratorStarter from "../exercises/platform/agentic_seo/llms_txt_generator/starter.js" with { type: "text" };
+import llmsTxtGeneratorSolution from "../exercises/platform/agentic_seo/llms_txt_generator/solution.js" with { type: "text" };
+import llmsTxtValidatorStarter from "../exercises/platform/agentic_seo/llms_txt_validator/starter.js" with { type: "text" };
+import llmsTxtValidatorSolution from "../exercises/platform/agentic_seo/llms_txt_validator/solution.js" with { type: "text" };
+import aiCrawlerPolicyStarter from "../exercises/platform/agentic_seo/ai_crawler_policy/starter.js" with { type: "text" };
+import aiCrawlerPolicySolution from "../exercises/platform/agentic_seo/ai_crawler_policy/solution.js" with { type: "text" };
+import acpCheckoutStarter from "../exercises/platform/agentic_commerce/acp_checkout_session/starter.js" with { type: "text" };
+import acpCheckoutSolution from "../exercises/platform/agentic_commerce/acp_checkout_session/solution.js" with { type: "text" };
+import x402GateStarter from "../exercises/platform/agentic_commerce/x402_payment_gate/starter.js" with { type: "text" };
+import x402GateSolution from "../exercises/platform/agentic_commerce/x402_payment_gate/solution.js" with { type: "text" };
+import ap2MandateStarter from "../exercises/platform/agentic_commerce/ap2_mandate_verification/starter.js" with { type: "text" };
+import ap2MandateSolution from "../exercises/platform/agentic_commerce/ap2_mandate_verification/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -95,6 +113,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Browser Platform Primitives: Web Workers, Shared Memory & Streams",
     categories: ["web-workers", "web-streams"],
   },
+  "agentic-web": {
+    id: "agentic-web",
+    name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
+    categories: ["webmcp", "agentic-seo", "agentic-commerce"],
+  },
 });
 
 export const CATEGORY_TO_TRACK = Object.freeze({
@@ -127,6 +150,9 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "web-components": "design-systems-web-components",
   "web-workers": "browser-platform",
   "web-streams": "browser-platform",
+  webmcp: "agentic-web",
+  "agentic-seo": "agentic-web",
+  "agentic-commerce": "agentic-web",
 });
 
 export const CURRICULUM_CATEGORIES = Object.freeze(Object.keys(CATEGORY_TO_TRACK));
@@ -9909,6 +9935,162 @@ export class VirtualizedShadowListEngine {
       "Folds each incoming chunk into the running digest without joining the payload",
       "Produces byte-identical digests for any chunk boundary split of the same content",
       "Keeps memory proportional to one chunk through an incremental update()/digest() state",
+    ],
+  },
+
+  /* ── 13. Agentic Web: WebMCP, GEO/AEO Discovery & Agentic Commerce (2026) ── */
+  {
+    id: "task_webmcp_tool_registry",
+    title: "WebMCP ModelContext Tool Registry with Spec Name Validation and Abort Unregistration",
+    category: "webmcp",
+    difficulty: "advanced",
+    tags: ["webmcp", "model-context", "tool-registry", "abort-controller", "w3c-draft"],
+    instructions:
+      "The W3C Web Machine Learning Community Group's WebMCP draft requires registerTool() to reject invalid tool names, empty descriptions and duplicate registrations with an InvalidStateError, to serialise the input schema to a JSON string, to return discovered tools sorted by name, and to unregister a tool when the registration AbortSignal aborts. The current registry accepts anything and never cleans up. Rebuild it to the draft's rules.",
+    starterCode: webmcpRegistryStarter,
+    solutionCode: webmcpRegistrySolution,
+    criteria: [
+      "Validates tool names against the draft's length limit and allowed character set",
+      "Rejects duplicate names and empty descriptions with an InvalidStateError",
+      "Serialises the input schema to a JSON string and sorts discovered tools by name",
+      "Unregisters a tool and notifies listeners when the registration signal aborts",
+    ],
+  },
+  {
+    id: "task_webmcp_tool_execution",
+    title: "WebMCP executeTool with JSON Input Round-Trip, Signal Cancellation and DOMException Error Taxonomy",
+    category: "webmcp",
+    difficulty: "advanced",
+    tags: ["webmcp", "execute-tool", "domexception", "json-serialization", "cancellation"],
+    instructions:
+      "The WebMCP draft defines executeTool() to serialise its input to JSON, hand the tool an AbortSignal, return the result as a JSON string, and report failures as platform-defined DOMException names: NotFoundError for an unknown tool, DataError for input that is not a JSON object, OperationError when the tool rejects or returns a non-serialisable result, and AbortError when the call is cancelled. Implement that contract exactly.",
+    starterCode: webmcpExecutionStarter,
+    solutionCode: webmcpExecutionSolution,
+    criteria: [
+      "JSON round-trips the input before invoking the tool and rejects non-objects with DataError",
+      "Passes an AbortSignal to the tool callback and rejects cancelled calls with AbortError",
+      "Returns the tool result as a JSON string and reports unknown tools as NotFoundError",
+      "Maps a rejected tool and a non-serialisable result to OperationError",
+    ],
+  },
+  {
+    id: "task_webmcp_origin_exposure",
+    title: "Cross-Origin WebMCP Tool Exposure with exposedTo Allowlists and No Tool Enumeration",
+    category: "webmcp",
+    difficulty: "advanced",
+    tags: ["webmcp", "origin-isolation", "exposed-to", "security", "same-origin"],
+    instructions:
+      "Under the WebMCP draft a tool is exposed to its owning origin and to any origin listed in the registration's exposedTo list, and a caller that may not see a tool must receive NotFoundError so the registry never leaks which tools a site has registered. The current registry hands every tool to every origin. Implement the origin exposure rules.",
+    starterCode: webmcpExposureStarter,
+    solutionCode: webmcpExposureSolution,
+    criteria: [
+      "Exposes a tool to its owning origin and to origins listed in exposedTo",
+      "Returns only the tools visible to the requesting origin, sorted by name",
+      "Returns NotFoundError for a tool that exists but is not exposed to the caller",
+      "Never reveals private tool names to a cross-origin caller",
+    ],
+  },
+  {
+    id: "task_seo_llms_txt_generator",
+    title: "Generate a Spec-Shape /llms.txt v2 Agent Discovery File with Markdown Link Relations",
+    category: "agentic-seo",
+    difficulty: "intermediate",
+    tags: ["llms-txt", "geo", "agent-discovery", "markdown", "link-relations"],
+    instructions:
+      "The llms.txt v2 proposal defines a precise Markdown shape — an H1 title, an optional blockquote summary, optional prose, then H2 sections holding link lists — plus the standard link relations that let an agent find a page's Markdown variant (rel=\"alternate\"; type=\"text/markdown\") and the llms.txt covering it (rel=\"describedby\"). The current generator emits a flat JSON dump. Produce a conformant file and the link relations instead.",
+    starterCode: llmsTxtGeneratorStarter,
+    solutionCode: llmsTxtGeneratorSolution,
+    criteria: [
+      "Emits the H1 title, the optional blockquote summary and H2 sections of link lists",
+      "Renders link entries as Markdown hyperlinks with optional \": notes\" suffixes",
+      "Derives the Markdown variant URL for both the replaced-extension and appended forms",
+      "Produces the rel=\"alternate\" and rel=\"describedby\" link relations",
+    ],
+  },
+  {
+    id: "task_seo_llms_txt_validator",
+    title: "Validate /llms.txt Structure and Resolve the Most Specific Covering File",
+    category: "agentic-seo",
+    difficulty: "intermediate",
+    tags: ["llms-txt", "validation", "parsing", "path-resolution", "agent-discovery"],
+    instructions:
+      "Publishing platforms generate llms.txt files from templates, and a malformed file silently breaks agent discovery. Validate the v2 structure — the H1 title must come first, headings deeper than H2 are invalid, link list entries must be well-formed and may only appear under an H2 section — and resolve which llms.txt covers a given page, because a file covers the directory it lives in and the deepest match wins.",
+    starterCode: llmsTxtValidatorStarter,
+    solutionCode: llmsTxtValidatorSolution,
+    criteria: [
+      "Requires an H1 title as the first section and rejects headings deeper than H2",
+      "Rejects malformed link list entries and entries outside an H2 section",
+      "Resolves the most specific llms.txt covering a page path",
+      "Treats an llms.txt file as covering the directory it lives in",
+    ],
+  },
+  {
+    id: "task_seo_ai_crawler_policy",
+    title: "AI Crawler Classification, robots.txt Usage Signals and RFC 9309 Longest-Match Evaluation",
+    category: "agentic-seo",
+    difficulty: "advanced",
+    tags: ["ai-crawlers", "robots-txt", "content-signals", "rfc-9309", "geo"],
+    instructions:
+      "Sites must now decide separately whether AI crawlers may index, quote or train on their content, so training crawlers, search indexers and user-triggered fetchers need different treatment, declared through a Content-Signal directive. Path evaluation must follow RFC 9309: the longest matching path prefix wins, and the \"*\" group is only a fallback for crawlers with no matching group, never a way to override a specific group's rules.",
+    starterCode: aiCrawlerPolicyStarter,
+    solutionCode: aiCrawlerPolicySolution,
+    criteria: [
+      "Classifies training, search and user-triggered AI crawlers by product token",
+      "Emits per-class robots.txt groups and a Content-Signal directive with search, ai-input and ai-train",
+      "Applies RFC 9309 longest-match path precedence",
+      "Treats the \"*\" group as a fallback that never overrides a matching specific group",
+    ],
+  },
+  {
+    id: "task_acp_checkout_session",
+    title: "Agentic Commerce Checkout Session Lifecycle with Integer Minor Units and Idempotency",
+    category: "agentic-commerce",
+    difficulty: "advanced",
+    tags: ["acp", "agentic-commerce", "checkout", "idempotency", "api-design"],
+    instructions:
+      "The Agentic Checkout Specification requires a merchant to host create, update, retrieve, complete and cancel endpoints, keep all monetary amounts as integers in minor units, and replay an Idempotency-Key with identical parameters while rejecting a mismatched replay with 409 idempotency_conflict. The current implementation has no status machine, no idempotency and lets a completed session be cancelled. Implement the lifecycle.",
+    starterCode: acpCheckoutStarter,
+    solutionCode: acpCheckoutSolution,
+    criteria: [
+      "Computes every monetary amount as an integer in minor units and returns a totals array",
+      "Moves the session through ready_for_payment, completed and canceled states",
+      "Replays the original session for a repeated Idempotency-Key with identical parameters",
+      "Rejects a mismatched Idempotency-Key replay with 409 idempotency_conflict",
+      "Creates an order on completion and refuses to cancel a finished session with 405",
+    ],
+  },
+  {
+    id: "task_x402_payment_gate",
+    title: "x402 v2 HTTP 402 Payment Gate with Base64 Header Exchange and CORS Header Disclosure",
+    category: "agentic-commerce",
+    difficulty: "advanced",
+    tags: ["x402", "http-402", "payments", "base64", "cors"],
+    instructions:
+      "The x402 v2 HTTP transport signals payment with a 402 status and three Base64-encoded JSON headers — PAYMENT-REQUIRED to the client, PAYMENT-SIGNATURE back, PAYMENT-RESPONSE on settlement — and none of them is CORS-safelisted, so a browser client also needs the expose and allow header lists or it can neither read the price nor send the payment. Implement the challenge, verification, settlement and preflight handling.",
+    starterCode: x402GateStarter,
+    solutionCode: x402GateSolution,
+    criteria: [
+      "Answers an unpaid request with 402 and a Base64-encoded PaymentRequired in PAYMENT-REQUIRED",
+      "Decodes the client PAYMENT-SIGNATURE payload and verifies scheme, network and amount",
+      "Returns the Base64-encoded SettlementResponse in PAYMENT-RESPONSE on success and on failure",
+      "Exposes and allows the payment headers for browser clients and answers the preflight without payment",
+    ],
+  },
+  {
+    id: "task_ap2_mandate_verification",
+    title: "AP2 Checkout Mandate Verification with Versioned vct Claims and Checkout Hash Binding",
+    category: "agentic-commerce",
+    difficulty: "advanced",
+    tags: ["ap2", "agent-payments", "sd-jwt", "mandates", "verification"],
+    instructions:
+      "AP2 binds a merchant-signed checkout JWT to a Checkout Mandate with a cryptographic hash, so the merchant can prove the checkout it approved is the checkout it was sent, and each mandate type names its schema through a versioned vct claim. The current verifier accepts any payload. Verify the versioned type, recompute the checkout hash, enforce expiry and evaluate the open mandate's allowed-merchants constraint.",
+    starterCode: ap2MandateStarter,
+    solutionCode: ap2MandateSolution,
+    criteria: [
+      "Requires the exact versioned vct claim for a closed checkout mandate",
+      "Recomputes the Base64url SHA-256 checkout hash and rejects a mismatch",
+      "Rejects an expired mandate",
+      "Evaluates the open mandate's allowed-merchants constraint against the disclosed merchants",
     ],
   },
 ];

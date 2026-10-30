@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **112 exercises in 29 categories and 12 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **121 exercises in 32 categories and 13 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -108,8 +108,9 @@ The repository currently includes **112 exercises in 29 categories and 12 tracks
 | UI engineering | Design tokens, interaction patterns, web components |
 | Developer tooling | TypeScript frameworks, migrations, package management |
 | Browser platform | Web Workers, shared memory, streams |
+| Agentic web | WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols |
 
-Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
+Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
 ### Frontend framework exercises
 
@@ -134,6 +135,22 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | Streams | [Resumable SSE parser with `Last-Event-ID`](exercises/platform/web_streams/sse_reconnect_parser/starter.js) |
 | Streams | [Constant-memory streaming checksum](exercises/platform/web_streams/streaming_checksum/starter.js) |
 
+### Agentic web exercises
+
+| Area | Exercise |
+| --- | --- |
+| WebMCP | [Tool registry with spec name validation and abort unregistration](exercises/platform/webmcp/tool_registry/starter.js) |
+| WebMCP | [`executeTool` with JSON round-trip and `DOMException` error taxonomy](exercises/platform/webmcp/tool_execution/starter.js) |
+| WebMCP | [Cross-origin tool exposure with `exposedTo` allowlists](exercises/platform/webmcp/origin_exposure/starter.js) |
+| GEO / AEO | [Generate a spec-shape `/llms.txt` v2 discovery file](exercises/platform/agentic_seo/llms_txt_generator/starter.js) |
+| GEO / AEO | [Validate `/llms.txt` and resolve the most specific covering file](exercises/platform/agentic_seo/llms_txt_validator/starter.js) |
+| GEO / AEO | [AI crawler classification and RFC 9309 longest-match evaluation](exercises/platform/agentic_seo/ai_crawler_policy/starter.js) |
+| Agentic commerce | [Agentic Commerce checkout session lifecycle and idempotency](exercises/platform/agentic_commerce/acp_checkout_session/starter.js) |
+| Agentic commerce | [x402 v2 HTTP 402 payment gate with CORS header disclosure](exercises/platform/agentic_commerce/x402_payment_gate/starter.js) |
+| Agentic commerce | [AP2 checkout mandate verification with hash binding](exercises/platform/agentic_commerce/ap2_mandate_verification/starter.js) |
+
+These exercises track live 2026 drafts and protocols. The primary sources behind each one are cited in [links.md](links.md).
+
 ## How evaluation works
 
 The [evaluator](src/evaluator.js) combines structural checks with task-specific runtime assertions. It reports pass/fail results, a score, execution time, and a line diff. TypeScript submissions are transpiled with Bun before evaluation. The [benchmark suite](src/benchmark.js) runs those same checks against the bundled reference solutions, either for one category or for the full catalog.
@@ -146,7 +163,7 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | --- | --- |
 | [`src/curriculum.js`](src/curriculum.js) | Exercise catalog and tracks |
 | [`exercises/frameworks/`](exercises/frameworks/) | TypeScript starter and reference files for framework challenges |
-| [`exercises/platform/`](exercises/platform/) | Starter and reference files for Web Worker and Streams challenges |
+| [`exercises/platform/`](exercises/platform/) | Starter and reference files for Web Worker, Streams and agentic-web challenges |
 | [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
 | [`src/server.js`](src/server.js) and [`src/api.js`](src/api.js) | Bun server and HTTP routes |
