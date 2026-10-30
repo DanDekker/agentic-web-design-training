@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 195 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 196 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -5093,6 +5093,51 @@ clinic-dose-field::part(control) {
       "Preserves native table formatting inside a labelled two-axis scroll viewport",
       "Pins header and row-label cells with logical insets, opaque backgrounds, and a top-left intersection layer",
       "Removes scrolling and sticky positioning for printed stock records",
+    ],
+  },
+  {
+    id: "task_css_content_sized_reply_field",
+    title: "Grow a Support Reply Field with Native CSS Form Sizing",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "industry-customer-support", "field-sizing", "forms", "progressive-enhancement"],
+    instructions:
+      "A customer-support agent writes multiline ticket replies in a textarea that stays three lines tall, hides its latest text, or depends on a JavaScript resize observer. Keep a useful fixed-size, user-resizable fallback, then feature-query field-sizing: content so the control grows with the reply. Bound its block size to the available viewport, retain internal scrolling when it reaches that limit, and preserve the site's font and full inline width. Treat field-sizing as a progressive enhancement for older browsers.",
+    starterCode: `/* Fixed height hides the text agents are composing. */
+.ticket-reply__input {
+  width: 420px;
+  height: 48px;
+  resize: none;
+  font-family: Arial, sans-serif;
+}`,
+    solutionCode: `@layer helpdesk.composer {
+  .ticket-reply__input {
+    box-sizing: border-box;
+    inline-size: 100%;
+    min-block-size: 3.5rem;
+    max-block-size: min(38dvh, 18rem);
+    overflow-y: auto;
+    resize: vertical;
+    field-sizing: fixed;
+    font: inherit;
+  }
+
+  @supports (field-sizing: content) {
+    .ticket-reply__input {
+      field-sizing: content;
+    }
+  }
+
+  @media (max-width: 48rem) {
+    .ticket-reply__input {
+      max-block-size: min(32dvh, 14rem);
+    }
+  }
+}`,
+    criteria: [
+      "Provides a fluid, minimum-height textarea fallback with inherited typography and user resizing",
+      "Enables field-sizing: content only through @supports so unsupported browsers retain a working control",
+      "Caps growth at a viewport-aware maximum and permits internal scrolling after the cap",
     ],
   },
 

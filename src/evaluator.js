@@ -222,6 +222,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Sticky Header and Row Label Intersection", all: ["inset-block-start: 0", "inset-inline-start: 0", "z-index: 2", "z-index: 3", "background: Canvas"] },
     { name: "Logical Pinning and Print Recovery", all: ["tbody th[scope=\"row\"]", "@media print", "overflow: visible", "position: static", "min-inline-size: 0"] },
   ],
+  task_css_content_sized_reply_field: [
+    { name: "Usable Legacy Textarea Baseline", all: ["min-block-size: 3.5rem", "inline-size: 100%", "font: inherit", "resize: vertical"] },
+    { name: "Feature-Gated Intrinsic Control Sizing", all: ["@supports (field-sizing: content)", "field-sizing: content", "field-sizing: fixed"] },
+    { name: "Bounded Growth with Native Overflow", all: ["max-block-size: min(38dvh, 18rem)", "overflow-y: auto"], before: [["min-block-size: 3.5rem", "@supports (field-sizing: content)"]] },
+  ],
 });
 
 function cssCheckPassed(code, check) {

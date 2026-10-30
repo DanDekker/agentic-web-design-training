@@ -231,7 +231,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
   test("verifies the CSS engineering track from legacy renewals through modern platform features", async () => {
     const tasksRes = await call("GET", "/api/curriculum/tasks?category=css");
     const { tasks: cssTasks } = await tasksRes.json();
-    expect(cssTasks.length).toBe(48);
+    expect(cssTasks.length).toBe(49);
 
     for (const cssTask of cssTasks) {
       const verifyRes = await call("POST", "/api/curriculum/verify", {
@@ -488,7 +488,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(195);
+    expect(validation.totalTasks).toBe(196);
     expect(CURRICULUM_CATEGORIES.length).toBe(41);
     expect(Object.keys(CURRICULUM_TRACKS).length).toBe(21);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
