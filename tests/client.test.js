@@ -305,6 +305,50 @@ describe("Live state and rendering", () => {
     expect(app.get("chat-typing-indicator").textContent).toBe("agent is typing…");
   });
 
+  test("unconfirmed chat sends retain the draft and reuse the retry ID", async () => {
+    let finish;
+    let attempts = 0;
+    const app = await createClient({ route: ({ method, path }) => {
+      if (method === "POST" && path === "/api/chat/messages") {
+        attempts++;
+        if (attempts === 1) return new Promise((resolve) => { finish = resolve; });
+        return json({ deduplicated: true, message: { seq: 3 } });
+      }
+    } });
+    await app.click("btn-chat-portal");
+    app.get("chat-input").value = "Keep this message";
+    const first = app.get("chat-form").emit("submit");
+    await settle();
+    expect(app.get("chat-input").value).toBe("Keep this message");
+    expect(app.get("chat-input").readOnly).toBe(true);
+    expect(app.get("btn-chat-send").disabled).toBe(true);
+    await app.get("chat-form").emit("submit");
+    expect(attempts).toBe(1);
+    finish(json({ error: "Connection lost" }, 503));
+    await first;
+    expect(app.get("chat-input").value).toBe("Keep this message");
+    expect(app.get("chat-input").readOnly).toBe(false);
+    expect(app.get("toast").textContent).toContain("Message not confirmed");
+    await app.get("chat-form").emit("submit");
+    const sends = app.requests.filter((request) => request.method === "POST" && request.path === "/api/chat/messages");
+    expect(sends).toHaveLength(2);
+    expect(sends[1].body.clientMsgId).toBe(sends[0].body.clientMsgId);
+    expect(app.get("chat-input").value).toBe("");
+    expect(app.get("btn-chat-send").disabled).toBe(false);
+  });
+
+  test("a failed read receipt does not treat an accepted chat message as unsent", async () => {
+    const app = await createClient({ route: ({ method, path }) => {
+      if (method === "POST" && path === "/api/chat/read") return json({ error: "Receipt unavailable" }, 503);
+    } });
+    await app.click("btn-chat-portal");
+    app.get("chat-input").value = "Already sent";
+    await app.get("chat-form").emit("submit");
+    expect(app.get("chat-input").value).toBe("");
+    expect(app.get("toast").textContent).toContain("Message sent, but the read receipt could not be updated");
+    expect(app.requests.filter((request) => request.method === "POST" && request.path === "/api/chat/messages")).toHaveLength(1);
+  });
+
   test("live updates preserve an unfinished inline edit", async () => {
     const app = await createClient();
     await app.key("j");

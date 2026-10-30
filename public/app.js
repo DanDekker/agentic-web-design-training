@@ -1214,13 +1214,24 @@ function renderChatMessages(data) {
     .join("");
 }
 
+let chatSending = false;
+let chatRetry = null;
 async function handleChatSend(event) {
   event.preventDefault();
+  if (chatSending) return;
   const text = el.chatInput?.value?.trim();
   if (!text) return el.chatInput?.focus();
   const sender = el.chatSenderSelect?.value || "agent";
   const recipient = sender === "agent" ? "pp" : "agent";
-  if (el.chatInput) el.chatInput.value = "";
+  const clientMsgId = chatRetry?.text === text && chatRetry.sender === sender
+    ? chatRetry.clientMsgId
+    : `ui_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  chatRetry = { text, sender, clientMsgId };
+  chatSending = true;
+  if (el.chatInput) el.chatInput.readOnly = true;
+  if (el.chatSenderSelect) el.chatSenderSelect.disabled = true;
+  if (el.btnChatSend) el.btnChatSend.disabled = true;
+  el.chatForm?.setAttribute("aria-busy", "true");
 
   try {
     await api("POST", "/api/chat/messages", {
@@ -1228,12 +1239,26 @@ async function handleChatSend(event) {
       sender,
       recipient,
       text,
-      clientMsgId: `ui_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      clientMsgId,
     });
-    await api("POST", "/api/chat/read", { roomId: "dm:agent:pp", username: recipient });
+    chatRetry = null;
+    if (el.chatInput?.value.trim() === text) el.chatInput.value = "";
+    let receiptError = null;
+    try {
+      await api("POST", "/api/chat/read", { roomId: "dm:agent:pp", username: recipient });
+    } catch (err) {
+      receiptError = err;
+    }
     await refreshChatChannel();
+    if (receiptError) toast(`Message sent, but the read receipt could not be updated: ${receiptError.message}`);
   } catch (err) {
-    toast(err.message);
+    toast(`Message not confirmed: ${err.message}. Retry to send again.`);
+  } finally {
+    chatSending = false;
+    if (el.chatInput) el.chatInput.readOnly = false;
+    if (el.chatSenderSelect) el.chatSenderSelect.disabled = false;
+    if (el.btnChatSend) el.btnChatSend.disabled = false;
+    el.chatForm?.removeAttribute("aria-busy");
   }
 }
 
