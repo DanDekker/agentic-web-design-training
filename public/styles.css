@@ -1357,17 +1357,30 @@
     box-shadow: var(--shadow);
   }
 
+  .palette-search {
+    display: flex;
+    align-items: center;
+    padding-inline-end: 0.6rem;
+    border-bottom: 1px solid var(--line);
+  }
+
   #palette-input {
     width: 100%;
+    min-inline-size: 0;
     appearance: none;
     padding: 1rem 1.1rem;
     border: 0;
-    border-bottom: 1px solid var(--line);
     background: none;
     color: var(--ink);
     font: inherit;
     font-size: 0.95rem;
     outline: none;
+  }
+
+  .palette-empty {
+    margin: 0;
+    padding: 0.75rem 1.1rem;
+    color: var(--muted);
   }
 
   #palette-list {

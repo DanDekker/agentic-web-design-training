@@ -83,20 +83,42 @@ describe("Client dialogs and keyboard navigation", () => {
     expect(app.requests.filter((req) => ["PATCH", "DELETE"].includes(req.method))).toEqual([]);
   });
 
-  test("palette handles Shift+Tab and Escape dismisses only the top dialog", async () => {
+  test("palette exposes its active option and leaves Tab to the browser", async () => {
     const app = await createClient();
     await app.click("btn-oauth-portal");
     await app.key("k", { metaKey: true });
     expect(app.get("palette").open).toBe(true);
-    await app.key("Tab");
+    expect(app.get("palette-input").getAttribute("role")).toBe("combobox");
+    expect(app.get("palette-input").getAttribute("aria-expanded")).toBe("true");
+    expect(app.get("palette-input").getAttribute("aria-activedescendant")).toBe("palette-option-0");
+    await app.key("ArrowDown");
     expect(app.get("palette-list").children[1].getAttribute("aria-selected")).toBe("true");
-    await app.key("Tab", { shiftKey: true });
+    expect(app.get("palette-input").getAttribute("aria-activedescendant")).toBe("palette-option-1");
+    await app.key("ArrowUp");
     expect(app.get("palette-list").children[0].getAttribute("aria-selected")).toBe("true");
+    expect((await app.key("Tab")).defaultPrevented).not.toBe(true);
+    expect((await app.key("Tab", { shiftKey: true })).defaultPrevented).not.toBe(true);
     await app.key("Escape");
     expect(app.get("palette").open).toBe(false);
+    expect(app.get("palette-input").getAttribute("aria-expanded")).toBe("false");
     expect(app.get("oauth-modal").open).toBe(true);
     await app.key("Escape");
     expect(app.get("oauth-modal").open).toBe(false);
+  });
+
+  test("palette reports an empty search and provides a close button", async () => {
+    const app = await createClient();
+    await app.key("k", { ctrlKey: true });
+    await app.input("palette-input", "no matching command");
+    expect(app.get("palette-empty").hidden).toBe(false);
+    expect(app.get("palette-list").hidden).toBe(true);
+    expect(app.get("palette-input").getAttribute("aria-expanded")).toBe("false");
+    expect(app.get("palette-input").getAttribute("aria-activedescendant")).toBeNull();
+    await app.input("palette-input", "new task");
+    expect(app.get("palette-empty").hidden).toBe(true);
+    expect(app.get("palette-input").getAttribute("aria-expanded")).toBe("true");
+    await app.click("palette-close");
+    expect(app.get("palette").open).toBe(false);
   });
 
   test("palette commands close other dialogs before focusing the page", async () => {
