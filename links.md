@@ -82,6 +82,20 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | WebRTC | <https://www.w3.org/TR/webrtc/> |
 | WebCodecs | <https://www.w3.org/TR/webcodecs/> |
 
+**WebTransport, WebAssembly & on-device neural compute**
+
+| Technology | Primary specification or proposal |
+| --- | --- |
+| WebTransport | <https://www.w3.org/TR/webtransport/> |
+| WebAssembly JavaScript API | <https://webassembly.github.io/spec/js-api/> |
+| WebAssembly Component Model | <https://github.com/WebAssembly/component-model> |
+| WebAssembly JS Promise Integration proposal | <https://github.com/WebAssembly/js-promise-integration> |
+| WebNN | <https://www.w3.org/TR/webnn/> |
+
+The WebTransport and WebNN exercises follow their evolving W3C specifications. The
+JSPI task is explicitly proposal-level and injects the runtime API so it can be learned
+and evaluated even where JSPI is not implemented.
+
 **Payments**
 
 | Technology | URL |
