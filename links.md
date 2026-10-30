@@ -42,6 +42,8 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | JavaScript (ECMA-262) | <https://github.com/tc39/ecma262> |
 | HTML Living Standard | <https://github.com/whatwg/html> |
 | HTML Standard: dialog and interactive elements | <https://html.spec.whatwg.org/multipage/interactive-elements.html> |
+| HTML Standard: element directionality and dir | <https://html.spec.whatwg.org/multipage/dom.html#the-dir-attribute> |
+| HTML Standard: native form dirname direction submission | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitting-element-directionality-the-dirname-attribute> |
 | HTML Standard: named, exclusive `<details>` groups | <https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element> |
 | HTML Standard: forms, labels, and input controls | <https://html.spec.whatwg.org/multipage/forms.html> |
 | HTML Standard: forms and constraint validation | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html> |
@@ -122,6 +124,7 @@ not assumed to work uniformly across browsers.
 | Topic | W3C reference |
 | --- | --- |
 | Selectors Level 4 (`:where()`, `:is()`, `:has()`) | <https://www.w3.org/TR/selectors-4/> |
+| Selectors Level 4 directionality pseudo-class (:dir()) | <https://www.w3.org/TR/selectors-4/> |
 | Flexible Box Layout | <https://www.w3.org/TR/css-flexbox-1/> |
 | Grid Layout Level 2 and subgrid | <https://www.w3.org/TR/css-grid-2/> |
 | Logical Properties and Values | <https://www.w3.org/TR/css-logical-1/> |
