@@ -7,7 +7,7 @@ import { AuthStore } from "../src/auth.js";
 import { OAuthServer } from "../src/oauth.js";
 import { createHandler } from "../src/api.js";
 import { createHub } from "../src/events.js";
-import { buildApplicationJsonLdGraph, auditHtmlSeoAndStructuredData } from "../src/seo.js";
+import { buildApplicationJsonLdGraph, auditHtmlSeoAndStructuredData, safeSerializeJsonLd } from "../src/seo.js";
 
 let dir;
 let handle;
@@ -39,6 +39,11 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(graphRes.payload["@context"]).toBe("https://schema.org");
     expect(graphRes.payload["@graph"].length).toBe(5);
     expect(graphRes.scriptHtml).toContain("application/ld+json");
+    const application = graphRes.payload["@graph"].find((node) => node["@type"] === "SoftwareApplication");
+    const author = graphRes.payload["@graph"].find((node) => node["@type"] === "Person");
+    expect(author.name).toBe("DanDekker");
+    expect(application.offers).toBeUndefined();
+    expect(application.featureList.join(" ")).not.toContain("Sandboxed");
 
     const apiRes = await call("GET", "/api/seo/json-ld");
     expect(apiRes.status).toBe(200);
@@ -46,6 +51,20 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(data.payload["@context"]).toBe("https://schema.org");
     expect(data.payload["@graph"].some((n) => n["@type"] === "SoftwareApplication")).toBe(true);
     expect(data.payload["@graph"].some((n) => n["@type"] === "ItemList")).toBe(true);
+  });
+
+  test("normalizes graph origins and safely serializes hostile JSON-LD text", () => {
+    const graph = buildApplicationJsonLdGraph("HTTPS://Example.test:443/");
+    expect(graph.payload["@graph"].find((node) => node["@type"] === "WebSite").url).toBe("https://example.test");
+    for (const origin of ["javascript:alert(1)", "https://user:pass@example.test", "https://example.test/path", "https://example.test/?q=1", "https://example.test/#fragment"]) {
+      expect(() => buildApplicationJsonLdGraph(origin)).toThrow("Origin must be");
+    }
+    const data = { "@context": "https://schema.org", "@type": "Thing", name: '</script><img src=x> & \u2028 \u2029' };
+    const encoded = safeSerializeJsonLd(data);
+    expect(encoded.toLowerCase()).not.toContain("</script");
+    expect(JSON.parse(encoded)).toEqual(data);
+    const result = auditHtmlSeoAndStructuredData(`<script type="application/ld+json">${encoded}</script>`);
+    expect(result.jsonLdBlocks).toEqual([data]);
   });
 
   test("audits public/index.html for HTML5 landmarks, sharing metadata, and valid structured data", async () => {

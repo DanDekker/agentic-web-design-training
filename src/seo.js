@@ -1,7 +1,6 @@
 /**
- * 1st-Party Technical SEO, Schema.org JSON-LD @graph Builder & HTML5 Structured Data Auditor.
- * Generates connected Knowledge Graph JSON-LD (@graph) and audits HTML documents for
- * WHATWG HTML Living Standard landmarks, heading hierarchy, OpenGraph, Canonical, and Schema.org compliance.
+ * Build an example Schema.org graph and run bounded source-level SEO checks.
+ * The audit is a heuristic, not a full JSON-LD, accessibility, or search validator.
  */
 
 import {
@@ -21,8 +20,13 @@ export function safeSerializeJsonLd(data) {
 }
 
 export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
-  const cleanOrigin = String(origin || "http://localhost:3000").replace(/\/+$/, "");
-  const orgId = `${cleanOrigin}/#organization`;
+  let url;
+  try { url = new URL(origin); } catch { throw new TypeError("Origin must be an absolute HTTP(S) origin."); }
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+    throw new TypeError("Origin must be an absolute HTTP(S) origin without credentials, path, query, or fragment.");
+  }
+  const cleanOrigin = url.origin;
+  const authorId = `${cleanOrigin}/#author`;
   const websiteId = `${cleanOrigin}/#website`;
   const webpageId = `${cleanOrigin}/#webpage`;
   const appId = `${cleanOrigin}/#application`;
@@ -32,12 +36,10 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
     "@type": "ListItem",
     position: idx + 1,
     item: {
-      "@type": "Course",
-      "@id": `${cleanOrigin}/#track-${track.id}`,
+      "@type": "DefinedTerm",
       name: track.name,
-      courseCode: track.id,
-      description: `AI model training track covering ${track.categories.join(", ")}`,
-      provider: { "@id": orgId },
+      termCode: track.id,
+      description: `Web development practice covering ${track.categories.join(", ")}`,
     },
   }));
 
@@ -45,45 +47,41 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "Organization",
-        "@id": orgId,
-        name: "gauntlet-web Agentic Systems",
-        url: cleanOrigin,
+        "@type": "Person",
+        "@id": authorId,
+        name: "DanDekker",
+        url: "https://github.com/DanDekker",
       },
       {
         "@type": "WebSite",
         "@id": websiteId,
         url: cleanOrigin,
-        name: `gauntlet-web — ${REFACTORING_CURRICULUM_TASKS.length}-Exercise Curriculum & Monochrome Suite`,
-        publisher: { "@id": orgId },
+        name: "gauntlet-web",
+        publisher: { "@id": authorId },
       },
       {
         "@type": "WebPage",
         "@id": webpageId,
         url: `${cleanOrigin}/`,
-        name: "gauntlet-web — Agentic Curriculum & Monochrome Task Suite",
+        name: "gauntlet-web — Web Development Challenges",
         isPartOf: { "@id": websiteId },
         mainEntity: { "@id": appId },
+        about: { "@id": catalogId },
       },
       {
         "@type": "SoftwareApplication",
         "@id": appId,
-        name: `gauntlet-web ${REFACTORING_CURRICULUM_TASKS.length}-Exercise Curriculum Suite`,
+        name: "gauntlet-web",
+        description: "A local workspace for web development exercises and automated checks.",
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web, macOS, Linux, Windows",
-        offers: {
-          "@type": "Offer",
-          price: "0.00",
-          priceCurrency: "USD",
-          availability: "https://schema.org/InStock",
-        },
         featureList: [
-          `${REFACTORING_CURRICULUM_TASKS.length} Sandboxed AI Training Tasks across ${CURRICULUM_CATEGORIES.length} Categories`,
-          "1st-Party OAuth 2.0 PKCE & Proprietary Authentication",
-          "Instrumented Two-User Real-Time Chat & Protocol Debugger",
-          "Native Bun.Transpiler TypeScript Sandbox & Automated Markdown Benchmark Reports",
+          `${REFACTORING_CURRICULUM_TASKS.length} web development exercises across ${CURRICULUM_CATEGORIES.length} categories`,
+          "Local OAuth 2.0 PKCE demo",
+          "Two-user chat and protocol debugger demo",
+          "JavaScript and TypeScript checks with Markdown benchmark reports",
         ],
-        publisher: { "@id": orgId },
+        publisher: { "@id": authorId },
       },
       {
         "@type": "ItemList",
