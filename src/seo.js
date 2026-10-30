@@ -1,5 +1,5 @@
 /**
- * Build an example Schema.org graph and run bounded source-level SEO checks.
+ * Build an example Schema.org graph and run source-level SEO checks.
  * The audit is a heuristic, not a full JSON-LD, accessibility, or search validator.
  */
 
@@ -147,7 +147,7 @@ function htmlElements(root) {
 }
 
 const attribute = (element, name) => element.attrs?.find((attr) => attr.name === name)?.value ?? null;
-const tokens = (value) => (value || "").trim().toLowerCase().split(/[\t\n\f\r ]+/).filter(Boolean);
+const tokens = (value) => (value || "").toLowerCase().split(/[\t\n\f\r ]+/).filter(Boolean);
 const elementText = (element) => (element.childNodes || []).filter((node) => node.nodeName === "#text").map((node) => node.value).join("");
 
 function isAbsoluteHttpUrl(value) {
@@ -213,7 +213,7 @@ export function auditHtmlSeoAndStructuredData(html) {
     detail: `h1Count=${h1Count}, skippedLevel=${skippedHeading}`,
   });
 
-  // 2. Semantic HTML5 landmarks (<main>, <header>, <search> or role="search")
+  // 2. Semantic element presence, not a complete accessibility landmark audit.
   const hasMain = bodyElements.some((element) => element.tagName === "main");
   const hasHeader = bodyElements.some((element) => element.tagName === "header");
   const hasSearch = bodyElements.some((element) => element.tagName === "search" || tokens(attribute(element, "role"))[0] === "search");
