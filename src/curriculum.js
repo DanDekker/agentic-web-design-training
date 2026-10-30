@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 204 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 205 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -75,6 +75,8 @@ import seoSearchConsoleStarter from "../exercises/seo/technical/search_console_t
 import seoSearchConsoleSolution from "../exercises/seo/technical/search_console_triage/solution.ts" with { type: "text" };
 import seoMigrationStarter from "../exercises/seo/technical/migration_audit/starter.ts" with { type: "text" };
 import seoMigrationSolution from "../exercises/seo/technical/migration_audit/solution.ts" with { type: "text" };
+import seoRenderStarter from "../exercises/seo/technical/render_parity/starter.ts" with { type: "text" };
+import seoRenderSolution from "../exercises/seo/technical/render_parity/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
@@ -7251,6 +7253,22 @@ export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec)
       "Normalizes absolute HTTP(S) URLs while preserving queries, rejects duplicate sources, and validates allowed destination origins",
       "Resolves redirect chains deterministically, detects cycles, and proposes final destinations with chain-length findings",
       "Checks final target status, self-canonicalization, crawl/index eligibility, sitemap inclusion, and stale internal links",
+    ],
+  },
+  {
+    id: "task_seo_javascript_render_parity_auditor",
+    title: "Audit Source and Rendered SEO Signals Across JavaScript Routes",
+    category: "technical-seo",
+    difficulty: "advanced",
+    tags: ["seo", "technical-seo", "javascript-rendering", "hydration", "shadow-dom", "structured-data"],
+    instructions:
+      "A commerce platform ships some pages as server-rendered HTML and others through client rendering, custom elements, and delayed hydration. Build a deterministic audit over source-response and rendered-page snapshots. Compare title, canonical, applicable robots directives, hreflang sets, JSON-LD entity IDs, and primary content; identify render-only content, blocked dependencies, and expected text markers that disappear. Return page-level findings and aggregate counts. If robots.txt blocks crawling, do not claim to have observed rendered output; skip non-200 and non-HTML resources before comparing document signals. Treat this as a snapshot comparison, not a guarantee of a search engine's exact render.",
+    starterCode: seoRenderStarter.trimEnd(),
+    solutionCode: seoRenderSolution.trimEnd(),
+    criteria: [
+      "Compares normalized source and rendered title, canonical, noindex, hreflang, structured-data IDs, and primary content signals",
+      "Handles crawl-blocked, non-200, and non-HTML pages without making unsupported render-state claims",
+      "Reports blocked render dependencies, missing expected content markers, and deterministic per-finding totals",
     ],
   },
 

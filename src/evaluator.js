@@ -1457,6 +1457,36 @@ export class Evaluator {
           code.includes("url.hash = \"\""),
         detail: "Finds stale old URLs and missing final sitemap targets while preserving URL query strings",
       });
+    } else if (id === "task_seo_javascript_render_parity_auditor") {
+      results.push({
+        name: "Source and Rendered Search Signal Comparison",
+        passed:
+          code.includes("TITLE_CHANGED_DURING_RENDER") &&
+          code.includes("CANONICAL_CHANGED_DURING_RENDER") &&
+          code.includes("ROBOTS_DIRECTIVE_SET_CHANGED_DURING_RENDER") &&
+          code.includes("NOINDEX_ADDED_DURING_RENDER") &&
+          code.includes("HREFLANG_SET_CHANGED_DURING_RENDER") &&
+          code.includes("JSONLD_ENTITY_IDS_CHANGED_DURING_RENDER"),
+        detail: "Compares metadata, language alternates, robots directives, and structured-data identity across snapshots",
+      });
+      results.push({
+        name: "Crawl and Resource Observability Boundaries",
+        passed:
+          code.includes("RENDER_STATE_UNOBSERVABLE_WHILE_CRAWL_BLOCKED") &&
+          code.includes("HTTP_STATUS_NOT_200") &&
+          code.includes("NON_HTML_RESOURCE") &&
+          code.includes('disposition: "CRAWL_BLOCKED"'),
+        detail: "Skips unavailable rendered state for blocked, error, and non-HTML routes before comparing page signals",
+      });
+      results.push({
+        name: "Rendered Content and Aggregate Issue Counts",
+        passed:
+          code.includes("PRIMARY_CONTENT_ONLY_IN_RENDERED_OUTPUT") &&
+          code.includes("EXPECTED_CONTENT_MARKER_MISSING_AFTER_RENDER") &&
+          code.includes("RENDER_DEPENDENCIES_BLOCKED_OR_UNAVAILABLE") &&
+          code.includes("findingCounts"),
+        detail: "Reports client-only content, missing text, blocked assets, and deterministic totals by finding code",
+      });
     } else if (id === "task_ecom_integer_cents_dinero_cart_engine") {
       results.push({
         name: "Integer Minor-Unit (Dinero) & Multi-Currency Exponent Guard",
@@ -5558,6 +5588,108 @@ export class Evaluator {
         name: "Stale Sitemap and Internal-Link References",
         passed: Boolean(res?.migrationHygiene),
         detail: "Identifies legacy URLs still emitted by the new sitemap or linked internally",
+      });
+    } else if (taskId === "task_seo_javascript_render_parity_auditor") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const audit = typeof auditRenderedSeoParity === "function" ? auditRenderedSeoParity : exports.auditRenderedSeoParity;
+          const productUrl = "https://shop.example.test/products/wool-coat";
+          const report = audit({ snapshots: [
+            {
+              url: productUrl,
+              status: 200,
+              contentType: "text/html; charset=utf-8",
+              robotsAllowed: true,
+              blockedResources: ["https://cdn.example.test/recommendations.js"],
+              source: {
+                title: "Wool coat",
+                canonicalUrl: productUrl,
+                robotsDirectives: ["index, follow"],
+                hreflang: [
+                  { language: "en-US", url: productUrl },
+                  { language: "fr-CA", url: "https://shop.example.test/fr-ca/manteau-laine" },
+                ],
+                jsonLdEntityIds: ["https://shop.example.test/products/wool-coat#product", "https://shop.example.test/products/wool-coat#breadcrumb"],
+                primaryContentText: "",
+              },
+              rendered: {
+                title: "Wool Coat | Shop",
+                canonicalUrl: "https://shop.example.test/categories/coats",
+                robotsDirectives: ["noindex, follow"],
+                hreflang: [{ language: "en-us", url: productUrl }],
+                jsonLdEntityIds: ["https://shop.example.test/products/wool-coat#product", "https://shop.example.test/#organization"],
+                primaryContentText: "Wool coat in navy. Material: wool.",
+              },
+              expectedContentMarkers: ["Wool coat", "Material: wool", "Care instructions"],
+            },
+            {
+              url: "https://shop.example.test/guides/care",
+              status: 200,
+              contentType: "text/html",
+              robotsAllowed: true,
+              blockedResources: [],
+              source: { title: "Care guide", canonicalUrl: "https://shop.example.test/guides/care", robotsDirectives: ["index"], hreflang: [], jsonLdEntityIds: [], primaryContentText: "Care instructions for wool." },
+              rendered: { title: "Care guide", canonicalUrl: "https://shop.example.test/guides/care", robotsDirectives: ["index"], hreflang: [], jsonLdEntityIds: [], primaryContentText: "Care instructions for wool." },
+              expectedContentMarkers: ["Care instructions"],
+            },
+            {
+              url: "https://shop.example.test/blocked/private",
+              status: 200,
+              contentType: "text/html",
+              robotsAllowed: false,
+              blockedResources: [],
+              source: null,
+              rendered: null,
+            },
+            {
+              url: "https://shop.example.test/manuals/coat.pdf",
+              status: 200,
+              contentType: "application/pdf",
+              robotsAllowed: true,
+              blockedResources: [],
+              source: null,
+              rendered: null,
+            },
+            {
+              url: "https://shop.example.test/missing",
+              status: 404,
+              contentType: "text/html",
+              robotsAllowed: true,
+              blockedResources: [],
+              source: null,
+              rendered: null,
+            },
+          ] });
+          const product = report.pages.find((page) => page.url === productUrl);
+          const blocked = report.pages.find((page) => page.url === "https://shop.example.test/blocked/private");
+          const pdf = report.pages.find((page) => page.url === "https://shop.example.test/manuals/coat.pdf");
+          const missing = report.pages.find((page) => page.url === "https://shop.example.test/missing");
+          const clean = report.pages.find((page) => page.url === "https://shop.example.test/guides/care");
+          return {
+            detectsMetadataHydrationChanges: product?.findings.includes("TITLE_CHANGED_DURING_RENDER") && product?.findings.includes("CANONICAL_CHANGED_DURING_RENDER") && product?.findings.includes("ROBOTS_DIRECTIVE_SET_CHANGED_DURING_RENDER") && product?.findings.includes("NOINDEX_ADDED_DURING_RENDER") && product?.findings.includes("HREFLANG_SET_CHANGED_DURING_RENDER") && product?.findings.includes("JSONLD_ENTITY_IDS_CHANGED_DURING_RENDER"),
+            detectsContentAndBlockedAssetGaps: product?.findings.includes("PRIMARY_CONTENT_ONLY_IN_RENDERED_OUTPUT") && product?.findings.includes("EXPECTED_CONTENT_MARKER_MISSING_AFTER_RENDER") && product?.findings.includes("RENDER_DEPENDENCIES_BLOCKED_OR_UNAVAILABLE") && product.missingRenderedContentMarkers.length === 1,
+            reportsEntityAndAggregateDeltas: product?.sourceOnlyEntityIds.includes("https://shop.example.test/products/wool-coat#breadcrumb") && product?.renderedOnlyEntityIds.includes("https://shop.example.test/#organization") && report.findingCounts.NOINDEX_ADDED_DURING_RENDER === 1,
+            respectsObservabilityAndContentBoundaries: blocked?.disposition === "CRAWL_BLOCKED" && blocked.findings.includes("RENDER_STATE_UNOBSERVABLE_WHILE_CRAWL_BLOCKED") && blocked.findings.length === 1 && pdf?.disposition === "NON_HTML" && missing?.disposition === "HTTP_NON_OK",
+            cleanSsrPageHasNoFindings: clean?.disposition === "AUDITED" && clean.findings.length === 0,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Source and Rendered Metadata, hreflang, and Structured Data Parity",
+        passed: Boolean(res?.detectsMetadataHydrationChanges && res?.reportsEntityAndAggregateDeltas),
+        detail: "Finds hydration changes to title, canonical, noindex, alternates, and JSON-LD entity identity",
+      });
+      results.push({
+        name: "Client-Only Content, Blocked Dependencies, and Expected Text",
+        passed: Boolean(res?.detectsContentAndBlockedAssetGaps),
+        detail: "Reports render-only primary text, unavailable assets, and missing expected content markers",
+      });
+      results.push({
+        name: "Blocked, Non-HTML, and HTTP Error Observability Boundaries",
+        passed: Boolean(res?.respectsObservabilityAndContentBoundaries && res?.cleanSsrPageHasNoFindings),
+        detail: "Does not infer rendered signals for blocked, non-HTML, or non-200 pages and leaves clean SSR pages clear",
       });
     } else if (taskId === "task_ecom_integer_cents_dinero_cart_engine") {
       const harness = `
