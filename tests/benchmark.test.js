@@ -38,7 +38,7 @@ afterEach(async () => {
 describe("Agentic 1M Curriculum Benchmark Suite", () => {
   test("generates catalog stats with difficulty and category distribution", async () => {
     const stats = suite.getCatalogStats();
-    expect(stats.totalTasks).toBe(121);
+    expect(stats.totalTasks).toBe(130);
     expect(stats.byDifficulty.intermediate).toBeGreaterThan(0);
     expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(81);
     expect(stats.byCategory.async).toBeGreaterThan(0);
@@ -65,12 +65,16 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(stats.byCategory["proprietary-design-systems"]).toBe(4);
     expect(stats.byCategory["ui-ux-interaction"]).toBe(4);
     expect(stats.byCategory["web-components"]).toBe(4);
+    expect(stats.byCategory.webgpu).toBe(3);
+    expect(stats.byCategory.webrtc).toBe(3);
+    expect(stats.byCategory.webcodecs).toBe(3);
     expect(stats.byTrack["enterprise-typescript"]).toBe(12);
     expect(stats.byTrack["semantic-web-seo"]).toBe(10);
     expect(stats.byTrack["commerce-fintech"]).toBe(10);
     expect(stats.byTrack["storefront-order-lifecycle"]).toBe(10);
     expect(stats.byTrack["web-cookies-data-traffic"]).toBe(12);
     expect(stats.byTrack["design-systems-web-components"]).toBe(12);
+    expect(stats.byTrack["gpu-realtime-media"]).toBe(9);
 
     const res = await call("GET", "/api/curriculum/benchmark");
     expect(res.status).toBe(200);

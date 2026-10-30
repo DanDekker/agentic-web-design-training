@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>guantlet-web | 121 Web Development Challenges for LLM Agents</title>
-    <meta name="description" content="Practice and evaluate 121 JavaScript and TypeScript web development challenges covering React, Angular, Vue, Svelte, accessibility, APIs, WebMCP and more." />
+    <title>guantlet-web | 130 Web Development Challenges for LLM Agents</title>
+    <meta name="description" content="Practice and evaluate 130 web development challenges covering modern browser platforms, WebGPU compute, realtime media, frameworks, and agentic systems." />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0b0b0b" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="guantlet-web | 121 Web Development Challenges for LLM Agents" />
+    <meta property="og:title" content="guantlet-web | 130 Web Development Challenges for LLM Agents" />
     <meta property="og:description" content="A local curriculum and evaluation workspace for JavaScript, TypeScript, React, Angular, Vue, Svelte, and modern web systems." />
-    <meta property="og:image" content="https://raw.githubusercontent.com/DanDekker/webdev-gauntlet/main/assets/social-preview.png" />
+    <meta property="og:image" content="https://raw.githubusercontent.com/DanDekker/webdev-gauntlet/master/assets/social-preview.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -20,7 +20,7 @@
         "@context": "https://schema.org",
         "@type": "SoftwareSourceCode",
         "name": "guantlet-web",
-        "description": "A local curriculum and evaluation workspace with 121 web development exercises for LLM agents.",
+        "description": "A local curriculum and evaluation workspace with 130 web development exercises for LLM agents.",
         "codeRepository": "https://github.com/DanDekker/webdev-gauntlet",
         "programmingLanguage": ["JavaScript", "TypeScript"],
         "runtimePlatform": "Bun",
@@ -77,7 +77,7 @@
             <svg viewBox="0 0 24 24"><path d="M6.2 12.6l3.7 3.7L17.8 8.3" /></svg>
           </span>
           <span class="brand-name">guantlet-web</span>
-          <span class="version-tag">121 Exercises</span>
+          <span class="version-tag">130 Exercises</span>
         </div>
 
         <div class="bar-actions">
@@ -97,7 +97,7 @@
             <span>Curriculum</span>
           </button>
 
-          <button type="button" class="btn-subtle" id="btn-benchmark-portal" title="121-Exercise Curriculum Benchmark (B)">
+          <button type="button" class="btn-subtle" id="btn-benchmark-portal" title="130-Exercise Curriculum Benchmark (B)">
             <svg viewBox="0 0 24 24" class="icon"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             <span>Benchmark</span>
           </button>
@@ -252,7 +252,7 @@
         <li><kbd>⏎</kbd> Inline edit title</li>
         <li><kbd>R</kbd> Refactoring curriculum / inspect</li>
         <li><kbd>O</kbd> OAuth 2.0 portal</li>
-        <li><kbd>B</kbd> Run 121-exercise benchmark suite</li>
+        <li><kbd>B</kbd> Run 130-exercise benchmark suite</li>
         <li><kbd>C</kbd> Two-user real-time chat & debugger</li>
         <li><kbd>T</kbd> Toggle dark / light theme</li>
         <li><kbd>/</kbd> Focus search filter</li>
@@ -394,7 +394,7 @@
       <div class="modal-card benchmark-card" role="document">
         <header class="modal-header">
           <div>
-            <span class="badge">121-Exercise Curriculum</span>
+            <span class="badge">130-Exercise Curriculum</span>
             <h2 class="modal-title" id="benchmark-title">Agentic Benchmark Suite</h2>
           </div>
           <button type="button" class="close-btn" id="btn-close-benchmark" aria-label="Close dialog">×</button>
@@ -402,12 +402,12 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Executes automated sandboxed verification across all 112 curriculum tasks (Database, Web Auth, Fingerprinting, Cybersec, Long-Horizon Agentic Workflows, Real-Time Chat, Advanced CSS, Fortune 500 TypeScript Frameworks, Cross-Framework Migrations, Package Managers, HTML Living Standard, Technical SEO / Schema.org JSON-LD, E-Commerce Checkouts, Stripe / Polar.sh Payment Processing, Web Shop Storefront / Order Lifecycle Architecture, Deep Web Cookies / Client Storage / HTTP Traffic, Proprietary Design Systems / UI Craft / Web Components, Browser Platform Primitives / Web Workers / Streams &amp; Agentic Web / WebMCP Tool APIs / GEO-AEO Agent Discovery / Agentic Commerce Protocols), computing telemetry, assertion scores, and execution durations.
+            Runs sandboxed checks for all 130 tasks across 35 categories, including WebGPU compute, WebRTC signaling and data channels, WebCodecs media pipelines, browser platform APIs, and agentic-web protocols.
           </p>
 
           <div class="telemetry-grid" id="benchmark-stats-grid">
             <div class="stat-card">
-              <div class="stat-value" id="bench-total-tasks">121</div>
+              <div class="stat-value" id="bench-total-tasks">130</div>
               <div class="stat-label">Total Challenges</div>
             </div>
             <div class="stat-card">
@@ -426,7 +426,10 @@
 
           <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.75rem;margin:1rem 0 1.2rem;">
             <select id="bench-category-filter" class="chat-sender-select" aria-label="Filter benchmark category">
-              <option value="">All 32 Categories (121 Tasks)</option>
+              <option value="">All 35 Categories (130 Tasks)</option>
+              <option value="webgpu">webgpu (3)</option>
+              <option value="webrtc">webrtc (3)</option>
+              <option value="webcodecs">webcodecs (3)</option>
               <option value="css">css (5)</option>
               <option value="html-architecture">html-architecture (5)</option>
               <option value="seo-structured-data">seo-structured-data (5)</option>
