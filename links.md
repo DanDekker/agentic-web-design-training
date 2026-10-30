@@ -70,11 +70,21 @@ Every logo in the README links to the upstream project the curriculum exercises 
 
 | Technology | URL |
 | --- | --- |
+| Express.js | <https://github.com/expressjs/express> |
 | NestJS | <https://github.com/nestjs/nest> |
 | tRPC | <https://github.com/trpc/trpc> |
 | Zod | <https://github.com/colinhacks/zod> |
 | Hono | <https://github.com/honojs/hono> |
 | Fastify | <https://github.com/fastify/fastify> |
+
+### Express 5 API migration lab
+
+| Topic | Official reference |
+| --- | --- |
+| Express 5 error handling and rejected route promises | <https://expressjs.com/en/5x/guide/error-handling/> |
+| Middleware ordering and four-argument error handlers | <https://expressjs.com/en/guide/using-middleware/> |
+| Express 5 migration guide | <https://expressjs.com/en/guide/migrating-5/> |
+| Problem Details for HTTP APIs (RFC 9457) | <https://www.rfc-editor.org/rfc/rfc9457.html> |
 
 **Package ecosystems**
 
