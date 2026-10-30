@@ -117,6 +117,46 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Unique Names and Shared Transition Class", all: ["view-transition-name: featured-product", "view-transition-name: price-summary", "view-transition-class: commerce-item", "::view-transition-group(*.commerce-item)"] },
     { name: "Reduced Motion and Capture Semantics", all: ["prefers-reduced-motion: reduce", "navigation: none", "does not capture an element"] },
   ],
+  task_css_industry_retail_catalog: [
+    { name: "Intrinsic Catalog Tracks", all: ["repeat(auto-fit, minmax(min(100%, 16rem), 1fr))", "gap: clamp("], withinRules: [{ selector: ".retail-catalog", all: ["grid-template-columns", "minmax(min(100%, 16rem)"] }] },
+    { name: "Card-Local Responsive Layout", all: ["container: retail-product / inline-size", "@container retail-product (min-width: 28rem)"], withinRules: [{ selector: ".retail-product", all: ["min-inline-size: 0", "container: retail-product / inline-size"] }, { selector: ".retail-product__layout", all: ["grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)"] }] },
+    { name: "Contained Content, Selection and Focus", all: ["aspect-ratio: 4 / 3", "object-fit: cover", "min-block-size: max(2.75rem, 44px)", "border: 3px double currentColor", ":focus-within"], none: ["float:", "white-space: nowrap"], withinRules: [{ selector: ".retail-product__variant", all: ["min-inline-size: max(2.75rem, 44px)", "min-block-size: max(2.75rem, 44px)"] }, { selector: '.retail-product__variant[aria-pressed="true"]', all: ["border: 3px double currentColor"] }] },
+  ],
+  task_css_industry_healthcare_intake: [
+    { name: "Shrink-Safe Form Layout", all: ["container: patient-intake / inline-size", "repeat(2, minmax(0, 1fr))", "@container patient-intake (max-width: 42rem)"], withinRules: [{ selector: ".patient-intake__grid", all: ["grid-template-columns: repeat(2, minmax(0, 1fr))"] }, { selector: ".patient-intake__field", all: ["min-inline-size: 0"] }] },
+    { name: "Fluid and Touch-Sized Controls", all: ["inline-size: 100%", "min-block-size: max(2.75rem, 44px)", "font: inherit"], none: ["width: 420px", "height: 30px"], withinRules: [{ selector: ".patient-intake__field input,", all: ["inline-size: 100%", "min-block-size: max(2.75rem, 44px)"] }] },
+    { name: "Redundant Error, Focus and Forced-Color Cues", all: ["border-inline-start: 0.4rem double", ":focus-visible", "outline: 3px solid", "forced-colors: active", "CanvasText", "Highlight"], none: ["outline: none"], withinRules: [{ selector: '.patient-intake [aria-invalid="true"]', all: ["border-inline-start: 0.4rem double"] }] },
+  ],
+  task_css_industry_bank_ledger: [
+    { name: "Scrollable Wrapper, Native Table", all: ["overflow: auto", "overscroll-behavior-inline: contain", "border-collapse: separate"], none: ["display: block", "float: right"], withinRules: [{ selector: ".bank-ledger__scroll", all: ["overflow: auto", "overscroll-behavior-inline: contain"] }, { selector: ".bank-ledger table", all: ["border-collapse: separate", "min-inline-size: 56rem"] }] },
+    { name: "Comparable Monetary Values", all: ["font-variant-numeric: tabular-nums lining-nums", "text-align: end", "position: sticky", "inset-block-start: 0"] },
+    { name: "Printable Ledger", all: ["@media print", "overflow: visible", "min-inline-size: 0", "position: static"], withinRules: [{ selector: ".bank-ledger__scroll", all: ["overflow: auto"] }] },
+  ],
+  task_css_industry_logistics_dispatch: [
+    { name: "Embedding-Aware Board", all: ["container: dispatch-board / inline-size", "@container dispatch-board (max-width: 70rem)", "@container dispatch-board (max-width: 38rem)"], withinRules: [{ selector: ".dispatch-board", all: ["container: dispatch-board / inline-size", "min-inline-size: 0"] }] },
+    { name: "Shrink-Safe Lanes and Orders", all: ["grid-template-columns: repeat(4, minmax(0, 1fr))", "overflow-wrap: anywhere"], none: ["width: 280px", "repeat(4, 300px)"], withinRules: [{ selector: ".dispatch-board__lanes", all: ["minmax(0, 1fr)", "min-inline-size: 0"] }, { selector: ".dispatch-lane", all: ["min-inline-size: 0"] }, { selector: ".dispatch-order", all: ["overflow-wrap: anywhere"] }] },
+    { name: "Redundant Severity Cues and Motion Preference", all: ["border-style: dashed", "border-style: double", "font-weight: 700", "forced-colors: active", "prefers-reduced-motion: reduce", "transition: none"] },
+  ],
+  task_css_industry_newsroom_story: [
+    { name: "Editorial Measure and Flexible Type", all: ["max-inline-size: 68ch", "font-size: clamp(", "line-height: 1.75", "text-wrap: balance", "hyphens: auto"], withinRules: [{ selector: ".story-reader__body", all: ["max-inline-size: 68ch", "line-height: 1.75"] }] },
+    { name: "Responsive Story Media and Local Overflow", all: ["max-inline-size: 100%", "aspect-ratio: 16 / 9", "overflow: auto"], none: ["float: left", "white-space: nowrap"], withinRules: [{ selector: ".story-reader__figure img", all: ["aspect-ratio: 16 / 9", "object-fit: cover"] }, { selector: ".story-reader__table-scroll", all: ["max-inline-size: 100%", "overflow: auto"] }] },
+    { name: "Container-Driven Rail and Clean Print", all: ["@container newsroom-story (min-width: 76rem)", "@media print", "story-reader__controls", "attr(href)"], withinRules: [{ selector: ".story-reader__layout", all: ["grid-template-columns: minmax(0, 1fr)"] }] },
+  ],
+  task_css_industry_restaurant_pos: [
+    { name: "Viewport-Safe Touch Menu", all: ["min-block-size: 100svh", "min-block-size: 100dvh", "env(safe-area-inset-left)", "env(safe-area-inset-right)", "repeat(auto-fit"], none: ["width: 1024px", "height: 768px", "float: left"] },
+    { name: "Selected State and Keyboard Target", all: ["min-block-size: max(3.25rem, 52px)", "aria-pressed", "menu-item__selected-marker", ":focus-visible", "outline-offset: 3px"], withinRules: [{ selector: '.menu-item[aria-pressed="true"]', all: ["border: 4px double currentColor"] }] },
+    { name: "Input and Motion Preferences", all: ["(hover: hover) and (pointer: fine)", "prefers-reduced-motion: reduce", "transition: none", "forced-colors: active", "ButtonFace", "Highlight"] },
+  ],
+  task_css_industry_public_permit: [
+    { name: "In-Flow Reflowing Application", all: ["container: permit-workspace / inline-size", "@container permit-workspace (max-width: 54rem)", "grid-template-columns: minmax(0, 1fr)"], none: ["position: fixed", "width: 1200px", "right: 0"] },
+    { name: "Controls and Visible Error Summary", all: ["min-inline-size: 0", "inline-size: 100%", "min-block-size: max(2.75rem, 44px)", "permit-error-summary", "border-inline-start: 0.45rem double"], withinRules: [{ selector: ".permit-form input,", all: ["inline-size: 100%", "min-block-size: max(2.75rem, 44px)"] }, { selector: ".permit-error-summary", all: ["border-inline-start-width: 0.6rem"] }] },
+    { name: "Keyboard and Forced-Color Support", all: [":focus-visible", "outline: 3px solid", "forced-colors: active", "CanvasText", "Highlight"], none: ["outline: none"] },
+  ],
+  task_css_industry_saas_vendor_migration: [
+    { name: "Layer Order and Vendor Import", all: ["@layer legacy-important, reset, vendor, tokens, components, utilities, app-overrides", '@import url("/assets/legacy-admin.css") layer(vendor);'], before: [["@layer legacy-important, reset", "@import url("]] },
+    { name: "Scoped Components and Tokens", all: ["--admin-ink:", "--admin-accent:", ".admin-shell .widget", ":where(.u-hidden)", "layer(vendor)"], withinRules: [{ selector: ".admin-shell", all: ["color: var(--admin-ink)", "font: 1rem/1.5"] }, { selector: ".admin-shell .widget-primary button", all: ["min-block-size: 2.75rem"] }] },
+    { name: "Quarantined Vendor Exception", max: [["!important", 2]], none: ["#admin-root", "html body"], withinRules: [{ selector: ".admin-shell .widget-primary button", all: ["background: var(--admin-accent) !important", "color: #fff !important"] }] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
@@ -131,7 +171,132 @@ function cssCheckPassed(code, check) {
     const laterIndex = code.indexOf(later);
     return firstIndex >= 0 && laterIndex > firstIndex;
   });
-  return includesAll && excludesAll && meetsMinimumCounts && followsRequiredOrder;
+  const meetsMaximumCounts = (check.max || []).every(
+    ([token, maximum]) => code.split(token).length - 1 <= maximum,
+  );
+  const rulesPass = (check.withinRules || []).every(({ selector, all = [], none = [] }) => {
+    return findCssRuleBodies(code, selector).some((body) =>
+      all.every((token) => body.includes(token)) && none.every((token) => !body.includes(token)),
+    );
+  });
+  return includesAll && excludesAll && meetsMinimumCounts && meetsMaximumCounts && followsRequiredOrder && rulesPass;
+}
+
+function findCssRuleBodies(code, selector) {
+  const skipString = (start) => {
+    const quote = code[start];
+    let index = start + 1;
+    while (index < code.length) {
+      if (code[index] === "\\") {
+        index += 2;
+      } else if (code[index] === quote) {
+        return index + 1;
+      } else {
+        index += 1;
+      }
+    }
+    return code.length;
+  };
+
+  const bodies = [];
+  let index = 0;
+  while (index < code.length) {
+    if (code.startsWith("/*", index)) {
+      const end = code.indexOf("*/", index + 2);
+      index = end < 0 ? code.length : end + 2;
+      continue;
+    }
+    if (code[index] === "\"" || code[index] === "'") {
+      index = skipString(index);
+      continue;
+    }
+    if (code.startsWith(selector, index)) {
+      const previous = code[index - 1];
+      const boundaryBefore = index === 0 || /[\s{};,:)]/.test(previous);
+      let open = index + selector.length;
+      while (open < code.length) {
+        if (code.startsWith("/*", open)) {
+          const end = code.indexOf("*/", open + 2);
+          open = end < 0 ? code.length : end + 2;
+          continue;
+        }
+        if (code[open] === "\"" || code[open] === "'") {
+          open = skipString(open);
+          continue;
+        }
+        if (code[open] === "{" || code[open] === ";" || code[open] === "}") break;
+        open += 1;
+      }
+      if (boundaryBefore && code[open] === "{") {
+        let depth = 1;
+        let cursor = open + 1;
+        while (cursor < code.length) {
+          if (code.startsWith("/*", cursor)) {
+            const end = code.indexOf("*/", cursor + 2);
+            cursor = end < 0 ? code.length : end + 2;
+            continue;
+          }
+          if (code[cursor] === "\"" || code[cursor] === "'") {
+            cursor = skipString(cursor);
+            continue;
+          }
+          if (code[cursor] === "{") depth += 1;
+          if (code[cursor] === "}") {
+            depth -= 1;
+            if (depth === 0) {
+              bodies.push(code.slice(open + 1, cursor));
+              index = cursor + 1;
+              break;
+            }
+          }
+          cursor += 1;
+        }
+      }
+    }
+    index += 1;
+  }
+  return bodies;
+}
+
+function hasBalancedCssStructure(code) {
+  const openers = new Map([
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+  ]);
+  const closers = new Set(openers.values());
+  const stack = [];
+
+  for (let index = 0; index < code.length; index += 1) {
+    const char = code[index];
+    if (code.startsWith("/*", index)) {
+      const end = code.indexOf("*/", index + 2);
+      if (end < 0) return false;
+      index = end + 1;
+      continue;
+    }
+    if (char === "\"" || char === "'") {
+      const quote = char;
+      let closed = false;
+      for (index += 1; index < code.length; index += 1) {
+        if (code[index] === "\\") {
+          index += 1;
+        } else if (code[index] === quote) {
+          closed = true;
+          break;
+        }
+      }
+      if (!closed) return false;
+      continue;
+    }
+    if (openers.has(char)) {
+      stack.push(openers.get(char));
+    } else if (closers.has(char) && stack.pop() !== char) {
+      return false;
+    }
+  }
+
+  return stack.length === 0;
 }
 
 export class Evaluator {
@@ -2551,12 +2716,10 @@ export class Evaluator {
     const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
 
     if (task?.category === "css" || taskId === "task_refactor_semantic_a11y") {
-      const openBraces = (code.match(/\{/g) || []).length;
-      const closeBraces = (code.match(/\}/g) || []).length;
       const balanced =
         taskId === "task_refactor_semantic_a11y"
           ? code.includes("<button") && code.includes("</button>")
-          : openBraces > 0 && openBraces === closeBraces;
+          : hasBalancedCssStructure(code);
       results.push({
         name: "Markup / Stylesheet AST & Block Balance Valid",
         passed: balanced,

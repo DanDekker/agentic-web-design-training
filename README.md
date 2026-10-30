@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **170 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **178 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -115,7 +115,7 @@ Each exercise defines a prompt, starter code, acceptance criteria, and a referen
 
 ### CSS engineering and renewal
 
-The dedicated **CSS Engineering** track contains 27 exercises that move from fundamentals through legacy upgrades and advanced platform work. It covers resets and the box model; logical properties and writing modes; floats to Flexbox and Grid; Sass patterns to native CSS; specificities and cascade layers; fluid type and responsive media; accessibility; and rendering, print, and interaction behavior. Existing exercises extend the path through container queries, subgrid, typed design tokens, scroll-driven animation, anchor positioning, and popovers.
+The dedicated **CSS Engineering** track contains 35 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling.
 
 The newest exercises cover bounded `@scope`, the proposed `@function` and `if()` syntax, and cross-document View Transitions. These proposals are evolving W3C drafts; the curriculum labels the experimental syntax and asks for production fallbacks where appropriate. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
 
@@ -125,6 +125,7 @@ The newest exercises cover bounded `@scope`, the proposed `@function` and `if()`
 | Modernization | Sass-to-native CSS, layered cascades, feature-query fallbacks, `:has()` state, native popover transitions |
 | Production quality | Keyboard focus, reduced motion, forced colors, font loading, content visibility, scroll snap and print styles |
 | Advanced platform | Container queries, subgrid, OKLCH tokens, scroll-driven animations, anchor positioning, `@scope`, custom CSS functions, `if()` and cross-document view transitions |
+| Industry implementation | Retail product discovery, patient intake, account ledgers, dispatch operations, editorial publishing, touch-first POS, public-service forms, and SaaS vendor migrations |
 
 ### Frontend framework exercises
 

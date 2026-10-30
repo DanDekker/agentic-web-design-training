@@ -363,12 +363,35 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(170);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(178);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
       expect(res.score).toBe(100);
       expect(res.assertionResults.length).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  test("CSS industry checks bind layout rules to selectors and ignore braces inside comments", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    const task = REFACTORING_CURRICULUM_TASKS.find((item) => item.id === "task_css_industry_retail_catalog");
+    const commented = await evaluator.evaluate(task.id, `${task.solutionCode}\n/* braces in release notes: } { */`);
+    expect(commented.passed).toBe(true);
+
+    const misplaced = task.solutionCode.replace(
+      "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);",
+      "grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);",
+    );
+    const misplacedResult = await evaluator.evaluate(task.id, misplaced);
+    expect(misplacedResult.passed).toBe(false);
+    expect(
+      misplacedResult.assertionResults.some((result) => result.name === "Card-Local Responsive Layout" && !result.passed),
+    ).toBe(true);
+
+    const malformed = await evaluator.evaluate(task.id, `${task.solutionCode}\n.unclosed {`);
+    expect(malformed.passed).toBe(false);
+    expect(
+      malformed.assertionResults.some((result) => result.name === "Markup / Stylesheet AST & Block Balance Valid" && !result.passed),
+    ).toBe(true);
   });
 });
