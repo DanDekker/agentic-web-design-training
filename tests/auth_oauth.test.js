@@ -175,6 +175,50 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect(fields.redirect_uri).toBe(client.redirectUris[0]);
   });
 
+  test("only redirects authorization decisions to an exactly registered URI", async () => {
+    const registered = "http://localhost:3000/oauth/callback";
+    const unregistered = "http://localhost:3000/oauth/callback/elsewhere";
+    const query = new URLSearchParams({ client_id: "agent-runner", redirect_uri: unregistered });
+    const consent = await call("GET", `/oauth/authorize?${query}`);
+    expect(consent.status).toBe(422);
+    expect(consent.headers.get("location")).toBeNull();
+
+    for (const approved of ["true", "false"]) {
+      const decision = await call("POST", "/oauth/authorize/decision", {
+        client_id: "agent-runner", redirect_uri: unregistered, approved,
+      });
+      expect(decision.status).toBe(422);
+      expect(decision.headers.get("location")).toBeNull();
+    }
+
+    const denied = await call("POST", "/oauth/authorize/decision", {
+      client_id: "agent-runner", redirect_uri: registered, approved: "false", state: "state & value",
+    });
+    expect(denied.status).toBe(302);
+    const target = new URL(denied.headers.get("location"));
+    expect(`${target.origin}${target.pathname}`).toBe(registered);
+    expect(target.searchParams.get("error")).toBe("access_denied");
+    expect(target.searchParams.get("state")).toBe("state & value");
+  });
+
+  test("rejects unsafe redirect registrations and requires the original URI at token exchange", async () => {
+    for (const uri of ["javascript:alert(1)", "https://user:pass@example.test/callback", "https://example.test/callback#fragment"]) {
+      const registration = await call("POST", "/oauth/clients", { name: "Unsafe client", redirectUris: [uri] });
+      expect(registration.status).toBe(422);
+    }
+
+    const redirectUri = "http://localhost:3000/oauth/callback";
+    const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    const decision = await (await call("POST", "/oauth/authorize/decision", {
+      client_id: "agent-runner", redirect_uri: redirectUri, approved: "true",
+      code_challenge: sha256Base64Url(verifier), code_challenge_method: "S256",
+    })).json();
+    const tokenRequest = { grant_type: "authorization_code", client_id: "agent-runner", code: decision.code, code_verifier: verifier };
+    expect((await call("POST", "/oauth/token", tokenRequest)).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...tokenRequest, redirect_uri: `${redirectUri}/other` })).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...tokenRequest, redirect_uri: redirectUri })).status).toBe(200);
+  });
+
   test("complete OAuth Authorization Code flow with PKCE S256", async () => {
     const clientId = "agent-runner";
     const redirectUri = "http://localhost:3000/oauth/callback";
