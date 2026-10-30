@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 207 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 208 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -77,6 +77,8 @@ import seoMigrationStarter from "../exercises/seo/technical/migration_audit/star
 import seoMigrationSolution from "../exercises/seo/technical/migration_audit/solution.ts" with { type: "text" };
 import seoRenderStarter from "../exercises/seo/technical/render_parity/starter.ts" with { type: "text" };
 import seoRenderSolution from "../exercises/seo/technical/render_parity/solution.ts" with { type: "text" };
+import protectedDialogStarter from "../exercises/html/dialog_close_policy/starter.ts" with { type: "text" };
+import protectedDialogSolution from "../exercises/html/dialog_close_policy/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
@@ -6197,6 +6199,22 @@ export function renderModernInteractiveShell(spec: InteractiveShellSpec): string
       "Uses native <dialog closedby=\"any\"> paired with declarative Invoker Commands (commandfor and command=\"show-modal\"/\"close\")",
       "Wraps search controls in a semantic HTML <search> landmark with <input type=\"search\">",
       "Uses native Popover API attributes (popover=\"auto\", popovertarget, popovertargetaction) and applies inert to background content when modal is open",
+    ],
+  },
+  {
+    id: "task_html_dialog_close_request_policy",
+    title: "Protect Unsaved Review State with Cancellable Dialog Close Requests",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "dialog", "requestclose", "cancel-event", "closedby", "forms"],
+    instructions:
+      "An insurance review form must not lose unsaved clinician notes when a user presses Escape or chooses Discard. Render a native dialog with closedby=\"closerequest\" so close requests are allowed but outside clicks do not light-dismiss it. Route the explicit discard action through requestClose(), prevent the cancel event when the user declines to discard, and use close() only after the save callback confirms persistence. requestClose() creates a cancellable close request even though it is a method call; do not use form method=\"dialog\", remove the open attribute, or call close() for user discard because those paths bypass cancel handling. Escape script-provided IDs and titles, wire and dispose listeners, and leave the dialog open when persistence fails.",
+    starterCode: protectedDialogStarter.trimEnd(),
+    solutionCode: protectedDialogSolution.trimEnd(),
+    criteria: [
+      "Renders an escaped native dialog with closedby=\"closerequest\" and a semantic labeled edit form",
+      "Uses requestClose() for discard and cancels that close request when edits are dirty and discard is declined",
+      "Calls close() only after persistence succeeds, keeps the dialog open on failure, and removes registered listeners on dispose",
     ],
   },
   {

@@ -1171,6 +1171,34 @@ export class Evaluator {
           code.includes("inert"),
         detail: "Combines semantic <search>, native popover attributes, and background inert management",
       });
+    } else if (id === "task_html_dialog_close_request_policy") {
+      results.push({
+        name: "Native Dialog Close Policy and Escaped Markup",
+        passed:
+          code.includes('closedby="closerequest"') &&
+          code.includes("aria-labelledby") &&
+          code.includes("escapeHtml") &&
+          code.includes("Discard edits"),
+        detail: "Renders a labeled native close-request dialog and escapes dynamic IDs and titles",
+      });
+      results.push({
+        name: "Cancellable User Close Requests",
+        passed:
+          code.includes('dialog.requestClose("discard")') &&
+          code.includes('dialog.addEventListener("cancel"') &&
+          code.includes("event.preventDefault()") &&
+          code.includes("confirmDiscard()"),
+        detail: "Routes discard and Escape through the cancelable close-request path when edits may be lost",
+      });
+      results.push({
+        name: "Commit-Gated Direct Close and Listener Cleanup",
+        passed:
+          code.includes("const committed = await persist()") &&
+          code.includes('dialog.close("saved")') &&
+          code.includes('removeEventListener("cancel"') &&
+          !code.includes('method="dialog"'),
+        detail: "Uses direct close only after persistence and removes every registered listener on disposal",
+      });
     } else if (id === "task_html_responsive_picture_fetchpriority_lcp") {
       results.push({
         name: "Progressive <picture> AVIF/WebP Art Direction & Intrinsic Dimensions",
@@ -4964,6 +4992,82 @@ export class Evaluator {
         name: "Declarative Invoker Commands, Popover, <search> & inert State",
         passed: Boolean(res?.invokerOk && res?.popoverSearchOk && res?.inertToggledOk),
         detail: "Verifies commandfor/command invokers, <dialog closedby=\"any\">, <search> landmark, and inert background",
+      });
+    } else if (taskId === "task_html_dialog_close_request_policy") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const render = typeof renderProtectedEditDialog === "function" ? renderProtectedEditDialog : exports.renderProtectedEditDialog;
+          const bind = typeof bindProtectedEditDialog === "function" ? bindProtectedEditDialog : exports.bindProtectedEditDialog;
+          class FakeDialog {
+            constructor() { this.open = true; this.returnValue = ""; this.listeners = new Map(); this.cancelCount = 0; this.closeCount = 0; }
+            addEventListener(type, listener) { const list = this.listeners.get(type) || []; list.push(listener); this.listeners.set(type, list); }
+            removeEventListener(type, listener) { this.listeners.set(type, (this.listeners.get(type) || []).filter((item) => item !== listener)); }
+            emit(type, event) { for (const listener of this.listeners.get(type) || []) listener(event); }
+            requestClose(value = "") {
+              const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+              this.cancelCount += 1;
+              this.emit("cancel", event);
+              if (!event.defaultPrevented) this.close(value);
+            }
+            close(value = "") {
+              if (!this.open) return;
+              this.open = false;
+              this.returnValue = value;
+              this.closeCount += 1;
+              this.emit("close", {});
+            }
+          }
+          class FakeButton {
+            constructor() { this.listeners = []; }
+            addEventListener(_type, listener) { this.listeners.push(listener); }
+            removeEventListener(_type, listener) { this.listeners = this.listeners.filter((item) => item !== listener); }
+            click() { for (const listener of this.listeners) listener(); }
+          }
+
+          const markup = render("review-7", "Insurance <review> & notes");
+          let allowDiscard = false;
+          let closeResult = "";
+          const dialog = new FakeDialog();
+          const discardButton = new FakeButton();
+          const saveButton = new FakeButton();
+          const binding = bind({ dialog, discardButton, saveButton, isDirty: () => true, confirmDiscard: () => allowDiscard, persist: () => true, onClose: (value) => { closeResult = value; } });
+          discardButton.click();
+          const blockedRequestStayedOpen = dialog.open && dialog.cancelCount === 1 && dialog.closeCount === 0;
+          allowDiscard = true;
+          binding.requestDiscard();
+          const approvedRequestClosed = !dialog.open && dialog.returnValue === "discard" && closeResult === "discard" && dialog.closeCount === 1;
+          binding.dispose();
+
+          let committed = false;
+          let saveCloseResult = "";
+          const savedDialog = new FakeDialog();
+          const savedBinding = bind({ dialog: savedDialog, discardButton: new FakeButton(), saveButton: new FakeButton(), isDirty: () => true, confirmDiscard: () => false, persist: async () => committed, onClose: (value) => { saveCloseResult = value; } });
+          const failedSaveStayedOpen = await savedBinding.saveAndClose() === false && savedDialog.open && savedDialog.cancelCount === 0;
+          committed = true;
+          const successfulSaveClosedDirectly = await savedBinding.saveAndClose() === true && !savedDialog.open && savedDialog.returnValue === "saved" && savedDialog.cancelCount === 0 && saveCloseResult === "saved";
+          savedBinding.dispose();
+
+          let invalidIdRejected = false;
+          try { render("bad id", "Title"); } catch { invalidIdRejected = true; }
+          return {
+            markupAndEscaping: markup.includes('closedby="closerequest"') && markup.includes('aria-labelledby="review-7-title"') && markup.includes("Insurance &lt;review&gt; &amp; notes") && !markup.includes('method="dialog"'),
+            closeRequestCanBeCancelled: blockedRequestStayedOpen && approvedRequestClosed,
+            directCloseRequiresSuccessfulCommit: failedSaveStayedOpen && successfulSaveClosedDirectly,
+            validatesIdsAndDisposes: invalidIdRejected && discardButton.listeners.length === 0 && saveButton.listeners.length === 0,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "closedby Policy and Escaped Native Dialog Markup",
+        passed: Boolean(res?.markupAndEscaping && res?.validatesIdsAndDisposes),
+        detail: "Renders an escaped, labeled form dialog without method=dialog and cleans up event handlers",
+      });
+      results.push({
+        name: "Cancellable Discard Requests and Commit-Gated Save Close",
+        passed: Boolean(res?.closeRequestCanBeCancelled && res?.directCloseRequiresSuccessfulCommit),
+        detail: "Keeps dirty edits open when cancel is vetoed and uses direct close only after a successful save",
       });
     } else if (taskId === "task_html_responsive_picture_fetchpriority_lcp") {
       const harness = `
