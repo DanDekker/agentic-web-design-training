@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 185 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 186 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4618,6 +4618,104 @@ clinic-dose-field::part(control) {
       "Explains that the fixed alert root must be a body-level sibling outside the transformed app shell",
       "Keeps the transform on inner canvas content and layers the sticky navigation and alert through named tokens",
       "Positions the portal against the viewport with logical insets and avoids arbitrary oversized z-index values",
+    ],
+  },
+
+  {
+    id: "task_css_native_controls_color_scheme",
+    title: "Theme Native Public-Service Form Controls Without Replacing Their Browser UI",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "forms", "color-scheme", "accent-color", "forced-colors", "dark-mode"],
+    instructions:
+      "A public-service application has checkboxes, radio buttons, a range input, selects, and text fields. A custom reset removes native appearances, while the page forces light colors even when the user prefers dark mode; focus is also nearly invisible. Let the browser adapt native control surfaces with color-scheme, define author colors for both schemes with prefers-color-scheme, and use accent-color only for controls that support it. Keep controls native, inherit the application font, preserve a visible focus-visible outline, and adapt the page and fields to forced-colors system colors.",
+    starterCode: `/* Branded controls ignore the selected scheme and are hard to focus. */
+:root {
+  color-scheme: light;
+}
+
+.application-form input,
+.application-form select {
+  appearance: none;
+  color: #172b3f;
+}`,
+    solutionCode: `:root {
+  color-scheme: light dark;
+  --page-surface: #f4f7fa;
+  --panel-surface: #fff;
+  --form-ink: #172b3f;
+  --form-muted-ink: #4a5b6b;
+  --form-accent: #075ea8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-surface: #101820;
+    --panel-surface: #192833;
+    --form-ink: #eef5fa;
+    --form-muted-ink: #bdcbd5;
+    --form-accent: #82c8ff;
+  }
+}
+
+.application-shell {
+  min-block-size: 100vh;
+  background-color: var(--page-surface);
+  color: var(--form-ink);
+}
+
+.application-form {
+  max-inline-size: 52rem;
+  margin-inline: auto;
+  padding: 1rem;
+  background-color: var(--panel-surface);
+  color: var(--form-ink);
+}
+
+.application-form :where(input, select, textarea, button) {
+  color: inherit;
+  font: inherit;
+}
+
+.application-form :where(input[type="checkbox"], input[type="radio"], input[type="range"], progress) {
+  accent-color: var(--form-accent);
+}
+
+.application-form :where(input, select, textarea, button):focus-visible {
+  outline: 3px solid var(--form-accent);
+  outline-offset: 3px;
+}
+
+.application-form__hint {
+  color: var(--form-muted-ink);
+}
+
+@media (forced-colors: active) {
+  .application-shell {
+    background-color: Canvas;
+    color: CanvasText;
+  }
+
+  .application-form {
+    background-color: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+  }
+
+  .application-form :where(input, select, textarea) {
+    background-color: Field;
+    color: FieldText;
+    border-color: FieldText;
+  }
+
+  .application-form :where(input, select, textarea, button):focus-visible {
+    outline-color: Highlight;
+  }
+}`,
+    criteria: [
+      "Advertises both light and dark browser UI support with color-scheme and themes application tokens from prefers-color-scheme",
+      "Keeps native controls and uses accent-color for checkable and progress controls instead of replacing their appearance",
+      "Preserves keyboard focus and uses system colors under forced-colors mode",
     ],
   },
 
