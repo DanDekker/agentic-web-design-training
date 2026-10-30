@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 182 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 183 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4415,6 +4415,78 @@ clinic-dose-field::part(control) {
       "Uses :host and a density attribute to expose compact spacing and radius tokens through the shadow boundary",
       "Styles the ElementInternals invalid custom state, exposes the input as ::part(control), and preserves keyboard focus",
       "Uses forced-colors system colors and a double border so invalid state is not conveyed by color alone",
+    ],
+  },
+
+  {
+    id: "task_css_intrinsic_sizing_claims_workspace",
+    title: "Stop Intrinsic Grid and Flex Sizing from Breaking a Claims Review Workspace",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "intrinsic-sizing", "min-content", "responsive-grid", "overflow"],
+    instructions:
+      "An insurance claims team views the same review workspace on a desktop, a split-screen tablet, and a narrow case panel. Long policy IDs, translated notes, and action buttons force the main column off-screen because its grid and card children keep their automatic min-content sizes. Repair the sizing chain with shrink-safe tracks and min-inline-size, let cards auto-fit within their own available width, and wrap unbroken reference strings. Preserve responsive images and let actions wrap instead of clipping or shrinking their text to zero.",
+    starterCode: `/* Fixed tracks and unbreakable data push the workspace past its container. */
+.claim-review {
+  display: grid;
+  grid-template-columns: 20rem 1fr;
+  gap: 2rem;
+}
+
+.claim-list {
+  display: grid;
+  grid-template-columns: repeat(3, 22rem);
+}
+
+.claim-card__reference {
+  white-space: nowrap;
+}`,
+    solutionCode: `/* Long claim references and localized notes must not widen the dashboard. */
+.claim-review {
+  display: grid;
+  grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr);
+  gap: clamp(1rem, 2vw, 2rem);
+}
+
+.claim-review__main,
+.claim-list,
+.claim-card,
+.claim-card__content {
+  min-inline-size: 0;
+}
+
+.claim-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+  gap: 1rem;
+}
+
+.claim-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.claim-card__reference,
+.claim-card__note {
+  overflow-wrap: anywhere;
+}
+
+.claim-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.claim-card img {
+  max-inline-size: 100%;
+  block-size: auto;
+}`,
+    criteria: [
+      "Removes automatic min-content pressure with minmax(0, 1fr) and min-inline-size: 0 along the nested grid chain",
+      "Uses an auto-fitting minmax(min(100%, ...)) card grid that adapts to the workspace container",
+      "Wraps unbroken claim data, allows actions to wrap, and constrains images without distorting their ratio",
     ],
   },
 

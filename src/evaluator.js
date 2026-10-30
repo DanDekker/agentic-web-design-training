@@ -177,6 +177,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Custom State and Public Control Part", all: [":host(:state(invalid)) .control", "border: 3px double currentColor", "clinic-dose-field::part(control)", ".control:focus-visible"] },
     { name: "Forced-Colors Error and Focus Cues", all: ["forced-colors: active", "background-color: Field", "color: FieldText", "outline-color: Highlight", "border-style: double"], none: ["outline: none"] },
   ],
+  task_css_intrinsic_sizing_claims_workspace: [
+    { name: "Shrink-Safe Nested Grid Tracks", all: ["minmax(14rem, 20rem) minmax(0, 1fr)", "grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr)", "min-inline-size: 0"] },
+    { name: "Container-Fitting Auto-Grid", all: ["repeat(auto-fit, minmax(min(100%, 21rem), 1fr))", "gap: 1rem"] },
+    { name: "Long Data and Media Stay Contained", all: ["overflow-wrap: anywhere", "flex-wrap: wrap", "max-inline-size: 100%", "block-size: auto"], none: ["white-space: nowrap", "repeat(3, 22rem)"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
