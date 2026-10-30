@@ -5,8 +5,9 @@ import { ValidationError } from "./store.js";
 
 export const OAUTH_SCOPES = Object.freeze(["read:tasks", "write:tasks", "read:user", "tasks:refactor", "offline_access"]);
 const SCOPE_TOKEN = /^[\x21\x23-\x5B\x5D-\x7E]+$/;
-const S256_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
-const PKCE_VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
+const INVALID_S256_CHARACTER = /[^A-Za-z0-9_-]/;
+const INVALID_VERIFIER_CHARACTER = /[^A-Za-z0-9._~-]/;
+const REFRESH_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
 
 function randomToken(bytes = 24) {
   return randomBytes(bytes).toString("hex");
@@ -56,11 +57,13 @@ export class OAuthServer {
   #clients = [];
   #codes = new Map(); // code -> { clientId, userId, redirectUri, scope, codeChallenge, codeChallengeMethod, expiresAt }
   #tokens = new Map(); // token -> { token, refreshToken, clientId, userId, scope, expiresAt }
-  #refreshTokens = new Map(); // refreshToken -> token
+  #refreshTokens = new Map(); // refreshToken -> token record, independent of access-token expiry
   #queue = Promise.resolve();
+  #now;
 
-  constructor(file) {
+  constructor(file, { now = Date.now } = {}) {
     this.#file = file;
+    this.#now = now;
   }
 
   async load() {
@@ -182,7 +185,7 @@ export class OAuthServer {
     const grantedScope = validateScope(scope, client);
     if (codeChallengeMethod !== "S256" ||
         (codeChallenge !== undefined && codeChallenge !== null && codeChallenge !== "" &&
-         (typeof codeChallenge !== "string" || !S256_CHALLENGE.test(codeChallenge)))) {
+         (typeof codeChallenge !== "string" || codeChallenge.length !== 43 || INVALID_S256_CHARACTER.test(codeChallenge)))) {
       throw new ValidationError("PKCE requires a valid S256 code challenge.");
     }
     return { client, scope: grantedScope };
@@ -192,7 +195,7 @@ export class OAuthServer {
     const authorization = this.validateAuthorizationRequest({ clientId, redirectUri, scope, codeChallenge, codeChallengeMethod });
 
     const code = `authcode_${randomToken(20)}`;
-    const expiresAt = Date.now() + 1000 * 60 * 10; // 10 minutes
+    const expiresAt = this.#now() + 1000 * 60 * 10; // 10 minutes
 
     this.#codes.set(code, {
       code,
@@ -211,7 +214,7 @@ export class OAuthServer {
   exchangeCodeForToken({ code, clientId, clientSecret, redirectUri, codeVerifier }) {
     const record = this.#codes.get(code);
     if (!record) throw new ValidationError("Invalid or expired authorization code.");
-    if (Date.now() > record.expiresAt) {
+    if (this.#now() >= record.expiresAt) {
       this.#codes.delete(code);
       throw new ValidationError("Authorization code has expired.");
     }
@@ -231,7 +234,7 @@ export class OAuthServer {
     }
     // PKCE verification if challenge was supplied
     if (record.codeChallenge) {
-      if (typeof codeVerifier !== "string" || !PKCE_VERIFIER.test(codeVerifier)) {
+      if (typeof codeVerifier !== "string" || codeVerifier.length < 43 || codeVerifier.length > 128 || INVALID_VERIFIER_CHARACTER.test(codeVerifier)) {
         throw new ValidationError("A valid code_verifier is required for PKCE.");
       }
       if (!equalSecrets(sha256Base64Url(codeVerifier), record.codeChallenge)) {
@@ -247,6 +250,7 @@ export class OAuthServer {
     const accessToken = `lat_${randomToken(32)}`;
     const refreshToken = `lrf_${randomToken(32)}`;
     const expiresIn = 3600 * 24; // 24 hours
+    const now = this.#now();
     const tokenRecord = {
       token: accessToken,
       refreshToken,
@@ -254,12 +258,13 @@ export class OAuthServer {
       userId: record.userId,
       scope: record.scope,
       clientAuthenticated: suppliedSecret,
-      expiresAt: Date.now() + expiresIn * 1000,
-      createdAt: new Date().toISOString(),
+      expiresAt: now + expiresIn * 1000,
+      refreshExpiresAt: now + REFRESH_LIFETIME_MS,
+      createdAt: new Date(now).toISOString(),
     };
 
     this.#tokens.set(accessToken, tokenRecord);
-    this.#refreshTokens.set(refreshToken, accessToken);
+    this.#refreshTokens.set(refreshToken, tokenRecord);
 
     return {
       access_token: accessToken,
@@ -278,13 +283,14 @@ export class OAuthServer {
 
     const accessToken = `lat_cc_${randomToken(32)}`;
     const expiresIn = 3600 * 12; // 12 hours
+    const now = this.#now();
     const tokenRecord = {
       token: accessToken,
       clientId,
       userId: "usr_agent",
       scope: grantedScope,
-      expiresAt: Date.now() + expiresIn * 1000,
-      createdAt: new Date().toISOString(),
+      expiresAt: now + expiresIn * 1000,
+      createdAt: new Date(now).toISOString(),
     };
 
     this.#tokens.set(accessToken, tokenRecord);
@@ -297,11 +303,13 @@ export class OAuthServer {
   }
 
   refreshToken(refreshToken, { clientId, clientSecret } = {}) {
-    const oldAccessToken = this.#refreshTokens.get(refreshToken);
-    if (!oldAccessToken) throw new ValidationError("Invalid refresh_token.");
-
-    const existing = this.#tokens.get(oldAccessToken);
-    if (!existing) throw new ValidationError("Token record not found.");
+    const existing = this.#refreshTokens.get(refreshToken);
+    if (!existing) throw new ValidationError("Invalid refresh_token.");
+    const now = this.#now();
+    if (now >= existing.refreshExpiresAt) {
+      this.#refreshTokens.delete(refreshToken);
+      throw new ValidationError("refresh_token has expired.");
+    }
     if (!clientId || existing.clientId !== clientId) throw new ValidationError("refresh_token belongs to another client.");
     const client = this.getClient(clientId);
     if (!client) throw new ValidationError("Invalid client_id.");
@@ -310,7 +318,7 @@ export class OAuthServer {
       throw new ValidationError("Invalid client_secret.");
     }
 
-    this.#tokens.delete(oldAccessToken);
+    this.#tokens.delete(existing.token);
     this.#refreshTokens.delete(refreshToken);
 
     const newAccessToken = `lat_${randomToken(32)}`;
@@ -321,11 +329,12 @@ export class OAuthServer {
       ...existing,
       token: newAccessToken,
       refreshToken: newRefreshToken,
-      expiresAt: Date.now() + expiresIn * 1000,
+      expiresAt: now + expiresIn * 1000,
+      createdAt: new Date(now).toISOString(),
     };
 
     this.#tokens.set(newAccessToken, tokenRecord);
-    this.#refreshTokens.set(newRefreshToken, newAccessToken);
+    this.#refreshTokens.set(newRefreshToken, tokenRecord);
 
     return {
       access_token: newAccessToken,
@@ -340,7 +349,7 @@ export class OAuthServer {
     if (!token) return null;
     const record = this.#tokens.get(token);
     if (!record) return null;
-    if (Date.now() > record.expiresAt) {
+    if (this.#now() >= record.expiresAt) {
       this.#tokens.delete(token);
       return null;
     }
@@ -350,7 +359,7 @@ export class OAuthServer {
     if (!token) return { active: false };
     const record = this.#tokens.get(token);
     if (!record) return { active: false };
-    if (Date.now() > record.expiresAt) {
+    if (this.#now() >= record.expiresAt) {
       this.#tokens.delete(token);
       return { active: false };
     }
@@ -379,8 +388,8 @@ export class OAuthServer {
       return true;
     }
     if (this.#refreshTokens.has(token)) {
-      const acc = this.#refreshTokens.get(token);
-      if (acc) this.#tokens.delete(acc);
+      const record = this.#refreshTokens.get(token);
+      if (record?.token) this.#tokens.delete(record.token);
       this.#refreshTokens.delete(token);
       return true;
     }
