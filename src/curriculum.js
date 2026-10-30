@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 187 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 188 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4814,6 +4814,79 @@ clinic-dose-field::part(control) {
       "Scopes readable Markdown typography and long-link wrapping beneath .markdown-body",
       "Contains wide tables and fenced code in local overflow regions while keeping images and diagrams responsive",
       "Preserves native GFM task-list checkboxes, non-color task state, and visible focus without replacing control appearance",
+    ],
+  },
+
+  {
+    id: "task_css_markdown_anchor_navigation_sticky_header",
+    title: "Keep Markdown Heading Links and Skip Navigation Clear of a Sticky Docs Header",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "markdown", "fragment-navigation", "skip-links", "sticky-header", "accessibility"],
+    instructions:
+      "A documentation portal uses a sticky header and Markdown-generated heading IDs. Search results, table-of-contents links, and heading permalinks land with the target hidden beneath the header; keyboard users also need a reliable skip link to the article. Use scroll-padding on the document scrollport and scroll-margin on generated heading targets, visibly mark the targeted heading, and reveal the skip link on keyboard focus. Smooth scrolling is optional polish, so turn it off for users who prefer reduced motion. Keep the IDs and links supplied by the Markdown renderer; do not rely on JavaScript scrolling.",
+    starterCode: `/* Fragment links land under the sticky header; the skip link stays hidden. */
+.docs-header {
+  position: sticky;
+  top: 0;
+}
+
+.markdown-body h2[id] {
+  scroll-margin: 0;
+}
+
+.docs-skip-link {
+  transform: translateY(-200%);
+}`,
+    solutionCode: `/* The renderer assigns id attributes to Markdown headings. */
+:root {
+  --docs-header-block-size: 4rem;
+  scroll-padding-block-start: calc(var(--docs-header-block-size) + 1rem);
+  scroll-behavior: smooth;
+}
+
+.docs-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 10;
+  min-block-size: var(--docs-header-block-size);
+}
+
+.markdown-body :where(h2, h3, h4)[id] {
+  scroll-margin-block-start: 1rem;
+}
+
+.markdown-body :where(h2, h3, h4)[id]:target {
+  outline: 2px solid currentColor;
+  outline-offset: 0.25rem;
+}
+
+.docs-skip-link {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-start: 0.5rem;
+  z-index: 100;
+  transform: translateY(-160%);
+  padding: 0.75rem 1rem;
+  background-color: Canvas;
+  color: CanvasText;
+}
+
+.docs-skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    scroll-behavior: auto;
+  }
+}`,
+    criteria: [
+      "Uses logical scroll-padding and scroll-margin so Markdown fragments remain visible below the sticky header",
+      "Highlights heading targets and makes the skip link visible on focus-visible",
+      "Provides smooth fragment navigation only when motion is allowed and resets it under prefers-reduced-motion",
     ],
   },
 
