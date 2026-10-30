@@ -212,6 +212,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Target Feedback and Focusable Skip Link", all: [":target", ".docs-skip-link:focus-visible", "transform: translateY(0)", "outline-offset: 3px"] },
     { name: "Motion Preference", all: ["scroll-behavior: smooth", "prefers-reduced-motion: reduce", "scroll-behavior: auto"] },
   ],
+  task_css_custom_highlight_policy_search: [
+    { name: "DOM-Preserving Range Highlights", all: ["document.createRange()", "new HighlightConstructor(...ranges)", "registry.set(highlightName, highlight)", "::highlight(${highlightName})"], none: ["innerHTML", "insertAdjacentHTML", "<mark>"] },
+    { name: "Literal Unicode Search and Grapheme-Safe Bounds", all: ["escapePolicySearchRegExp(literal)", '"giu"', "Intl.Segmenter", "TEXT_BOUNDARY", "MAX_QUERY_LENGTH = 256", "MAX_HIGHLIGHT_RANGES = 500"] },
+    { name: "Feature Gate, Live Count, and Forced Colors", all: ["CSS?.highlights", "selector(::highlight(${highlightName}))", 'role="status"', "forced-colors: active", "HighlightText", 'removeEventListener("input"', "refresh: update"] },
+  ],
   task_css_responsive_embeds_stable_geometry: [
     { name: "Fluid Media Geometry Reservation", all: [".course-embed", "inline-size: 100%", "aspect-ratio: 16 / 9", "aspect-ratio: 9 / 16", "max-inline-size: 100%"] },
     { name: "Frame Fills the Reserved Wrapper", all: [":where(iframe, video)", "position: absolute", "inset: 0", "block-size: 100%", "border: 0"] },
@@ -3284,7 +3289,7 @@ export class Evaluator {
     const results = [];
     const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
 
-    if (task?.category === "css" || taskId === "task_refactor_semantic_a11y") {
+    if ((task?.category === "css" && taskId !== "task_css_custom_highlight_policy_search") || taskId === "task_refactor_semantic_a11y") {
       const balanced =
         taskId === "task_refactor_semantic_a11y"
           ? code.includes("<button") && code.includes("</button>")
@@ -3374,7 +3379,183 @@ export class Evaluator {
 
     const ctx = createContext(sandbox);
 
-    if (taskId === "task_refactor_async_pipeline") {
+    if (taskId === "task_css_custom_highlight_policy_search") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const render = typeof renderPolicySearchControls === "function"
+            ? renderPolicySearchControls
+            : exports.renderPolicySearchControls;
+          const findMatches = typeof findPolicySearchMatches === "function"
+            ? findPolicySearchMatches
+            : exports.findPolicySearchMatches;
+          const attach = typeof attachPolicySearchHighlights === "function"
+            ? attachPolicySearchHighlights
+            : exports.attachPolicySearchHighlights;
+
+          class FakeText {
+            constructor(data, ownerDocument) {
+              this.nodeType = 3;
+              this.data = data;
+              this.ownerDocument = ownerDocument;
+              this.parentElement = null;
+            }
+          }
+          class FakeElement {
+            constructor(tagName, ownerDocument, attributes = {}) {
+              this.nodeType = 1;
+              this.tagName = tagName.toLowerCase();
+              this.ownerDocument = ownerDocument;
+              this.attributes = new Map(Object.entries(attributes));
+              this.childNodes = [];
+              this.parentElement = null;
+              this.listeners = new Map();
+              this.textContent = "";
+              this.value = "";
+            }
+            appendChild(child) {
+              child.parentElement = this;
+              this.childNodes.push(child);
+              return child;
+            }
+            matches(selector) {
+              return selector.split(",").some((raw) => {
+                const part = raw.trim();
+                if (!part.startsWith("[") || !part.endsWith("]")) return this.tagName === part;
+                const content = part.slice(1, -1);
+                const equals = content.indexOf("=");
+                const name = equals < 0 ? content : content.slice(0, equals);
+                if (!this.attributes.has(name)) return false;
+                if (equals < 0) return true;
+                let expected = content.slice(equals + 1);
+                if (expected.charCodeAt(0) === 34 && expected.charCodeAt(expected.length - 1) === 34) expected = expected.slice(1, -1);
+                if (expected.charCodeAt(0) === 39 && expected.charCodeAt(expected.length - 1) === 39) expected = expected.slice(1, -1);
+                return this.attributes.get(name) === expected;
+              });
+            }
+            closest(selector) {
+              let current = this;
+              while (current) {
+                if (current.matches(selector)) return current;
+                current = current.parentElement;
+              }
+              return null;
+            }
+            addEventListener(type, listener) {
+              if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+              this.listeners.get(type).add(listener);
+            }
+            removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); }
+            dispatch(type) { for (const listener of this.listeners.get(type) ?? []) listener({ type }); }
+          }
+          class FakeRange {
+            setStart(node, offset) { this.startContainer = node; this.startOffset = offset; }
+            setEnd(node, offset) { this.endContainer = node; this.endOffset = offset; }
+          }
+          class FakeHighlight {
+            constructor(...ranges) { this.ranges = ranges; this.priority = -1; }
+          }
+          class FakeDocument {
+            constructor(selectorSupported = true) {
+              this.rangeCount = 0;
+              const registry = new Map();
+              this.defaultView = {
+                CSS: { highlights: registry, supports: () => selectorSupported },
+                Highlight: FakeHighlight,
+              };
+              this.registry = registry;
+            }
+            createRange() { this.rangeCount += 1; return new FakeRange(); }
+          }
+          function makeFixture(selectorSupported = true) {
+            const document = new FakeDocument(selectorSupported);
+            const article = new FakeElement("article", document);
+            const paragraph = new FakeElement("p", document);
+            paragraph.appendChild(new FakeText("The clause is in ", document));
+            const emphasis = new FakeElement("em", document);
+            const emphasisText = emphasis.appendChild(new FakeText("Cox", document));
+            paragraph.appendChild(emphasis);
+            const continuationText = paragraph.appendChild(new FakeText(" (Form 10-K) and applies.", document));
+            article.appendChild(paragraph);
+            const secondParagraph = new FakeElement("p", document);
+            secondParagraph.appendChild(new FakeText("COX (FORM 10-K) appears again.", document));
+            article.appendChild(secondParagraph);
+            const hidden = new FakeElement("div", document, { hidden: "" });
+            hidden.appendChild(new FakeText("Cox (Form 10-K) must stay excluded.", document));
+            article.appendChild(hidden);
+            const input = new FakeElement("input", document);
+            const status = new FakeElement("p", document);
+            return { document, article, input, status, emphasisText, continuationText };
+          }
+
+          const controls = render({ instanceId: "case-17", articleId: "policy-body" });
+          let unsafeIdRejected = false;
+          try { render({ instanceId: 'bad" onfocus="x', articleId: "policy-body" }); } catch { unsafeIdRejected = true; }
+          const literalMetaMatches = findMatches("(Form 10-K), then (form 10-k).", "(Form 10-K)");
+          const cappedMatches = findMatches("x ".repeat(501), "x");
+          let longQueryRejected = false;
+          try { findMatches("policy", "x".repeat(257)); } catch { longQueryRejected = true; }
+          const combiningText = "e" + String.fromCharCode(0x0301);
+          const graphemeSafe = findMatches(combiningText, "e").matches.length === 0 &&
+            findMatches(combiningText, combiningText).matches.length === 1;
+
+          const fixture = makeFixture(true);
+          const originalChildCount = fixture.article.childNodes.length;
+          const controller = attach(fixture.article, fixture.input, fixture.status, "case-17");
+          fixture.input.value = "cox (form 10-k)";
+          fixture.input.dispatch("input");
+          const name = "policy-search-match--case-17";
+          const firstHighlight = fixture.document.registry.get(name);
+          const inlineRangeCrossesNodes = firstHighlight?.ranges?.[0]?.startContainer === fixture.emphasisText &&
+            firstHighlight?.ranges?.[0]?.endContainer === fixture.continuationText;
+          const foundOccurrences = firstHighlight?.ranges?.length === 2 && fixture.status.textContent === "Found 2 matching passages.";
+          const beforeRefresh = fixture.article.childNodes.length;
+          const lastParagraph = new FakeElement("p", fixture.document);
+          lastParagraph.appendChild(new FakeText("Cox (Form 10-K) is the final copy.", fixture.document));
+          fixture.article.appendChild(lastParagraph);
+          controller.refresh();
+          const refreshAndNoMutation = fixture.document.registry.get(name)?.ranges?.length === 3 &&
+            fixture.article.childNodes.length === beforeRefresh + 1 && originalChildCount === 3;
+          controller.dispose();
+          const cleanupWorks = !fixture.document.registry.has(name) &&
+            (fixture.input.listeners.get("input")?.size ?? 0) === 0 && fixture.status.textContent === "";
+
+          const fallback = makeFixture(false);
+          const fallbackController = attach(fallback.article, fallback.input, fallback.status, "case-18");
+          fallback.input.value = "Cox (Form 10-K)";
+          fallback.input.dispatch("input");
+          const noApiFallback = fallback.status.textContent === "2 matching passages. Visual highlighting is unavailable in this browser." &&
+            fallback.document.registry.size === 0 && fallback.article.childNodes.length === 3;
+          fallbackController.dispose();
+
+          return {
+            semanticControlsAndCSS: controls.html.includes("<search") && controls.html.includes('type="search"') &&
+              controls.html.includes('aria-controls="policy-body"') && controls.html.includes('role="status"') &&
+              controls.css.includes("@supports selector(::highlight(policy-search-match--case-17))") &&
+              controls.css.includes("forced-colors: active") && controls.css.includes("background-color: Highlight") && unsafeIdRejected,
+            literalRangeMappingAndTextSafety: literalMetaMatches.matches.length === 2 && cappedMatches.matches.length === 500 &&
+              cappedMatches.truncated && longQueryRejected && graphemeSafe && inlineRangeCrossesNodes && foundOccurrences && refreshAndNoMutation,
+            featureFallbackAndLifecycle: cleanupWorks && noApiFallback,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Semantic Search Controls and Forced-Color Highlight Styles",
+        passed: Boolean(res?.semanticControlsAndCSS),
+        detail: "Checks the labeled native search control, associated live status, selector gate, safe IDs, and system colors",
+      });
+      results.push({
+        name: "Literal Search Across Inline Markup and Bounded Unicode Ranges",
+        passed: Boolean(res?.literalRangeMappingAndTextSafety),
+        detail: "Verifies literal punctuation, case-insensitive matches, inline-crossing ranges, excluded blocks, grapheme bounds, and range caps",
+      });
+      results.push({
+        name: "Feature Fallback, Refresh, and Registry Cleanup",
+        passed: Boolean(res?.featureFallbackAndLifecycle),
+        detail: "Keeps unsupported content intact with a useful count, refreshes changed text, and disposes only its own registry entry and listener",
+      });
+    } else if (taskId === "task_refactor_async_pipeline") {
       const harness = `
         const fetchUser = async (id) => ({ id });
         const fetchUserPreferences = async () => ({ theme: "mono" });
