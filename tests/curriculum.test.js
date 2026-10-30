@@ -299,7 +299,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
   test("verifies HTML architecture tasks across directionality, native forms, exclusive disclosures, Shadow DOM, and media", async () => {
     const tasksRes = await call("GET", "/api/curriculum/tasks?category=html-architecture");
     const { tasks: htmlTasks } = await tasksRes.json();
-    expect(htmlTasks.length).toBe(11);
+    expect(htmlTasks.length).toBe(12);
 
     for (const htmlTask of htmlTasks) {
       const verifyRes = await call("POST", "/api/curriculum/verify", {
