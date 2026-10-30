@@ -200,7 +200,7 @@ const CSS_TASK_CHECKS = Object.freeze({
   task_css_markdown_gfm_content_renderer: [
     { name: "Readable and Reflowing Markdown Content", all: [".markdown-body", "max-inline-size: 80ch", "line-height: 1.65", "overflow-wrap: anywhere", "scroll-margin-block-start: 6rem"] },
     { name: "Local Table and Code Overflow", all: [".markdown-table-scroll", "overscroll-behavior-inline: contain", "min-inline-size: 42rem", ".markdown-body pre", "overflow: auto", "white-space: pre"] },
-    { name: "Native Task Lists and Keyboard Focus", all: [".contains-task-list", ".task-list-item > input[type=\\"checkbox\\"]", "accent-color:", ":focus-visible", "outline-offset: 3px"], none: ["outline: none", "white-space: nowrap"] },
+    { name: "Native Task Lists and Keyboard Focus", all: [".contains-task-list", ".task-list-item > input[type=\"checkbox\"]", "accent-color:", ":focus-visible", "outline-offset: 3px"], none: ["outline: none", "white-space: nowrap"] },
   ],
   task_css_markdown_anchor_navigation_sticky_header: [
     { name: "Document and Heading Scroll Offsets", all: ["--docs-header-block-size: 4rem", "scroll-padding-block-start: calc(var(--docs-header-block-size) + 1rem)", "scroll-margin-block-start: 1rem"] },
