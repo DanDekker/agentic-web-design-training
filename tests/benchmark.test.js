@@ -38,12 +38,12 @@ afterEach(async () => {
 describe("Agentic 1M Curriculum Benchmark Suite", () => {
   test("generates catalog stats with difficulty and category distribution", async () => {
     const stats = suite.getCatalogStats();
-    expect(stats.totalTasks).toBe(179);
+    expect(stats.totalTasks).toBe(180);
     expect(stats.byDifficulty.intermediate).toBeGreaterThan(0);
     expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(81);
     expect(stats.byCategory.async).toBeGreaterThan(0);
     expect(stats.byCategory.performance).toBeGreaterThan(0);
-    expect(stats.byCategory.css).toBe(36);
+    expect(stats.byCategory.css).toBe(37);
     expect(stats.byCategory.database).toBe(4);
     expect(stats.byCategory["web-auth"]).toBe(4);
     expect(stats.byCategory["web-fingerprinting"]).toBe(4);

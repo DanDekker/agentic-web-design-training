@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 179 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 180 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4205,6 +4205,51 @@ function positionTooltip(triggerEl, tooltipEl) {
       "Keeps the order total sticky with a logical block-start offset and a stable stacking order",
       "Progressively enhances the surface shadow with a scroll-state query for the stuck block-start state",
       "Leaves sticky geometry unchanged in the query and removes the shadow transition for reduced motion",
+    ],
+  },
+
+  {
+    id: "task_css_shadow_nested_exportparts_contract",
+    title: "Expose a Stable Nested Part API for a Healthcare Medication Form",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "shadow-dom", "exportparts", "parts-api", "healthcare"],
+    instructions:
+      "A healthcare design system nests a reusable field inside a medication section, which is itself inside a patient form component. The host application needs to theme the medication control and its persistent help text without reaching through either shadow boundary. Document the two exportparts mappings, style only the final public ::part() names, and pass color values inward with custom properties so component defaults remain intact. Keep the API intentionally small; private icons and validation implementation details must stay encapsulated. CSS Shadow Module Level 1 defines part exposure and forwarding; treat the exported names as a versioned component contract.",
+    starterCode: `/* The application needs stable hooks without depending on internal markup. */
+care-patient-form {
+  color: #18324b;
+}`,
+    solutionCode: `/* Shadow markup contract:
+   care-medication-section contains
+   <care-medication-field exportparts="control: field-control, hint: field-hint">
+   care-patient-form contains
+   <care-medication-section exportparts="field-control: medication-control, field-hint: medication-hint">
+   The component roots forward only these documented names. */
+care-patient-form {
+  --patient-field-accent: #125b83;
+  --patient-field-surface: Canvas;
+  --patient-field-ink: CanvasText;
+}
+
+care-patient-form::part(medication-control) {
+  border: 2px solid var(--patient-field-accent);
+  border-radius: 0.35rem;
+  background-color: var(--patient-field-surface);
+  color: var(--patient-field-ink);
+  font: inherit;
+  min-block-size: 2.75rem;
+}
+
+care-patient-form::part(medication-hint) {
+  color: var(--patient-field-ink);
+  line-height: 1.45;
+  max-inline-size: 65ch;
+}`,
+    criteria: [
+      "Documents both nested exportparts mappings from control and hint to the medication-control and medication-hint public names",
+      "Styles the final exposed parts through the outer care-patient-form host and shares values inward with custom properties",
+      "Keeps private shadow implementation details encapsulated and does not use deep selectors or important overrides",
     ],
   },
 
