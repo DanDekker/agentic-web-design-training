@@ -49,6 +49,16 @@ const json = (data, status = 200, extraHeaders = {}) =>
 
 const noContent = () => new Response(null, { status: 204 });
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+}
+
 async function readJson(req) {
   const text = await req.text();
   if (!text.trim()) return {};
@@ -204,7 +214,7 @@ const benchmarkSuite = new BenchmarkSuite();
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Authorize ${client.name} — gauntlet-web OAuth</title>
+  <title>Authorize ${escapeHtml(client.name)} — gauntlet-web OAuth</title>
   <link rel="stylesheet" href="/styles.css">
   <style>
     body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1.5rem; }
@@ -226,21 +236,21 @@ const benchmarkSuite = new BenchmarkSuite();
     </div>
     <h2 style="margin:0 0 0.5rem;font-family:var(--font-display);font-weight:400;font-size:1.8rem;">Authorize Application</h2>
     <p style="color:var(--muted);font-size:0.9rem;margin:0 0 1.2rem;">
-      <strong>${client.name}</strong> is requesting permission to access your tasks and refactoring curriculum data.
+      <strong>${escapeHtml(client.name)}</strong> is requesting permission to access your tasks and refactoring curriculum data.
     </p>
     <ul class="scope-list">
-      ${scope.split(" ").map((s) => `<li><span class="scope-tag">${s}</span><span>Permission to access ${s}</span></li>`).join("")}
+      ${scope.split(" ").map((s) => `<li><span class="scope-tag">${escapeHtml(s)}</span><span>Permission to access ${escapeHtml(s)}</span></li>`).join("")}
     </ul>
     <div style="font-size:0.75rem;color:var(--faint);font-family:var(--font-mono);">
-      Account: ${currentUser ? currentUser.username : "guest (default agent)"}
+      Account: ${escapeHtml(currentUser ? currentUser.username : "guest (default agent)")}
     </div>
     <form method="POST" action="/oauth/authorize/decision">
-      <input type="hidden" name="client_id" value="${clientId}">
-      <input type="hidden" name="redirect_uri" value="${redirectUri || ""}">
-      <input type="hidden" name="scope" value="${scope}">
-      <input type="hidden" name="state" value="${state}">
-      <input type="hidden" name="code_challenge" value="${codeChallenge}">
-      <input type="hidden" name="code_challenge_method" value="${codeChallengeMethod}">
+      <input type="hidden" name="client_id" value="${escapeHtml(clientId)}">
+      <input type="hidden" name="redirect_uri" value="${escapeHtml(redirectUri)}">
+      <input type="hidden" name="scope" value="${escapeHtml(scope)}">
+      <input type="hidden" name="state" value="${escapeHtml(state)}">
+      <input type="hidden" name="code_challenge" value="${escapeHtml(codeChallenge)}">
+      <input type="hidden" name="code_challenge_method" value="${escapeHtml(codeChallengeMethod)}">
       <div class="btn-row">
         <button type="submit" name="approved" value="false" class="btn-deny">Deny</button>
         <button type="submit" name="approved" value="true" class="btn-approve">Authorize</button>
@@ -249,7 +259,7 @@ const benchmarkSuite = new BenchmarkSuite();
   </div>
 </body>
 </html>`;
-        return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+        return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (pathname === "/oauth/authorize/decision" && req.method === "POST") {

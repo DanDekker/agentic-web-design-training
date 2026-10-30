@@ -140,6 +140,41 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect(clients.some((c) => c.clientId === "agent-runner")).toBe(true);
   });
 
+  test("renders consent data as text and preserves state without creating markup", async () => {
+    const injectedName = `<img src=x onerror=alert(1)> & 'client'`;
+    const injectedState = `"><img src=x onerror=alert(1)> & 'state'`;
+    const injectedScope = "<img/src=x>";
+    const client = await oauthServer.registerClient({
+      name: injectedName,
+      redirectUris: ["http://localhost:3000/oauth/callback"],
+      allowedScopes: ["read:tasks", injectedScope],
+    });
+    const params = new URLSearchParams({
+      client_id: client.clientId,
+      redirect_uri: client.redirectUris[0],
+      scope: `read:tasks ${injectedScope}`,
+      state: injectedState,
+      code_challenge: "a".repeat(43),
+      code_challenge_method: "S256",
+    });
+    const res = await call("GET", `/oauth/authorize?${params}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const html = await res.text();
+    const fields = {};
+    let images = 0;
+    await new HTMLRewriter()
+      .on("input", { element(node) { fields[node.getAttribute("name")] = node.getAttribute("value"); } })
+      .on("img", { element() { images++; } })
+      .transform(new Response(html)).text();
+    expect(images).toBe(0);
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt; &amp; &#39;client&#39;");
+    // HTMLRewriter exposes the source-encoded attribute values.
+    expect(fields.state).toBe("&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; &#39;state&#39;");
+    expect(fields.scope).toBe("read:tasks &lt;img/src=x&gt;");
+    expect(fields.redirect_uri).toBe(client.redirectUris[0]);
+  });
+
   test("complete OAuth Authorization Code flow with PKCE S256", async () => {
     const clientId = "agent-runner";
     const redirectUri = "http://localhost:3000/oauth/callback";
