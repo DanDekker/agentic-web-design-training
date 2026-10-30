@@ -6,7 +6,7 @@ import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
 const task = REFACTORING_CURRICULUM_TASKS.find((item) => item.id === "task_refactor_async_pipeline");
 
 test("an unfinished async solution times out with a normal failed result", async () => {
-  const evaluator = new Evaluator({ timeoutMs: 500 });
+  const evaluator = new Evaluator({ timeoutMs: 1000 });
   const result = await evaluator.evaluate(task.id, "async function processUserData() { return new Promise(() => {}); }");
   expect(result.passed).toBe(false);
   expect(result.taskId).toBe(task.id);
@@ -45,7 +45,7 @@ test("runaway loops, worker exits, and leftover timers do not affect later runs"
   const script = `
     import { Evaluator } from './src/evaluator.js';
     import { REFACTORING_CURRICULUM_TASKS } from './src/curriculum.js';
-    const evaluator = new Evaluator({ timeoutMs: 500 });
+    const evaluator = new Evaluator({ timeoutMs: 1000 });
     const task = REFACTORING_CURRICULUM_TASKS.find(item => item.id === 'task_refactor_async_pipeline');
     const stalled = await evaluator.evaluate(task.id, 'async function processUserData() { await Promise.resolve(); while (true) {} }');
     const exited = await evaluator.evaluate(task.id, 'setTimeout.constructor("return process")().exit(7); async function processUserData() {}');
