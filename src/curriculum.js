@@ -55,6 +55,8 @@ import gpuCapabilitiesStarter from "../exercises/platform/webgpu/capability_sele
 import gpuCapabilitiesSolution from "../exercises/platform/webgpu/capability_selection/solution.js" with { type: "text" };
 import gpuReadbackStarter from "../exercises/platform/webgpu/buffer_readback/starter.js" with { type: "text" };
 import gpuReadbackSolution from "../exercises/platform/webgpu/buffer_readback/solution.js" with { type: "text" };
+import rtcNegotiationStarter from "../exercises/platform/webrtc/perfect_negotiation/starter.js" with { type: "text" };
+import rtcNegotiationSolution from "../exercises/platform/webrtc/perfect_negotiation/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -162,6 +164,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "web-workers": "browser-platform",
   "web-streams": "browser-platform",
   webgpu: "gpu-realtime-media",
+  webrtc: "gpu-realtime-media",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10154,6 +10157,23 @@ export class VirtualizedShadowListEngine {
       "Rounds GPU copy sizes to four-byte alignment while returning exactly the requested byte count",
       "Checks the padded range against the source allocation before issuing the copy",
       "Destroys the staging buffer on success and on map or copy failure",
+    ],
+  },
+  {
+    id: "task_webrtc_perfect_negotiation",
+    title: "Resolve Glare in Simultaneous WebRTC Offers with Perfect Negotiation",
+    category: "webrtc",
+    difficulty: "advanced",
+    tags: ["webrtc", "signaling", "offer-collision", "rollback", "peer-to-peer"],
+    instructions:
+      "Two peers enter have-local-offer at the same time and deliver colliding offers. Implement the perfect-negotiation roles: the impolite peer ignores the collision, while the polite peer rolls its local offer back, applies the remote offer, and answers it. Track an in-flight offer separately from signalingState so events delivered during setLocalDescription are safe.",
+    starterCode: rtcNegotiationStarter,
+    solutionCode: rtcNegotiationSolution,
+    criteria: [
+      "Detects offer glare from both makingOffer and the peer connection signaling state",
+      "Has an impolite peer ignore a colliding remote offer without mutating its connection",
+      "Rolls back a polite peer's local offer before applying the remote offer",
+      "Generates and returns an answer for an accepted remote offer",
     ],
   },
 ];

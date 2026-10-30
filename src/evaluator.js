@@ -1953,6 +1953,24 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webrtc_perfect_negotiation") {
+      results.push({
+        name: "Stable-State Offer Collision Detection",
+        passed: code.includes("makingOffer") && code.includes("signalingState"),
+        detail: "Recognizes local offers that are currently being created or already signaled",
+      });
+      results.push({
+        name: "Polite Rollback & Impolite Ignore Roles",
+        passed:
+          code.includes("offerCollision") && code.includes("!polite") &&
+          code.includes('type: "rollback"'),
+        detail: "Prevents glare without applying conflicting local and remote offers",
+      });
+      results.push({
+        name: "Offer Answer Completion",
+        passed: code.includes("setRemoteDescription") && code.includes("answer"),
+        detail: "Applies the accepted offer and returns the generated local answer",
+      });
     } else if (id === "task_webgpu_buffer_readback") {
       results.push({
         name: "GPU Readback Usage & Copy Alignment",
@@ -6806,6 +6824,60 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webrtc_perfect_negotiation") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          function makePeer(signalingState) {
+            const operations = [];
+            return {
+              signalingState,
+              localDescription: { type: "offer", sdp: "local" },
+              operations,
+              async setLocalDescription(description) {
+                operations.push(description?.type ?? "local:auto");
+                if (description?.type === "rollback") this.signalingState = "stable";
+                else if (this.signalingState === "have-remote-offer") {
+                  this.localDescription = { type: "answer", sdp: "answer" };
+                  this.signalingState = "stable";
+                } else {
+                  this.localDescription = { type: "offer", sdp: "offer" };
+                  this.signalingState = "have-local-offer";
+                }
+              },
+              async setRemoteDescription(description) {
+                operations.push("remote:" + description.type);
+                this.signalingState = description.type === "offer" ? "have-remote-offer" : "stable";
+              },
+            };
+          }
+          try {
+            const offer = { type: "offer", sdp: "remote" };
+            const impolitePeer = makePeer("have-local-offer");
+            const impolite = createPerfectNegotiationController(impolitePeer, false);
+            const ignored = await impolite.receiveDescription(offer);
+            const politePeer = makePeer("have-local-offer");
+            const polite = createPerfectNegotiationController(politePeer, true);
+            const accepted = await polite.receiveDescription(offer);
+            const stablePeer = makePeer("stable");
+            const stable = createPerfectNegotiationController(stablePeer, false);
+            const ordinaryOffer = await stable.receiveDescription(offer);
+            return {
+              perfectNegotiationOk:
+                ignored.ignored && impolitePeer.operations.length === 0 &&
+                !accepted.ignored && accepted.answer?.type === "answer" &&
+                politePeer.operations.join(",") === "rollback,remote:offer,local:auto" &&
+                !ordinaryOffer.ignored && ordinaryOffer.answer?.type === "answer",
+            };
+          } catch { return { perfectNegotiationOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Simultaneous WebRTC Offers with Polite Rollback",
+        passed: Boolean(res?.perfectNegotiationOk),
+        detail: "Ignores glare on one peer and rolls back then answers on the polite peer",
       });
     } else if (taskId === "task_webgpu_buffer_readback") {
       const harness = `
