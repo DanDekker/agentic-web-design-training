@@ -65,6 +65,8 @@ import codecQueueStarter from "../exercises/platform/webcodecs/bounded_encode_qu
 import codecQueueSolution from "../exercises/platform/webcodecs/bounded_encode_queue/solution.js" with { type: "text" };
 import codecTimestampStarter from "../exercises/platform/webcodecs/timestamp_mapper/starter.js" with { type: "text" };
 import codecTimestampSolution from "../exercises/platform/webcodecs/timestamp_mapper/solution.js" with { type: "text" };
+import codecRouterStarter from "../exercises/platform/webcodecs/decoder_config_router/starter.js" with { type: "text" };
+import codecRouterSolution from "../exercises/platform/webcodecs/decoder_config_router/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10251,6 +10253,23 @@ export class VirtualizedShadowListEngine {
       "Keeps the first timestamp non-negative and subsequent timestamps strictly increasing",
       "Resolves duplicate and regressing rounded timestamps without emitting ties",
       "Rejects non-finite input and results outside JavaScript safe-integer precision",
+    ],
+  },
+  {
+    id: "task_webcodecs_decoder_config_router",
+    title: "Flush WebCodecs Output Before Switching Decoder Configurations",
+    category: "webcodecs",
+    difficulty: "advanced",
+    tags: ["webcodecs", "videodecoder", "decoder-config", "flush", "codec-metadata"],
+    instructions:
+      "A video stream changes resolution and embeds decoderConfig metadata on its new key chunk. Reconfigure the VideoDecoder only when the complete config changes, compare binary descriptions by bytes rather than object identity, and flush pending decoded output before switching configurations so frames from both epochs are emitted in order. Reject chunks that arrive before the stream's first key chunk establishes a configuration.",
+    starterCode: codecRouterStarter,
+    solutionCode: codecRouterSolution,
+    criteria: [
+      "Uses decoderConfig metadata to configure the stream before decoding its first chunk",
+      "Compares complete decoder configurations deterministically, including binary description bytes",
+      "Flushes pending output before applying a changed codec or resolution configuration",
+      "Avoids reconfiguring identical metadata and reports missing initial configuration",
     ],
   },
 ];

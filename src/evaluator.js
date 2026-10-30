@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webcodecs_decoder_config_router") {
+      results.push({
+        name: "Complete Decoder Config Signature",
+        passed: code.includes("decoderConfig") && code.includes("ArrayBuffer.isView") && code.includes("configSignature"),
+        detail: "Compares decoder metadata and binary descriptions by content, not object identity",
+      });
+      results.push({
+        name: "Flush Before Decoder Reconfiguration",
+        passed: code.includes("await this.#decoder.flush()") && code.includes("configure(nextConfig)"),
+        detail: "Drains pending decoded output before applying a different codec configuration",
+      });
+      results.push({
+        name: "Initial Key Chunk Guard",
+        passed: code.includes("DataError") && code.includes("#signature === null"),
+        detail: "Rejects decode requests before the stream has established its decoder config",
+      });
     } else if (id === "task_webcodecs_timestamp_mapper") {
       results.push({
         name: "Shared-Origin Microsecond Rounding",
@@ -6888,6 +6904,54 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webcodecs_decoder_config_router") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const events = [];
+            const decoder = {
+              configure(config) { events.push("configure:" + config.codedWidth); },
+              decode(chunk) { events.push("decode:" + chunk); },
+              async flush() { events.push("flush"); },
+            };
+            const router = new DecoderConfigRouter(decoder);
+            const config640 = {
+              codec: "vp09.00.10.08",
+              codedWidth: 640,
+              codedHeight: 360,
+              description: new Uint8Array([1, 2, 3]),
+            };
+            const equalConfig640 = {
+              description: new Uint8Array([1, 2, 3]),
+              codedHeight: 360,
+              codec: "vp09.00.10.08",
+              codedWidth: 640,
+            };
+            await router.decode("first-key", { decoderConfig: config640 });
+            await router.decode("same-config", { decoderConfig: equalConfig640 });
+            await router.decode("resized-key", {
+              decoderConfig: { ...config640, codedWidth: 1280, codedHeight: 720 },
+            });
+            await router.flush();
+            let missingInitialConfig = false;
+            try {
+              await new DecoderConfigRouter(decoder).decode("orphan");
+            } catch (error) { missingInitialConfig = error.name === "DataError"; }
+            return {
+              decoderConfigOk:
+                events.join(",") === "configure:640,decode:first-key,decode:same-config,flush,configure:1280,decode:resized-key,flush" &&
+                missingInitialConfig,
+            };
+          } catch { return { decoderConfigOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "VideoDecoder Config Change Ordering & Metadata Deduplication",
+        passed: Boolean(res?.decoderConfigOk),
+        detail: "Flushes before resolution change and skips equivalent configs with separate description buffers",
       });
     } else if (taskId === "task_webcodecs_timestamp_mapper") {
       const harness = `
