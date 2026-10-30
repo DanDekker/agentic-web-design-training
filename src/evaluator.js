@@ -237,6 +237,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Top-Layer Backdrop and Mobile Bottom Sheet", all: ["::backdrop", "@supports selector(dialog:modal)", ".claim-review__dialog:modal", "inset-inline: 0", "inset-block-end: 0"], none: ["z-index:", "999999"] },
     { name: "Pinned Actions and High-Contrast Boundaries", all: ["position: sticky", "inset-block-end: 0", ":focus-visible", "forced-colors: active", "CanvasText", "Highlight"], withinRules: [{ selector: ".claim-review__dialog .claim-review__actions", all: ["position: sticky", "inset-block-end: 0"] }] },
   ],
+  task_css_timeline_scope_component_isolation: [
+    { name: "Component-Local Named View Timeline", all: ["timeline-scope: --transcript-progress", "view-timeline-name: --transcript-progress", "view-timeline-axis: block"], withinRules: [{ selector: ".media-card", all: ["timeline-scope: --transcript-progress"] }, { selector: ".media-card__transcript", all: ["overflow: auto", "view-timeline-name: --transcript-progress"] }] },
+    { name: "Sibling Animation Resolves Inside Feature Gate", all: ["@supports (timeline-scope: --transcript-progress) and (animation-timeline: --transcript-progress)", "animation-timeline: --transcript-progress", "animation: transcript-progress linear both"], withinRules: [{ selector: ".media-card__progress-fill", all: ["animation-timeline: --transcript-progress"] }] },
+    { name: "Reduced Motion Keeps Transcript Available", all: ["prefers-reduced-motion: reduce", "animation: none"], withinRules: [{ selector: ".media-card__progress-fill", all: ["animation: none"] }], none: ["display: none"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {

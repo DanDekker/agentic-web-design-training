@@ -141,6 +141,8 @@ not assumed to work uniformly across browsers.
 | Form Control Styling Level 1 (`field-sizing`) | <https://drafts.csswg.org/css-forms/> |
 | Box Sizing Level 4 (`interpolate-size`, `calc-size()`) | <https://drafts.csswg.org/css-sizing-4/> |
 | CSS Conditional Rules Level 5 (scroll-state container queries) | <https://www.w3.org/TR/css-conditional-5/> |
+| Scroll-driven Animations Level 1 (`timeline-scope`, named scroll and view timelines) | <https://drafts.csswg.org/scroll-animations/> |
+| CSS Display Level 4 (`reading-flow` and `reading-order`) | <https://drafts.csswg.org/css-display-4/> |
 | CSS Shadow Module Level 1 (`:host()`, `::slotted()`, `:has-slotted`, `::part()`, `exportparts`) | <https://drafts.csswg.org/css-shadow-parts/> |
 | Cascade Level 6 (`@scope` and scope proximity) | <https://www.w3.org/TR/css-cascade-6/> |
 | Functions and Mixins (`@function`) | <https://www.w3.org/TR/css-mixins-1/> |
