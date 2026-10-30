@@ -86,6 +86,13 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Express 5 migration guide | <https://expressjs.com/en/guide/migrating-5/> |
 | Problem Details for HTTP APIs (RFC 9457) | <https://www.rfc-editor.org/rfc/rfc9457.html> |
 
+### OAuth demo references
+
+| Topic | Official reference |
+| --- | --- |
+| OAuth 2.0 Security Best Current Practice (RFC 9700) | <https://www.rfc-editor.org/rfc/rfc9700.html> |
+| Proof Key for Code Exchange (RFC 7636) | <https://www.rfc-editor.org/rfc/rfc7636.html> |
+
 **Package ecosystems**
 
 | Technology | URL |
