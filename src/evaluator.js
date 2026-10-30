@@ -7172,7 +7172,7 @@ export class Evaluator {
           const flags = { COPY_DST: 4, MAP_READ: 1 };
           const source = { size: 8 };
           const descriptors = [];
-          let copy;
+          const copies = [];
           let submitCount = 0;
           let mappedFlag;
           const staging = {
@@ -7185,7 +7185,7 @@ export class Evaluator {
             createBuffer(value) { descriptors.push(value); return staging; },
             createCommandEncoder() {
               return {
-                copyBufferToBuffer(...args) { copy = args; },
+                copyBufferToBuffer(...args) { copies.push(args); },
                 finish() { return {}; },
               };
             },
@@ -7210,7 +7210,7 @@ export class Evaluator {
               gpuReadbackOk:
                 bytes.length === 5 && bytes[0] === 1 && bytes[4] === 5 &&
                 descriptors[0].size === 8 && descriptors[0].usage === 5 && mappedFlag === flags.MAP_READ &&
-                copy[4] === 8 && submitCount === 2 && staging.didUnmap && staging.didDestroy &&
+                copies[0][4] === 8 && copies[1][4] === 4 && submitCount === 2 && staging.didUnmap && staging.didDestroy &&
                 mappingRejected && failureWasCleaned && shortSourceRejected,
             };
           } catch { return { gpuReadbackOk: false }; }
