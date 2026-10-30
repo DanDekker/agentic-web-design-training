@@ -1,8 +1,6 @@
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import { ValidationError } from "./store.js";
-import { readJsonStore } from "./persistence.js";
+import { readJsonStore, writeJsonFile } from "./persistence.js";
 
 export const OAUTH_SCOPES = Object.freeze(["read:tasks", "write:tasks", "read:user", "tasks:refactor", "offline_access"]);
 const SCOPE_TOKEN = /^[\x21\x23-\x5B\x5D-\x7E]+$/;
@@ -61,17 +59,20 @@ export class OAuthServer {
   #refreshTokens = new Map(); // refreshToken -> token record, independent of access-token expiry
   #queue = Promise.resolve();
   #now;
+  #write;
 
-  constructor(file, { now = Date.now } = {}) {
+  constructor(file, { now = Date.now, write = writeJsonFile } = {}) {
     this.#file = file;
     this.#now = now;
+    this.#write = write;
   }
 
   async load() {
     const stored = await readJsonStore(this.#file, "oauth");
     if (!stored.found) {
-      this.#seedDefaultClients();
-      await this.#persist();
+      const clients = this.#seedDefaultClients();
+      await this.#write(this.#file, JSON.stringify({ version: 1, clients }, null, 2));
+      this.#clients = clients;
     } else {
       const parsed = stored.value;
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
@@ -87,7 +88,7 @@ export class OAuthServer {
   }
 
   #seedDefaultClients() {
-    this.#clients = [
+    return [
       {
         id: "cli_agent_runner",
         clientId: "agent-runner",
@@ -121,25 +122,13 @@ export class OAuthServer {
     ];
   }
 
-  async #persist() {
-    const payload = JSON.stringify({ version: 1, clients: this.#clients }, null, 2);
-    const run = this.#queue.catch(() => {}).then(async () => {
-      await mkdir(dirname(this.#file), { recursive: true });
-      const tmp = `${this.#file}.${process.pid}.tmp`;
-      await writeFile(tmp, payload, "utf8");
-      await rename(tmp, this.#file);
-    });
-    this.#queue = run.catch(() => {});
-    return run;
-  }
-
   listClients() {
-    return this.#clients.map(({ clientSecret, ...rest }) => ({ ...rest }));
+    return this.#clients.map(({ clientSecret, ...rest }) => structuredClone(rest));
   }
 
   getClient(clientId) {
     const client = this.#clients.find((c) => c.clientId === clientId);
-    return client ? { ...client } : null;
+    return client ? structuredClone(client) : null;
   }
 
   async registerClient({ name, description = "", redirectUris = [], allowedScopes = ["read:tasks", "write:tasks"] }) {
@@ -171,9 +160,14 @@ export class OAuthServer {
       createdAt: new Date().toISOString(),
     };
 
-    this.#clients.push(client);
-    await this.#persist();
-    return { ...client };
+    const run = this.#queue.then(async () => {
+      const clients = [...this.#clients, client];
+      await this.#write(this.#file, JSON.stringify({ version: 1, clients }, null, 2));
+      this.#clients = clients;
+      return structuredClone(client);
+    });
+    this.#queue = run.catch(() => {});
+    return run;
   }
 
   validateRedirectUri(clientId, redirectUri) {
