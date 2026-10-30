@@ -27,6 +27,8 @@ function createDatagramSender(transport, { maxAgeMs = 100, sendGroup = null, sen
         if (closed) throw new TypeError("datagram sender is closed");
         if (bytes.byteLength > datagrams.maxDatagramSize) return false;
         await writer.ready;
+        if (closed) throw new TypeError("datagram sender is closed");
+        if (bytes.byteLength > datagrams.maxDatagramSize) return false;
         await writer.write(bytes);
         return true;
       });

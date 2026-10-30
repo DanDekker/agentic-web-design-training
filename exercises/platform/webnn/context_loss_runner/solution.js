@@ -62,7 +62,15 @@ function createWebNNSessionRunner(createSession, { maxAttempts = 2 } = {}) {
 
   function close() {
     closed = true;
-    if (current) invalidate(current);
+    if (current) {
+      const record = current;
+      invalidate(record);
+      try {
+        record.session.context.destroy?.();
+      } catch {
+        // The generation is invalid even if the backend already lost its device.
+      }
+    }
     return creating ? creating.then(() => {}, () => {}) : Promise.resolve();
   }
 
