@@ -72,4 +72,11 @@ describe("JSON store recovery", () => {
     await expect(new TaskStore(file).load()).rejects.toThrow("duplicate");
     expect(await readFile(file, "utf8")).toBe(duplicate);
   });
+
+  test("atomic writes support a long valid data filename", async () => {
+    const file = join(dir, "s".repeat(230));
+    const store = await new TaskStore(file).load();
+    await store.add("Persisted");
+    expect((await new TaskStore(file).load()).list()[0].title).toBe("Persisted");
+  });
 });
