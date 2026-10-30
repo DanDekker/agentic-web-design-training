@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **148 exercises in 41 categories and 20 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **170 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -112,6 +112,19 @@ The repository currently includes **148 exercises in 41 categories and 20 tracks
 | Agentic web | WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols |
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
+
+### CSS engineering and renewal
+
+The dedicated **CSS Engineering** track contains 27 exercises that move from fundamentals through legacy upgrades and advanced platform work. It covers resets and the box model; logical properties and writing modes; floats to Flexbox and Grid; Sass patterns to native CSS; specificities and cascade layers; fluid type and responsive media; accessibility; and rendering, print, and interaction behavior. Existing exercises extend the path through container queries, subgrid, typed design tokens, scroll-driven animation, anchor positioning, and popovers.
+
+The newest exercises cover bounded `@scope`, the proposed `@function` and `if()` syntax, and cross-document View Transitions. These proposals are evolving W3C drafts; the curriculum labels the experimental syntax and asks for production fallbacks where appropriate. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
+
+| Renewal stage | Topics |
+| --- | --- |
+| Foundations | Reset strategy, box sizing, logical properties, Flexbox, intrinsic Grid, typography, responsive images and mobile viewport units |
+| Modernization | Sass-to-native CSS, layered cascades, feature-query fallbacks, `:has()` state, native popover transitions |
+| Production quality | Keyboard focus, reduced motion, forced colors, font loading, content visibility, scroll snap and print styles |
+| Advanced platform | Container queries, subgrid, OKLCH tokens, scroll-driven animations, anchor positioning, `@scope`, custom CSS functions, `if()` and cross-document view transitions |
 
 ### Frontend framework exercises
 
