@@ -348,6 +348,39 @@ describe("Live state and rendering", () => {
     expect(app.get("counts").textContent).toBe("0 of 2 done");
   });
 
+  test("failed task creation keeps the draft and blocks duplicate submits while pending", async () => {
+    let finish;
+    let attempts = 0;
+    const app = await createClient({ route: ({ method, path }) => {
+      if (method === "POST" && path === "/api/tasks") {
+        attempts++;
+        if (attempts === 1) return new Promise((resolve) => { finish = resolve; });
+        return json({ id: "saved", boardId: "board_today", title: "Keep this draft", done: false }, 201);
+      }
+    } });
+    app.get("new-task").value = "Keep this draft";
+    await app.get("composer").emit("submit");
+    await settle();
+    expect(app.get("new-task").value).toBe("Keep this draft");
+    expect(app.get("new-task").readOnly).toBe(true);
+    expect(app.get("btn-add-task").disabled).toBe(true);
+    await app.get("composer").emit("submit");
+    await app.key("Escape", {}, app.get("new-task"));
+    expect(attempts).toBe(1);
+    expect(app.get("new-task").value).toBe("Keep this draft");
+    finish(json({ error: "Save failed" }, 503));
+    await settle();
+    expect(app.get("new-task").value).toBe("Keep this draft");
+    expect(app.get("new-task").readOnly).toBe(false);
+    expect(app.get("btn-add-task").disabled).toBe(false);
+    expect(app.get("toast").textContent).toBe("Save failed");
+    await app.get("composer").emit("submit");
+    await settle();
+    expect(attempts).toBe(2);
+    expect(app.get("new-task").value).toBe("");
+    expect(app.get("list").children.at(-1).querySelector(".task-title").textContent).toBe("Keep this draft");
+  });
+
   test("an old state response cannot undo a completed local mutation", async () => {
     let finish;
     let stale;

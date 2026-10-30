@@ -3,6 +3,7 @@
 
 const el = {
   form: document.querySelector("#composer"),
+  btnAddTask: document.querySelector("#btn-add-task"),
   input: document.querySelector("#new-task"),
   prioritySelect: document.querySelector("#task-priority"),
   list: document.querySelector("#list"),
@@ -516,7 +517,14 @@ function editField(task) {
 
 /* ── Actions ─────────────────────────────────────────────── */
 
+let creatingTask = false;
 async function addTask(title, priority = 0) {
+  if (creatingTask) return;
+  creatingTask = true;
+  if (el.input) el.input.readOnly = true;
+  if (el.prioritySelect) el.prioritySelect.disabled = true;
+  if (el.btnAddTask) el.btnAddTask.disabled = true;
+  el.form?.setAttribute("aria-busy", "true");
   try {
     const board = currentBoard();
     const task = await api("POST", "/api/tasks", {
@@ -524,13 +532,19 @@ async function addTask(title, priority = 0) {
       boardId: board ? board.id : state.activeBoardId,
       priority: Number(priority),
     });
+    if (el.input?.value.trim() === title) el.input.value = "";
     upsert(state.tasks, task);
     if (state.filter === "done") setFilter("all");
     state.cursor = visibleTasks().length - 1;
     render();
   } catch (err) {
-    if (el.input) el.input.value = title;
     toast(err.message);
+  } finally {
+    creatingTask = false;
+    if (el.input) el.input.readOnly = false;
+    if (el.prioritySelect) el.prioritySelect.disabled = false;
+    if (el.btnAddTask) el.btnAddTask.disabled = false;
+    el.form?.removeAttribute("aria-busy");
   }
 }
 
@@ -1676,13 +1690,12 @@ el.form?.addEventListener("submit", (event) => {
   const title = el.input?.value?.trim();
   if (!title) return el.input?.focus();
   const priority = el.prioritySelect?.value ?? 0;
-  if (el.input) el.input.value = "";
   addTask(title, priority);
   el.input?.focus();
 });
 
 el.input?.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
+  if (event.key === "Escape" && !creatingTask) {
     el.input.value = "";
     el.input.blur();
   }
