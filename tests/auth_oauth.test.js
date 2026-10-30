@@ -167,6 +167,40 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect(clients.some((c) => c.clientId === "agent-runner")).toBe(true);
   });
 
+  test("concurrent client registrations persist independently and return isolated metadata", async () => {
+    const redirectUris = ["https://example.test/callback"];
+    const allowedScopes = ["read:tasks"];
+    const [first, second] = await Promise.all([
+      oauthServer.registerClient({ name: "First", redirectUris, allowedScopes }),
+      oauthServer.registerClient({ name: "Second" }),
+    ]);
+    redirectUris.push("https://input.test/callback");
+    allowedScopes.push("write:tasks");
+    first.redirectUris.push("https://returned.test/callback");
+    const listed = oauthServer.listClients().find((client) => client.clientId === first.clientId);
+    listed.allowedScopes.push("write:tasks");
+    expect(oauthServer.getClient(first.clientId).redirectUris).toEqual(["https://example.test/callback"]);
+    expect(oauthServer.getClient(first.clientId).allowedScopes).toEqual(["read:tasks"]);
+    const reloaded = await new OAuthServer(join(dir, "oauth.json")).load();
+    expect(reloaded.getClient(first.clientId).redirectUris).toEqual(["https://example.test/callback"]);
+    expect(reloaded.getClient(second.clientId).name).toBe("Second");
+  });
+
+  test("a failed client write cannot be persisted by a later registration", async () => {
+    const file = join(dir, "oauth.json");
+    const saved = join(dir, "saved-oauth.json");
+    await rename(file, saved);
+    await mkdir(file);
+    await expect(oauthServer.registerClient({ name: "Failed client" })).rejects.toThrow();
+    expect(oauthServer.listClients().some((client) => client.name === "Failed client")).toBe(false);
+    await rm(file, { recursive: true });
+    await rename(saved, file);
+    await oauthServer.registerClient({ name: "Saved client" });
+    const clients = (await new OAuthServer(file).load()).listClients();
+    expect(clients.some((client) => client.name === "Failed client")).toBe(false);
+    expect(clients.some((client) => client.name === "Saved client")).toBe(true);
+  });
+
   test("renders consent data as text and preserves state without creating markup", async () => {
     const injectedName = `<img src=x onerror=alert(1)> & 'client'`;
     const injectedState = `"><img src=x onerror=alert(1)> & 'state'`;
