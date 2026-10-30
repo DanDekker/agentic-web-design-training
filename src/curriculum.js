@@ -67,6 +67,8 @@ import codecTimestampStarter from "../exercises/platform/webcodecs/timestamp_map
 import codecTimestampSolution from "../exercises/platform/webcodecs/timestamp_mapper/solution.js" with { type: "text" };
 import codecRouterStarter from "../exercises/platform/webcodecs/decoder_config_router/starter.js" with { type: "text" };
 import codecRouterSolution from "../exercises/platform/webcodecs/decoder_config_router/solution.js" with { type: "text" };
+import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
+import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -136,6 +138,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "GPU Compute, Peer-to-Peer Networking & Browser Media Pipelines",
     categories: ["webgpu", "webrtc", "webcodecs"],
   },
+  "webtransport-networking": {
+    id: "webtransport-networking",
+    name: "WebTransport, QUIC Datagrams & Multiplexed Streams",
+    categories: ["webtransport"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -176,6 +183,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   webgpu: "gpu-realtime-media",
   webrtc: "gpu-realtime-media",
   webcodecs: "gpu-realtime-media",
+  webtransport: "webtransport-networking",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10270,6 +10278,24 @@ export class VirtualizedShadowListEngine {
       "Compares complete decoder configurations deterministically, including binary description bytes",
       "Flushes pending output before applying a changed codec or resolution configuration",
       "Avoids reconfiguring identical metadata and reports missing initial configuration",
+    ],
+  },
+  {
+    id: "task_webtransport_datagram_sender",
+    title: "Bound WebTransport Datagrams by Lifetime and Negotiated Size",
+    category: "webtransport",
+    difficulty: "advanced",
+    tags: ["webtransport", "quic", "datagrams", "expiry", "backpressure"],
+    instructions:
+      "A live telemetry channel sends replaceable snapshots over WebTransport. Configure outgoingMaxAge so queued stale packets expire, honor WritableStream writer.ready backpressure, and check maxDatagramSize at send time because path limits can change. Accept ArrayBuffer views without accidentally including bytes outside their offset and length; reject sends after close and release the writer lock on every close path. A successful write only queues a datagram and does not promise delivery.",
+    starterCode: webtransportDatagramStarter,
+    solutionCode: webtransportDatagramSolution,
+    criteria: [
+      "Configures a finite non-negative outgoingMaxAge and creates a datagram writable with send options",
+      "Uses writer.ready before each write and checks the current maxDatagramSize",
+      "Serializes concurrent sends so each waits for readiness before the next datagram is queued",
+      "Preserves typed-array byte offsets and lengths and rejects unsupported payloads",
+      "Closes once, rejects later sends, and releases the writer lock in a finally block",
     ],
   },
 ];

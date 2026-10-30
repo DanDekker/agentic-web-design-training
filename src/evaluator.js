@@ -2101,6 +2101,27 @@ export class Evaluator {
         passed: code.includes("Math.ceil") && code.includes("workgroupCount"),
         detail: "Rounds the final tile up to whole workgroups while retaining its exact item count",
       });
+    } else if (id === "task_webtransport_datagram_sender") {
+      results.push({
+        name: "Finite Datagram Expiry & Send Scheduling",
+        passed: code.includes("outgoingMaxAge") && code.includes("createWritable") && code.includes("sendOrder"),
+        detail: "Sets a datagram lifetime and creates a sender with explicit transport scheduling options",
+      });
+      results.push({
+        name: "Negotiated Packet Bound & Writer Backpressure",
+        passed: code.includes("maxDatagramSize") && code.includes("writer.ready") && code.includes("writer.write"),
+        detail: "Checks the live maximum packet size and waits until the writer can accept another datagram",
+      });
+      results.push({
+        name: "Concurrent Sender Ordering",
+        passed: code.includes("sendTail") && code.includes("writer.ready"),
+        detail: "Serializes sends so concurrent producers share one backpressure-aware queue",
+      });
+      results.push({
+        name: "Typed View Boundaries & Writer Cleanup",
+        passed: code.includes("byteOffset") && code.includes("byteLength") && code.includes("releaseLock()") && code.includes("finally"),
+        detail: "Sends only the selected view bytes and releases the writer lock after close",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7289,6 +7310,45 @@ export class Evaluator {
         name: "Oversized GPU Dispatch Tiling & Boundary Validation",
         passed: Boolean(res?.gpuDispatchOk),
         detail: "Plans 131,123 items across bounded, gap-free dispatches and checks the padded tail",
+      });
+    } else if (taskId === "task_webtransport_datagram_sender") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const events = [];
+            let released = false;
+            const writer = {
+              get ready() { events.push("ready"); return Promise.resolve(); },
+              async write(bytes) { events.push("write:" + [...bytes].join(".")); },
+              async close() { events.push("close"); },
+              releaseLock() { released = true; },
+            };
+            const datagrams = {
+              maxDatagramSize: 4,
+              outgoingMaxAge: null,
+              createWritable(options) { events.push("options:" + options.sendOrder); return { getWriter: () => writer }; },
+            };
+            const sender = createDatagramSender({ datagrams }, { maxAgeMs: 50, sendOrder: 2 });
+            const backing = new Uint8Array([9, 1, 2, 8]);
+            const sent = await sender.send(backing.subarray(1, 3));
+            const tooLarge = await sender.send(new Uint8Array(5));
+            await sender.close();
+            let closedSendRejected = false;
+            try { await sender.send(new Uint8Array([1])); } catch { closedSendRejected = true; }
+            return {
+              datagramSenderOk: sent === true && tooLarge === false && datagrams.outgoingMaxAge === 50 &&
+                events.includes("write:1.2") && events.indexOf("ready") < events.findIndex((event) => event.startsWith("write:")) &&
+                events.includes("options:2") && released && closedSendRejected,
+            };
+          } catch { return { datagramSenderOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "WebTransport Datagram Expiry, Backpressure & View Bounds",
+        passed: Boolean(res?.datagramSenderOk),
+        detail: "Queues only the selected typed-view bytes, honors readiness and refuses oversized datagrams",
       });
     } else {
       // General syntax evaluation
