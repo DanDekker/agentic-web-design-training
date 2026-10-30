@@ -96,7 +96,7 @@ Open **http://localhost:3000**. Use **Demo Agent** on the sign-in screen, then o
 
 For a regular server without file watching, use `bun run start`. Run the test suite with `bun test`.
 
-Use **⌘K** or **Ctrl+K** to open the command palette, then use the arrow keys and Enter to choose a command; Tab reaches its close button and Escape dismisses it. Task filters use the native radio-group arrow keys. Use each task's move-up and move-down buttons to reorder without dragging. In the exercise inspector, use Left/Right or Home/End to move between code tabs. Board and task controls retain focus when live updates replace their rows.
+Use **⌘K** or **Ctrl+K** to open the command palette, then use the arrow keys and Enter to choose a command; Tab reaches its close button and Escape dismisses it. Single-key page shortcuts apply when focus is outside interactive controls. Task filters use the native radio-group arrow keys. Use each task's move-up and move-down buttons to reorder without dragging. In the exercise inspector, use Left/Right or Home/End to move between code tabs. Board and task controls retain focus when live updates replace their rows.
 
 Inline task edits save on Enter or when focus leaves the field; Escape cancels an edit. If a save fails, the draft stays in the field or appears as an **Unsaved edit — resume** button when you return to the task. Drafts are kept in the current page only. Move buttons work relative to the visible tasks, while preserving tasks hidden by a filter.
 
