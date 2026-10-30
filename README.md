@@ -103,7 +103,7 @@ Inline task edits save on Enter or when focus leaves the field; Escape cancels a
 
 ## The curriculum
 
-The repository currently includes **220 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **221 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -119,7 +119,7 @@ The repository currently includes **220 exercises in 42 categories and 21 tracks
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
-The Express 5 labs cover a claims API error-pipeline upgrade, tenant-scoped nested routes, and a payment webhook that verifies raw bytes before recording an event and queueing work. The exercises use injected interfaces so the evaluator runs without installing Express. A real integration must supply authentication, scoped database queries, a provider signature-verification adapter, and an atomic durable outbox; webhook workers still need idempotent effects. See the [Express 5 references](links.md#express-5-api-migration-labs).
+The Express 5 labs cover a claims API error-pipeline upgrade, tenant-scoped nested routes, a payment webhook that verifies raw bytes before queueing work, and conditional inventory updates that protect concurrent edits. The evaluator uses injected interfaces, and integration tests exercise the reference routes against a pinned Express 5 development dependency. A real integration must supply authentication, scoped database queries, atomic compare-and-replace for inventory, a provider signature-verification adapter, and an atomic durable outbox; webhook workers still need idempotent effects. See the [Express 5 references](links.md#express-5-api-migration-labs).
 
 The HTML Architecture track now includes a bidi-safe claims intake lab covering native field direction metadata, mixed-script text isolation, and direction-aware logical CSS, plus a find-in-page lab for collapsed support annexes using `hidden="until-found"`, `beforematch`, and layout containment.
 
@@ -164,6 +164,7 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | Express 5 | [Upgrade a claims API error pipeline](exercises/frameworks/express5_problem_details/starter.ts) |
 | Express 5 | [Protect a multi-tenant claims router](exercises/frameworks/express5_tenant_claims/starter.ts) |
 | Express 5 | [Verify and durably queue payment webhooks](exercises/frameworks/express5_payment_webhook/starter.ts) |
+| Express 5 | [Prevent lost inventory updates with conditional requests](exercises/frameworks/express5_inventory_preconditions/starter.ts) |
 | Express and Hono | [Migrate callback middleware to a Fetch-based router](exercises/frameworks/migrate_express_to_hono_edge_ts/starter.ts) |
 | NestJS | [Build dependency injection, authorization guards, and interceptors](exercises/frameworks/ts_nestjs_di_guard_interceptor/starter.ts) |
 | tRPC | [Model typed procedures and input validation](exercises/frameworks/ts_trpc_zod_end_to_end_rpc/starter.ts) |
