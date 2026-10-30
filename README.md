@@ -237,6 +237,26 @@ The [evaluator](src/evaluator.js) combines structural checks with task-specific 
 
 Evaluation uses `node:vm` to run submitted code. **A VM context is not a security boundary.** Run this application locally with code you trust; do not expose the evaluator as a public service for untrusted submissions.
 
+### Source-level SEO audit
+
+With the server running, inspect a local HTML document through `POST /api/seo/audit`:
+
+```bash
+bun - <<'JS'
+const html = await Bun.file("public/index.html").text();
+const response = await fetch("http://localhost:3000/api/seo/audit", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ html }),
+});
+console.log(await response.json());
+JS
+```
+
+The audit parses the supplied HTML with [parse5](https://parse5.js.org/functions/parse5.parse.html) and reports four checks: a single `h1` without skipped heading levels; presence of `main`, `header`, and a search element or role; unique, nonempty title, description, and Open Graph title metadata; and JSON-LD syntax with common Schema.org context and type detection. A canonical URL is optional, but if present it must be a single absolute HTTP(S) URL in the head. Comments and inert template contents do not count as page content.
+
+`robotsMeta` separately reports recognized `robots` and `googlebot` meta directives and their combined Google Search restrictions. A deliberate `noindex` does not lower the score. The report only inspects supplied HTML: it does not run JavaScript, fetch URLs, inspect HTTP headers or robots.txt, perform complete JSON-LD expansion or rich-result validation, or verify accessibility landmarks or actual search indexing. See the [SEO references](links.md#technical-seo-and-search-console) for the underlying guidance.
+
 ## Project layout
 
 | Path | Purpose |
@@ -246,12 +266,14 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | [`exercises/platform/`](exercises/platform/) | Starter and reference files for browser platforms, GPU, realtime media, and agentic-web challenges |
 | [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
+| [`src/seo.js`](src/seo.js) | Parsed HTML and structured-data audit |
 | [`src/server.js`](src/server.js), [`src/http.js`](src/http.js), and [`src/api.js`](src/api.js) | Bun server, request routing, and HTTP endpoints |
 | [`src/store.js`](src/store.js) | JSON-backed task boards and persistence |
 | [`public/`](public/) | Browser interface and web components |
 | [`tests/`](tests/) | Bun tests for the curriculum and application modules |
 | [`.github/workflows/`](.github/workflows/) | CI checks and tagged container publishing |
 | [`Dockerfile`](Dockerfile) | Bun runtime image for local use and releases |
+| [`package.json`](package.json), [`bun.lock`](bun.lock) | Pinned dependencies and reproducible Bun installation |
 
 ### Local data and recovery
 
