@@ -10236,6 +10236,23 @@ export class VirtualizedShadowListEngine {
       "Flushes the VideoEncoder before reporting the submitted and keyframe counts",
     ],
   },
+  {
+    id: "task_webcodecs_timestamp_mapper",
+    title: "Normalize Media Clock Timestamps to Safe Monotonic Microseconds",
+    category: "webcodecs",
+    difficulty: "intermediate",
+    tags: ["webcodecs", "timestamps", "media-clock", "microseconds", "precision"],
+    instructions:
+      "Frames arrive with fractional-millisecond source-clock timestamps, while WebCodecs consumes integer microseconds. Convert all samples against one time origin, clamp the first timestamp to the configured non-negative start, make rounded collisions and out-of-order source times strictly increasing by at least one microsecond, and reject non-finite values or unsafe integer results.",
+    starterCode: codecTimestampStarter,
+    solutionCode: codecTimestampSolution,
+    criteria: [
+      "Uses a shared millisecond time origin and rounds source time to integer microseconds",
+      "Keeps the first timestamp non-negative and subsequent timestamps strictly increasing",
+      "Resolves duplicate and regressing rounded timestamps without emitting ties",
+      "Rejects non-finite input and results outside JavaScript safe-integer precision",
+    ],
+  },
 ];
 
 export const REFACTORING_CURRICULUM_TASKS = RAW_CURRICULUM_TASKS.map((task, index) => ({
