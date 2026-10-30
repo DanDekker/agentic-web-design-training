@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 200 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 201 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -67,6 +67,8 @@ import codecTimestampStarter from "../exercises/platform/webcodecs/timestamp_map
 import codecTimestampSolution from "../exercises/platform/webcodecs/timestamp_mapper/solution.js" with { type: "text" };
 import codecRouterStarter from "../exercises/platform/webcodecs/decoder_config_router/starter.js" with { type: "text" };
 import codecRouterSolution from "../exercises/platform/webcodecs/decoder_config_router/solution.js" with { type: "text" };
+import seoIndexabilityStarter from "../exercises/seo/technical/indexability_reconciliation/starter.ts" with { type: "text" };
+import seoIndexabilitySolution from "../exercises/seo/technical/indexability_reconciliation/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
@@ -154,7 +156,7 @@ export const CURRICULUM_TRACKS = Object.freeze({
   "semantic-web-seo": {
     id: "semantic-web-seo",
     name: "Advanced HTML Living Standard, Technical SEO, JSON-LD & Schema.org",
-    categories: ["html-architecture", "seo-structured-data"],
+    categories: ["html-architecture", "seo-structured-data", "technical-seo"],
   },
   "commerce-fintech": {
     id: "commerce-fintech",
@@ -241,6 +243,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "package-managers": "enterprise-typescript",
   "html-architecture": "semantic-web-seo",
   "seo-structured-data": "semantic-web-seo",
+  "technical-seo": "semantic-web-seo",
   "ecommerce-checkout": "commerce-fintech",
   "payment-processing": "commerce-fintech",
   "storefront-ui": "storefront-order-lifecycle",
@@ -7178,6 +7181,22 @@ export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec)
       "Emits a Schema.org Dataset node with license, creator @id link, and DataDownload distribution (encodingFormat + contentUrl)",
       "Configures WebSite potentialAction with a SearchAction EntryPoint urlTemplate and query-input binding",
       "Links Organization sameAs authority URLs and FAQPage Question/AcceptedAnswer entities inside a single @graph",
+    ],
+  },
+  {
+    id: "task_seo_indexability_signal_reconciler",
+    title: "Reconcile Crawl and Index Signals Without Treating robots.txt as noindex",
+    category: "technical-seo",
+    difficulty: "advanced",
+    tags: ["seo", "technical-seo", "robots-txt", "x-robots-tag", "canonical", "indexability"],
+    instructions:
+      "A multi-tenant publishing platform has pages blocked in robots.txt but also emits meta noindex, PDFs with X-Robots-Tag rules, redirecting URLs in its sitemap, and canonical hints that do not match the listed URL. Build a deterministic Google Search indexability signal reconciler. Separate crawl permission from index rules, do not claim a blocked page's meta/header rules were observed, handle status and redirects before page directives, read HTML meta robots only for HTML and X-Robots-Tag for any resource, and report canonical/sitemap conflicts as review findings. A canonical is a hint, not an index directive.",
+    starterCode: seoIndexabilityStarter.trimEnd(),
+    solutionCode: seoIndexabilitySolution.trimEnd(),
+    criteria: [
+      "Separates robots.txt crawl blocking, redirects, 304 responses, HTTP errors, and fetched page-level noindex rules",
+      "Combines applicable robots/googlebot meta values with general or Googlebot-scoped X-Robots-Tag headers, including non-HTML resources",
+      "Reports sitemap and canonical inconsistencies as review findings without treating a canonical hint as a directive",
     ],
   },
 
