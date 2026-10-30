@@ -161,6 +161,20 @@ const state = {
 
 // Drafts survive a failed save or a view change until explicitly saved or canceled.
 const editDrafts = new Map();
+const pendingTaskActions = new Set();
+const pendingToggles = new Map();
+const pendingDeletions = new Set();
+
+function taskIsBusy(id) {
+  return pendingTaskActions.has(id) || editDrafts.get(id)?.status === "saving";
+}
+
+function withPendingTaskChanges(tasks) {
+  return tasks.filter((task) => !pendingDeletions.has(task.id)).map((task) => {
+    const toggle = pendingToggles.get(task.id);
+    return toggle ? { ...task, ...toggle } : task;
+  });
+}
 
 const CHECKS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.6l4.4 4.4L19 7.4"/></svg>`;
 const CROSS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
@@ -369,7 +383,7 @@ function row(task, index) {
   if (task.done) li.classList.add("done");
   if (index === state.cursor) li.classList.add("cursor");
   li.dataset.id = task.id;
-  li.draggable = state.editing !== task.id;
+  li.draggable = state.editing !== task.id && !taskIsBusy(task.id);
 
   // Circular completion checkbox
   const check = document.createElement("button");
@@ -377,6 +391,7 @@ function row(task, index) {
   check.className = "check";
   check.setAttribute("aria-pressed", String(task.done));
   check.setAttribute("aria-label", task.done ? "Mark incomplete" : "Mark complete");
+  if (taskIsBusy(task.id)) check.setAttribute("aria-disabled", "true");
   check.innerHTML = CHECKS;
   check.addEventListener("click", () => toggleTask(task));
 
@@ -458,6 +473,7 @@ function row(task, index) {
   remove.type = "button";
   remove.className = "remove";
   remove.setAttribute("aria-label", `Delete “${task.title}”`);
+  if (taskIsBusy(task.id)) remove.setAttribute("aria-disabled", "true");
   remove.innerHTML = CROSS;
   remove.addEventListener("click", () => deleteTask(task));
 
@@ -466,7 +482,7 @@ function row(task, index) {
 
   // Drag and drop reordering
   li.addEventListener("dragstart", (event) => {
-    if (state.editing) return event.preventDefault();
+    if (state.editing || taskIsBusy(task.id)) return event.preventDefault();
     state.dragId = task.id;
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", task.id);
@@ -598,46 +614,74 @@ async function addTask(title, priority = 0) {
 
 async function toggleTask(task) {
   task = state.tasks.find((current) => current.id === task.id);
-  if (!task) return false;
+  if (!task || taskIsBusy(task.id)) return false;
   const before = { done: task.done, doneAt: task.doneAt };
-  task.done = !task.done;
-  task.doneAt = task.done ? new Date().toISOString() : null;
+  const pending = { done: !task.done, doneAt: !task.done ? new Date().toISOString() : null };
+  pendingTaskActions.add(task.id);
+  pendingToggles.set(task.id, pending);
+  Object.assign(task, pending);
   render();
 
   try {
-    upsert(state.tasks, await api("PATCH", `/api/tasks/${task.id}`, { done: task.done }));
+    const saved = await api("PATCH", `/api/tasks/${task.id}`, { done: pending.done });
+    pendingToggles.delete(task.id);
+    const current = state.tasks.find((item) => item.id === task.id);
+    if (current) Object.assign(current, { done: saved.done, doneAt: saved.doneAt });
+    await loadInitialState();
+    return true;
   } catch (err) {
+    pendingToggles.delete(task.id);
     const current = state.tasks.find((current) => current.id === task.id);
     if (current) Object.assign(current, before);
+    await loadInitialState();
     toast(err.message);
-    render();
     return false;
+  } finally {
+    pendingTaskActions.delete(task.id);
+    renderAfterTaskMutation();
   }
-  render();
-  return true;
 }
 
 async function deleteTask(task) {
+  task = state.tasks.find((current) => current.id === task.id);
+  if (!task) return;
   const index = state.tasks.indexOf(task);
-  if (index === -1) return;
+  if (taskIsBusy(task.id)) return;
+  pendingTaskActions.add(task.id);
+  pendingDeletions.add(task.id);
   state.tasks.splice(index, 1);
   render();
   try {
     await api("DELETE", `/api/tasks/${task.id}`);
+    pendingDeletions.delete(task.id);
+    editDrafts.delete(task.id);
   } catch (err) {
+    pendingDeletions.delete(task.id);
     if (!state.tasks.some((current) => current.id === task.id)) state.tasks.splice(index, 0, task);
+    await loadInitialState();
     toast(err.message);
+  } finally {
+    pendingTaskActions.delete(task.id);
+    renderAfterTaskMutation();
   }
-  render();
 }
 
 function startEdit(task) {
-  if (editDrafts.get(task.id)?.status === "saving") return toast("This edit is still being saved.");
+  if (taskIsBusy(task.id)) return toast("This task is still being saved.");
   stashEditingDraft();
   const draft = editDrafts.get(task.id) || { value: task.title, status: "unsaved" };
   editDrafts.set(task.id, draft);
   state.editing = task.id;
   render();
+}
+
+function renderAfterTaskMutation() {
+  if (state.editing) {
+    renderBoardsNav();
+    renderUserPill();
+  } else {
+    render();
+  }
 }
 
 function stashEditingDraft() {
@@ -2069,7 +2113,7 @@ async function loadInitialState() {
     if (version !== stateLoadVersion) return;
     if (mutations !== mutationVersion) return loadInitialState();
     state.boards = Array.isArray(data.boards) ? data.boards : [];
-    state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+    state.tasks = withPendingTaskChanges(Array.isArray(data.tasks) ? data.tasks : []);
     state.user = data.user || null;
     state.oauthClients = Array.isArray(data.oauthClients) ? data.oauthClients : [];
 
@@ -2096,7 +2140,7 @@ async function loadInitialState() {
       const { tasks } = await api("GET", "/api/tasks");
       if (version !== stateLoadVersion) return;
       if (mutations !== mutationVersion) return loadInitialState();
-      state.tasks = tasks || [];
+      state.tasks = withPendingTaskChanges(Array.isArray(tasks) ? tasks : []);
       if (!state.editing) render();
     } catch {
       if (version !== stateLoadVersion) return;

@@ -255,6 +255,65 @@ describe("Live state and rendering", () => {
     expect(app.document.activeElement).toBe(app.get("new-task"));
   });
 
+  test("a pending toggle survives live snapshots and blocks conflicting actions on the same task", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "PATCH" && path === "/api/tasks/task-one"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const check = app.get("list").querySelector(".check");
+    check.focus();
+    const pending = check.emit("click");
+    await settle();
+    await app.refresh(); // the server snapshot still says incomplete
+    const current = app.get("list").querySelector(".check");
+    expect(current.getAttribute("aria-pressed")).toBe("true");
+    expect(current.getAttribute("aria-disabled")).toBe("true");
+    expect(app.document.activeElement).toBe(current);
+    await current.emit("click");
+    await app.get("list").querySelector(".remove").emit("click");
+    expect(app.requests.filter((request) => request.method === "PATCH")).toHaveLength(1);
+    expect(app.requests.filter((request) => request.method === "DELETE")).toHaveLength(0);
+    app.snapshot.tasks[0].done = true;
+    finish(json({ ...app.snapshot.tasks[0], doneAt: "2026-01-01T00:00:00Z" }));
+    await pending;
+    expect(app.get("list").querySelector(".check").getAttribute("aria-pressed")).toBe("true");
+    expect(app.get("list").querySelector(".check").getAttribute("aria-disabled")).toBeNull();
+  });
+
+  test("a failed delete reconciles with the latest server state after a live refresh", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "DELETE" && path === "/api/tasks/task-one"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const removing = app.get("list").querySelector(".remove").emit("click");
+    await settle();
+    app.snapshot.tasks[0].title = "Renamed remotely";
+    await app.refresh();
+    expect(app.get("list").children).toHaveLength(0);
+    finish(json({ error: "Delete failed" }, 503));
+    await removing;
+    expect(app.get("list").children).toHaveLength(1);
+    expect(app.get("list").querySelector(".task-title").textContent).toBe("Renamed remotely");
+    expect(app.get("toast").textContent).toBe("Delete failed");
+  });
+
+  test("a late toggle response does not recreate a remotely deleted task", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "PATCH" && path === "/api/tasks/task-one"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const pending = app.get("list").querySelector(".check").emit("click");
+    await settle();
+    app.snapshot.tasks = [];
+    await app.refresh();
+    finish(json({ id: "task-one", title: "First task", boardId: "board_today", done: true }));
+    await pending;
+    expect(app.get("list").children).toHaveLength(0);
+  });
+
   test("SSE refreshes visible tasks while preserving the selected board", async () => {
     const app = await createClient({ search: "?board=agentic-refactoring" });
     await app.click(app.get("board-tabs").children[0]);
