@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 178 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 179 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4150,6 +4150,61 @@ function positionTooltip(triggerEl, tooltipEl) {
       "Declares a first-priority compatibility layer, deterministic layer order, and a vendor-only import layer",
       "Scopes owned components beneath .admin-shell and separates tokens, components, utilities, and app overrides",
       "Quarantines only two required important declarations in the compatibility layer and removes ID-selector escalation",
+    ],
+  },
+
+  {
+    id: "task_css_native_scroll_state_checkout_summary",
+    title: "Add a Native Stuck-State Treatment to a Sticky Pharmacy Checkout Summary",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "scroll-state", "sticky", "progressive-enhancement", "commerce"],
+    instructions:
+      "A pharmacy checkout keeps its order total visible while customers review delivery, insurance, and payment details. Preserve ordinary sticky positioning as the baseline, then use container-type: scroll-state and an @container scroll-state(stuck: block-start) query to deepen the summary surface shadow only while it is stuck. Do not change the sticky offset, dimensions, or layout in the query; keep the state change visual so it cannot feed back into layout. Disable the transition for reduced-motion users. Scroll-state queries are in CSS Conditional Rules Level 5, a W3C Working Draft, so the base sticky summary must remain useful without them.",
+    starterCode: `/* The total needs to stay visible without moving over form controls. */
+.checkout-summary {
+  position: sticky;
+  inset-block-start: var(--checkout-header-size, 0px);
+  z-index: 2;
+}
+
+.checkout-summary__surface {
+  background-color: Canvas;
+}`,
+    solutionCode: `/* Sticky layout remains useful when scroll-state queries are unsupported. */
+.checkout-summary {
+  position: sticky;
+  inset-block-start: var(--checkout-header-size, 0px);
+  z-index: 2;
+}
+
+.checkout-summary__surface {
+  background-color: Canvas;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  transition: box-shadow 180ms ease;
+}
+
+@supports (container-type: scroll-state) {
+  .checkout-summary {
+    container-type: scroll-state;
+  }
+
+  @container scroll-state(stuck: block-start) {
+    .checkout-summary__surface {
+      box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 0.18);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-summary__surface {
+    transition: none;
+  }
+}`,
+    criteria: [
+      "Keeps the order total sticky with a logical block-start offset and a stable stacking order",
+      "Progressively enhances the surface shadow with a scroll-state query for the stuck block-start state",
+      "Leaves sticky geometry unchanged in the query and removes the shadow transition for reduced motion",
     ],
   },
 
