@@ -121,4 +121,24 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(markdown).toContain("| Task Title | Category | Difficulty |");
     expect(markdown).toContain("PASSED");
   });
+
+  test("Markdown report keeps task text inside table cells", () => {
+    const category = "css|layout";
+    const title = "CSS | `grid` *literal*\n<script>alert(1)</script> [docs](https://example.test)";
+    const report = suite.formatMarkdown({
+      timestamp: "2026-01-01T00:00:00Z",
+      summary: { totalTasks: 1, passedTasks: 1, passRate: "100%", averageScore: 100, averageDurationMs: 1, totalDurationMs: 1,
+        byCategory: { [category]: { passed: 1, total: 1 } } },
+      results: [{ title, category, difficulty: "advanced|custom", score: 100, durationMs: 1, passed: true }],
+    });
+    const html = Bun.markdown.html(report, { autolinks: true });
+    const tables = html.match(/<table>[\s\S]*?<\/table>/g);
+    expect(tables).toHaveLength(2);
+    const rows = tables[1].match(/<tbody>[\s\S]*?<\/tbody>/)?.[0] ?? "";
+    expect((rows.match(/<td(?:\s[^>]*)?>/g) ?? [])).toHaveLength(6);
+    expect(rows).toContain("CSS | `grid` *literal* &lt;script&gt;alert(1)&lt;/script&gt; [docs](https://example.test)");
+    expect(rows).toContain("css|layout");
+    expect(rows).not.toContain("<script>");
+    expect(rows).not.toContain("<a ");
+  });
 });
