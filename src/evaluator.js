@@ -1046,6 +1046,16 @@ export class Evaluator {
         passed: code.includes("TRPCError") && code.includes("createCaller"),
         detail: "Throws typed TRPCError codes and exposes createCaller(ctx) for end-to-end RPC dispatch",
       });
+    } else if (id === "task_express5_inventory_preconditions") {
+      results.push({
+        name: "Inventory Routes and Bounded JSON",
+        passed: code.includes("/v1/inventory/:sku") && code.includes("app.get(") && code.includes("app.put(") && code.includes("express.json(") && code.includes("65536"),
+        detail: "Registers inventory reads and a bounded JSON update route",
+      }, {
+        name: "Conditional HTTP and Atomic Replacement",
+        passed: /if-match/i.test(code) && /etag/i.test(code) && code.includes("replaceIfMatch(") && code.includes("428") && code.includes("412"),
+        detail: "Requires a precondition and delegates comparison and replacement to the atomic store",
+      });
     } else if (id === "task_express5_payment_webhook") {
       results.push({
         name: "Raw Webhook Route Before JSON Parser",
@@ -5011,6 +5021,92 @@ export class Evaluator {
         passed: Boolean(res?.unauth401 && res?.authedOk),
         detail: "Executes Fetch Request/Response middleware, extracts :orgId params, and propagates typed context",
       });
+    } else if (taskId === "task_express5_inventory_preconditions") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const register = typeof registerInventoryRoutes === "function" ? registerInventoryRoutes : exports.registerInventoryRoutes;
+          let getRoute, putRoute;
+          const app = {
+            get(path, handler) { getRoute = { path, handler }; },
+            put(path, parser, handler) { putRoute = { path, parser, handler }; },
+          };
+          const express = { json(options) { return { options }; } };
+          let item = { sku: "stock-1", quantity: 9, version: 7 };
+          const calls = [];
+          const failure = new Error("database unavailable");
+          const store = {
+            async find(sku) { return sku === item.sku ? { ...item } : null; },
+            async replaceIfMatch(sku, match, quantity) {
+              calls.push({ sku, match, quantity });
+              if (sku === "broken") throw failure;
+              // This is one atomic compare-and-replace. Real databases must
+              // perform the comparison and write together, not in two queries.
+              if (sku !== item.sku || (match !== "*" && !match.includes(item.version))) return null;
+              item = { sku, quantity, version: item.version + 1 };
+              return { ...item };
+            },
+          };
+          register(app, express, store);
+          const response = () => ({
+            code: 0, body: undefined, headers: {}, ended: false,
+            status(code) { this.code = code; return this; },
+            set(name, value) { this.headers[name.toLowerCase()] = value; return this; },
+            json(body) { this.body = body; return this; },
+            end() { this.ended = true; return this; },
+          });
+          const get = async (sku) => {
+            const res = response();
+            await getRoute.handler({ params: { sku } }, res);
+            return res;
+          };
+          const put = async (header, body = { quantity: 5 }, sku = "stock-1") => {
+            const res = response();
+            await putRoute.handler({ params: { sku }, body, get() { return header; } }, res);
+            return res;
+          };
+          const q = String.fromCharCode(34);
+          const tag = (v) => q + "v" + v + q;
+          const first = await get("stock-1");
+          const absent = await get("missing");
+          const invalidSku = await get("x".repeat(65));
+          const missingHeader = await put(undefined);
+          const badBody = await put(tag(7), { quantity: -1 });
+          const extraBody = await put(tag(7), { quantity: 1, extra: true });
+          const fractional = await put(tag(7), { quantity: 1.5 });
+          const tooLarge = await put(tag(7), { quantity: 1000001 });
+          const malformed = await put(tag(7) + " " + tag(8));
+          const huge = await put("x".repeat(1025));
+          const tooMany = await put(Array(33).fill(tag(7)).join(","));
+          const mixedWildcard = await put("*," + tag(7));
+          const weak = await put("W/" + tag(7));
+          const unknown = await put(q + "unrelated" + q);
+          const beforeUpdates = calls.length;
+          const concurrent = await Promise.all([put(tag(7), { quantity: 4 }), put(tag(7), { quantity: 6 })]);
+          const versionAfterRace = item.version;
+          const list = await put(", , " + q + "unrelated,tag" + q + ", W/" + tag(8) + ", , " + tag(8) + ",");
+          const wildcard = await put("*");
+          const missingItem = await put("*", { quantity: 5 }, "missing");
+          let propagated = false;
+          try { await put("*", { quantity: 5 }, "broken"); } catch (error) { propagated = error === failure; }
+          const options = putRoute?.parser?.options;
+          return {
+            registration: getRoute?.path === "/v1/inventory/:sku" && putRoute?.path === getRoute.path && options?.type === "application/json" && options?.limit === 65536 && options?.inflate === false && options?.strict === true,
+            reads: first.code === 200 && first.headers.etag === tag(7) && first.headers["cache-control"] === "private, no-store" && first.body.sku === "stock-1" && first.body.quantity === 9 && absent.code === 404 && invalidSku.code === 404,
+            validation: missingHeader.code === 428 && missingHeader.headers["cache-control"] === "no-store" && badBody.code === 400 && extraBody.code === 400 && fractional.code === 400 && tooLarge.code === 400 && malformed.code === 400 && huge.code === 400 && tooMany.code === 400 && mixedWildcard.code === 400 && weak.code === 412 && unknown.code === 412 && beforeUpdates === 0,
+            concurrency: concurrent.map(r => r.code).sort().join(",") === "204,412" && versionAfterRace === 8 && concurrent.find(r => r.code === 204).ended && !concurrent.find(r => r.code === 204).headers.etag && list.code === 204 && wildcard.code === 204 && missingItem.code === 412 && calls.some(call => Array.isArray(call.match) && call.match.includes(8)) && calls.some(call => call.match === "*"),
+            failure: propagated,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      for (const [name, passed, detail] of [
+        ["Inventory Routes and Parser", res?.registration, "Registers a bounded, uncompressed JSON parser on the update route"],
+        ["Strong Inventory Validators", res?.reads, "Returns a versioned strong ETag and handles invalid or missing inventory"],
+        ["Conditional Request Validation", res?.validation, "Rejects invalid bodies and malformed or non-matching preconditions"],
+        ["Atomic Inventory Updates", res?.concurrency, "Passes strong candidates to an atomic compare-and-replace and distinguishes wildcard behavior"],
+        ["Inventory Storage Failure Propagation", res?.failure, "Allows unexpected storage errors to reach Express error handling"],
+      ]) results.push({ name, passed: Boolean(passed), detail });
     } else if (taskId === "task_express5_payment_webhook") {
       const harness = `
         ${sanitizedCode};

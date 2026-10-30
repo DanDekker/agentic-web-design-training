@@ -3,6 +3,7 @@ import express from "express";
 import { registerClaimRoutes, registerExpress5ProblemPipeline } from "../exercises/frameworks/express5_problem_details/solution.ts";
 import { registerTenantClaimRoutes } from "../exercises/frameworks/express5_tenant_claims/solution.ts";
 import { registerPaymentWebhook } from "../exercises/frameworks/express5_payment_webhook/solution.ts";
+import { registerInventoryRoutes } from "../exercises/frameworks/express5_inventory_preconditions/solution.ts";
 
 async function withServer(app, run) {
   const server = await new Promise((resolve, reject) => {
@@ -92,6 +93,47 @@ describe("Express 5 reference integration", () => {
       expect((await send({ "stripe-signature": "valid", "content-encoding": "gzip" }, signedBytes)).status).toBe(415);
       const ordinary = await fetch(`${base}/ordinary`, { method: "POST", headers: { "content-type": "application/json" }, body: '{"value":7}' });
       expect(await ordinary.json()).toEqual({ value: 7 });
+    });
+  });
+
+  test("uses strong conditional requests and atomic updates for inventory", async () => {
+    const app = express();
+    let item = { sku: "item1", quantity: 9, version: 1 };
+    registerInventoryRoutes(app, express, {
+      async find(sku) { return sku === item.sku ? { ...item } : null; },
+      async replaceIfMatch(sku, match, quantity) {
+        if (sku !== item.sku || (match !== "*" && !match.includes(item.version))) return null;
+        item = { sku, quantity, version: item.version + 1 };
+        return { ...item };
+      },
+    });
+    app.use((error, _req, res, _next) => res.status(error.status || 500).json({ error: "Request rejected" }));
+    await withServer(app, async (base) => {
+      const url = `${base}/v1/inventory/item1`;
+      const get = await fetch(url);
+      expect(get.status).toBe(200);
+      expect(get.headers.get("etag")).toBe('"v1"');
+      expect(await get.json()).toEqual({ sku: "item1", quantity: 9 });
+      const put = (tag, body = '{"quantity":4}', extra = {}) => fetch(url, {
+        method: "PUT", headers: { "content-type": "application/json", ...(tag === undefined ? {} : { "if-match": tag }), ...extra }, body,
+      });
+      const missing = await put(undefined);
+      expect(missing.status).toBe(428);
+      expect(missing.headers.get("cache-control")).toBe("no-store");
+      expect((await put('W/"v1"')).status).toBe(412);
+      expect((await put('"v1" "v2"')).status).toBe(400);
+      expect((await put('*,"v1"')).status).toBe(400);
+      expect((await put(Array(33).fill('"v1"').join(","))).status).toBe(400);
+      expect((await put('"v1"', '{"quantity":-1}')).status).toBe(400);
+      const race = await Promise.all([put('"v1"'), put('"v1"', '{"quantity":5}')]);
+      expect(race.map((response) => response.status).sort()).toEqual([204, 412]);
+      expect(race.find((response) => response.status === 204).headers.get("etag")).toBeNull();
+      expect((await put(', , "opaque,tag", W/"v2", , "v2",')).status).toBe(204);
+      expect((await put("*")).status).toBe(204);
+      expect((await put('"v3"')).status).toBe(412);
+      expect((await put("*", "x".repeat(65537))).status).toBe(413);
+      expect((await put("*", '{"quantity":4}', { "content-encoding": "gzip" })).status).toBe(415);
+      expect((await fetch(`${base}/v1/inventory/missing`, { method: "PUT", headers: { "content-type": "application/json", "if-match": "*" }, body: '{"quantity":4}' })).status).toBe(412);
     });
   });
 });
