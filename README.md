@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **204 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **205 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -121,7 +121,7 @@ The newest exercises cover bounded `@scope`, proposed `@function` and `if()` syn
 
 HTML and CSS now meet in production interface work too: the clinical intake lab pairs semantic forms with container-aware error styling, and the SSR status-card lab defines a Declarative Shadow DOM and CSS theming contract using slots, `::part()`, custom properties, and forced-colors support.
 
-Technical SEO covers crawl-versus-index signal reconciliation, site migration planning, multilingual sitemap operations, and Search Console triage. The indexability lab distinguishes robots.txt crawl blocks from fetched `noindex` rules and surfaces sitemap/canonical conflicts for review. The migration auditor resolves redirect graphs and checks destination status, canonical, crawl/index, sitemap, and internal-link signals. The sitemap compiler validates reciprocal locale clusters and shards under real URL and UTF-8 byte limits. The Search Console analyzer compares page-level CTR with market/device/position-specific baselines and flags multi-page queries for manual review.
+Technical SEO covers crawl/index reconciliation, migration planning, JavaScript render parity, multilingual sitemaps, and Search Console triage. Labs distinguish robots.txt crawl blocks from fetched `noindex`, audit redirect graphs and final destinations, compare source and rendered metadata/content, validate reciprocal locale clusters, and analyze page-level CTR against market/device/position-specific baselines.
 
 | Renewal stage | Topics |
 | --- | --- |
