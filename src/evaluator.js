@@ -197,6 +197,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Native Controls and Accent Color", all: ['input[type="checkbox"]', 'input[type="radio"]', 'input[type="range"]', "accent-color: var(--form-accent)", "font: inherit"], none: ["appearance: none"] },
     { name: "Keyboard and Forced-Colors Support", all: [":focus-visible", "forced-colors: active", "background-color: Field", "color: FieldText", "outline-color: Highlight"], none: ["outline: none"] },
   ],
+  task_css_markdown_gfm_content_renderer: [
+    { name: "Readable and Reflowing Markdown Content", all: [".markdown-body", "max-inline-size: 80ch", "line-height: 1.65", "overflow-wrap: anywhere", "scroll-margin-block-start: 6rem"] },
+    { name: "Local Table and Code Overflow", all: [".markdown-table-scroll", "overscroll-behavior-inline: contain", "min-inline-size: 42rem", ".markdown-body pre", "overflow: auto", "white-space: pre"] },
+    { name: "Native Task Lists and Keyboard Focus", all: [".contains-task-list", ".task-list-item > input[type=\\"checkbox\\"]", "accent-color:", ":focus-visible", "outline-offset: 3px"], none: ["outline: none", "white-space: nowrap"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {

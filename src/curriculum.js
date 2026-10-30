@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 186 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 187 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4716,6 +4716,104 @@ clinic-dose-field::part(control) {
       "Advertises both light and dark browser UI support with color-scheme and themes application tokens from prefers-color-scheme",
       "Keeps native controls and uses accent-color for checkable and progress controls instead of replacing their appearance",
       "Preserves keyboard focus and uses system colors under forced-colors mode",
+    ],
+  },
+
+  {
+    id: "task_css_markdown_gfm_content_renderer",
+    title: "Style GitHub-Flavored Markdown Output for Runbooks and Narrow Documentation Panels",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "markdown", "github-flavored-markdown", "documentation", "content-rendering"],
+    instructions:
+      "An engineering handbook renders GitHub-Flavored Markdown into a documentation panel that can be full-page or embedded beside an issue queue. It contains heading permalinks, long URLs and policy identifiers, fenced code with syntax-highlighting spans, wide tables, responsive diagrams, and task-list checkboxes. Scope rules beneath .markdown-body, keep text readable, let tables and code scroll locally instead of widening the page, preserve media ratios, and keep native task controls visible and keyboard focusable. The renderer wraps generated tables in .markdown-table-scroll; do not break the table semantics to make them fit.",
+    starterCode: `/* Generated Markdown overflows narrow workspaces and hides task state. */
+.markdown-body table {
+  width: 900px;
+}
+
+.markdown-body pre {
+  white-space: nowrap;
+}
+
+.markdown-body .task-list-item input {
+  outline: none;
+}`,
+    solutionCode: `/* The parser wraps generated tables in .markdown-table-scroll. */
+.markdown-body {
+  max-inline-size: 80ch;
+  min-inline-size: 0;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 2vw, 2rem);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body :where(h1, h2, h3, h4) {
+  line-height: 1.15;
+  text-wrap: balance;
+  scroll-margin-block-start: 6rem;
+}
+
+.markdown-body a {
+  overflow-wrap: anywhere;
+}
+
+.markdown-body .markdown-table-scroll {
+  max-inline-size: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  min-inline-size: 42rem;
+}
+
+.markdown-body :where(th, td) {
+  padding: 0.65rem;
+  border-block-end: 1px solid currentColor;
+}
+
+.markdown-body pre {
+  max-inline-size: 100%;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.markdown-body pre > code {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.markdown-body :where(p, li) > code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body :where(img, video, svg) {
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+.markdown-body .contains-task-list {
+  list-style: none;
+  padding-inline-start: 0;
+}
+
+.markdown-body .task-list-item > input[type="checkbox"] {
+  accent-color: var(--docs-accent, #075ea8);
+  margin-inline-end: 0.5em;
+}
+
+.markdown-body :where(a, button, input):focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}`,
+    criteria: [
+      "Scopes readable Markdown typography and long-link wrapping beneath .markdown-body",
+      "Contains wide tables and fenced code in local overflow regions while keeping images and diagrams responsive",
+      "Preserves native GFM task-list checkboxes, non-color task state, and visible focus without replacing control appearance",
     ],
   },
 
