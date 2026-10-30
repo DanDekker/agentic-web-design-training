@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHub } from "../src/events.js";
 import { createRequestHandler } from "../src/http.js";
+import { createHandler } from "../src/api.js";
+import { TaskStore } from "../src/store.js";
 import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
 
 async function startServer(dir) {
@@ -90,7 +92,6 @@ test("event streams stay open across the server idle timeout and deliver later u
   const handler = createRequestHandler({
     handleApi: () => hub.stream(),
     serveStatic: () => new Response("Not found", { status: 404 }),
-    hub,
   });
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 1, fetch: handler });
   let reader;
@@ -122,19 +123,28 @@ test("event subscriptions are removed when a reader cancels", async () => {
   expect(hub.size).toBe(0);
 });
 
-test("HTTP routing broadcasts successful mutations only", async () => {
+test("HTTP routing emits one update for a task mutation and none for read-only work", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-events-"));
   const broadcasts = [];
-  const handler = createRequestHandler({
-    handleApi: (req) => new Response(null, { status: req.url.endsWith("/failure") ? 422 : 204 }),
-    serveStatic: () => new Response("static"),
-    hub: { broadcast: (event) => broadcasts.push(event) },
-  });
-  const server = { timeout() {} };
-  await handler(new Request("http://localhost/api/items", { method: "GET" }), server);
-  await handler(new Request("http://localhost/api/failure", { method: "POST" }), server);
-  expect(broadcasts).toHaveLength(0);
-  await handler(new Request("http://localhost/api/items", { method: "POST" }), server);
-  expect(broadcasts).toHaveLength(1);
-  expect(broadcasts[0].type).toBe("state");
-  expect(await (await handler(new Request("http://localhost/"), server)).text()).toBe("static");
+  try {
+    const store = await new TaskStore(join(dir, "tasks.json")).load();
+    const hub = { broadcast: (event) => broadcasts.push(event) };
+    const handler = createRequestHandler({
+      handleApi: createHandler(store, hub),
+      serveStatic: () => new Response("static"),
+    });
+    const server = { timeout() {} };
+    const post = (path, body) => handler(new Request(`http://localhost${path}`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    }), server);
+    const created = await post("/api/tasks", { title: "One update" });
+    expect(created.status).toBe(201);
+    expect(broadcasts.map((event) => event.type)).toEqual(["state"]);
+    await post("/api/tasks/clear-completed", {});
+    await post("/api/seo/audit", { html: "<html></html>" });
+    expect(broadcasts).toHaveLength(1);
+    expect(await (await handler(new Request("http://localhost/"), server)).text()).toBe("static");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

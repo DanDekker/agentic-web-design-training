@@ -115,6 +115,7 @@ const benchmarkSuite = new BenchmarkSuite();
         const body = await readJson(req);
         const user = await authStore.register(body);
         const { token } = authStore.createSession(user.id, req.headers.get("user-agent") || "");
+        hub?.broadcast({ type: "state", at: Date.now() });
         return json(
           { user, token },
           201,
@@ -130,6 +131,7 @@ const benchmarkSuite = new BenchmarkSuite();
         const user = await authStore.verifyCredentials(username, password);
         if (!user) throw new HttpError(401, "Invalid username or password.");
         const { token } = authStore.createSession(user.id, req.headers.get("user-agent") || "");
+        hub?.broadcast({ type: "state", at: Date.now() });
         return json(
           { user, token },
           200,
@@ -146,6 +148,7 @@ const benchmarkSuite = new BenchmarkSuite();
           if (match) token = match[1];
         }
         if (token) authStore.revokeSession(token);
+        hub?.broadcast({ type: "state", at: Date.now() });
         return json(
           { ok: true },
           200,
@@ -183,6 +186,7 @@ const benchmarkSuite = new BenchmarkSuite();
         if (req.method === "POST") {
           const body = await readJson(req);
           const client = await oauthServer.registerClient(body);
+          hub?.broadcast({ type: "state", at: Date.now() });
           return json(client, 201);
         }
         throw new HttpError(405, "Method not allowed.");
@@ -650,7 +654,7 @@ const benchmarkSuite = new BenchmarkSuite();
       if (pathname === "/api/tasks/restore" && req.method === "POST") {
         const { tasks } = await readJson(req);
         const restored = await store.restoreTasks(tasks);
-        hub?.broadcast({ type: "state", at: Date.now() });
+        if (restored.length) hub?.broadcast({ type: "state", at: Date.now() });
         return json({ tasks: restored });
       }
 
@@ -664,7 +668,7 @@ const benchmarkSuite = new BenchmarkSuite();
       if (pathname === "/api/tasks/clear-completed" && req.method === "POST") {
         const body = await readJson(req);
         const removed = await store.clearCompleted(body.boardId);
-        hub?.broadcast({ type: "state", at: Date.now() });
+        if (removed) hub?.broadcast({ type: "state", at: Date.now() });
         return json({ removed, tasks: store.listTasks() });
       }
 
