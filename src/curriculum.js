@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 184 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 185 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4545,6 +4545,79 @@ clinic-dose-field::part(control) {
       "Uses display: flow-root on the containing explanation to contain the float without a clearfix pseudo-element",
       "Keeps the intentional text wrap with a logical inline-start float and responsive media sizing",
       "Uses logical spacing and leaves focus rings and overflowing content unclipped",
+    ],
+  },
+
+  {
+    id: "task_css_positioning_stacking_context_alert_portal",
+    title: "Fix a Fixed Operations Alert Trapped by a Transformed Stacking Context",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "positioning", "stacking-context", "fixed-overlay", "z-index"],
+    instructions:
+      "An operations console promoted its entire app shell with transform: translateZ(0), then added a fixed incident alert inside that shell with z-index: 9999. The alert is positioned against the shell instead of the viewport and still paints beneath the global navigation because z-index cannot escape its ancestor stacking context. Keep the transform on the inner canvas, place the alert portal as a body-level sibling of the app shell, and define a small layer scale for sticky navigation and alerts. Make the alert container ignore pointer input outside its message. Preserve the required body-level portal markup contract in a CSS comment.",
+    starterCode: `/* The high-priority alert is trapped under the transformed workspace. */
+.ops-shell {
+  position: relative;
+  z-index: 0;
+  transform: translateZ(0);
+}
+
+.ops-shell .incident-alert {
+  position: fixed;
+  inset: 1rem;
+  z-index: 9999;
+}`,
+    solutionCode: `/* Move #incident-alert-root to a direct child of body, outside .ops-shell.
+   Keep the promoted canvas transform on inner content only. */
+@layer tokens, shell, global-overlays;
+
+@layer tokens {
+  :root {
+    --layer-shell: 0;
+    --layer-navigation: 20;
+    --layer-alert: 100;
+  }
+}
+
+@layer shell {
+  .ops-navigation {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--layer-navigation);
+  }
+
+  .ops-shell {
+    position: relative;
+    z-index: var(--layer-shell);
+  }
+
+  .ops-shell__canvas {
+    transform: translateZ(0);
+  }
+}
+
+@layer global-overlays {
+  #incident-alert-root {
+    position: fixed;
+    inset-block-start: 1rem;
+    inset-inline-end: 1rem;
+    z-index: var(--layer-alert);
+    inline-size: min(26rem, calc(100vw - 2rem));
+    pointer-events: none;
+  }
+
+  #incident-alert-root [role="alert"] {
+    min-inline-size: 0;
+    pointer-events: auto;
+    border: 1px solid currentColor;
+    padding: 1rem;
+  }
+}`,
+    criteria: [
+      "Explains that the fixed alert root must be a body-level sibling outside the transformed app shell",
+      "Keeps the transform on inner canvas content and layers the sticky navigation and alert through named tokens",
+      "Positions the portal against the viewport with logical insets and avoids arbitrary oversized z-index values",
     ],
   },
 
