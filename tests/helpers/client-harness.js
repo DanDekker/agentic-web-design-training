@@ -178,14 +178,17 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
   const requests = [];
   let eventSource;
   let nextTask = 1;
+  let nextTimer = 1;
+  const timers = new Map();
   const context = createContext({
     document, window: { location: { search } }, URL, URLSearchParams, Blob, Intl,
     localStorage: { setItem() {} }, navigator: { clipboard: { writeText: async () => {} } },
     queueMicrotask, requestAnimationFrame: (callback) => callback(),
-    setTimeout: () => 1, clearTimeout() {}, confirm: () => false, prompt: () => null,
+    setTimeout(callback, delay) { const id = nextTimer++; timers.set(id, { callback, delay }); return id; },
+    clearTimeout(id) { timers.delete(id); }, confirm: () => false, prompt: () => null,
     EventSource: class {
       constructor() { eventSource = this; }
-      close() {}
+      close() { this.closed = true; }
     },
     fetch: async (path, init = {}) => {
       const method = init.method ?? "GET";
@@ -258,6 +261,21 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
     },
     async refresh() {
       eventSource.onmessage({ data: JSON.stringify({ type: "state" }) });
+      await settle();
+    },
+    async openEvents() {
+      eventSource.onopen();
+      await settle();
+    },
+    async reconnectEvents() {
+      const previous = eventSource;
+      previous.onerror();
+      const retry = [...timers].find(([, timer]) => timer.delay === 5000);
+      if (!previous.closed || !retry) throw new Error("Event stream did not schedule a reconnect");
+      timers.delete(retry[0]);
+      retry[1].callback();
+      if (eventSource === previous) throw new Error("Event stream was not replaced");
+      eventSource.onopen();
       await settle();
     },
   };
