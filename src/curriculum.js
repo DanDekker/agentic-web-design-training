@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 191 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 192 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -83,6 +83,8 @@ import wasmStreamingStarter from "../exercises/platform/webassembly/streaming_lo
 import wasmStreamingSolution from "../exercises/platform/webassembly/streaming_loader/solution.js" with { type: "text" };
 import wasmUtf8AbiStarter from "../exercises/platform/webassembly/utf8_abi/starter.js" with { type: "text" };
 import wasmUtf8AbiSolution from "../exercises/platform/webassembly/utf8_abi/solution.js" with { type: "text" };
+import wasmThreadsStarter from "../exercises/platform/webassembly/threaded_runtime/starter.js" with { type: "text" };
+import wasmThreadsSolution from "../exercises/platform/webassembly/threaded_runtime/solution.js" with { type: "text" };
 import credentialBuilderStarter from "../exercises/platform/digital_credentials/request_builder/starter.js" with { type: "text" };
 import credentialBuilderSolution from "../exercises/platform/digital_credentials/request_builder/solution.js" with { type: "text" };
 import credentialPromptStarter from "../exercises/platform/digital_credentials/prompt_coordinator/starter.js" with { type: "text" };
@@ -12378,6 +12380,23 @@ export class VirtualizedShadowListEngine {
       "Reads the current memory.buffer after alloc and validates the complete byte range without overflow",
       "Copies bytes into the guest allocation before calling the requested export with pointer and byte length",
       "Frees every valid allocation in finally, including when guest code traps",
+    ],
+  },
+  {
+    id: "task_webassembly_threaded_runtime_gate",
+    title: "Gate Threaded WebAssembly on Browser Isolation and Shared Memory",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "threads", "sharedarraybuffer", "cross-origin-isolation", "fallback"],
+    instructions:
+      "A browser image-processing app can use a shared-memory Wasm build only when its deployment has cross-origin isolation and the browser can create shared WebAssembly.Memory. Create a runtime plan that checks both requirements before constructing shared memory, reserves the main thread when sizing a bounded worker pool, applies valid page limits, and returns a single-threaded fallback with a reason when isolation, capacity, or shared-memory creation is unavailable. Keep the capability inputs injectable for deployment and runtime tests.",
+    starterCode: wasmThreadsStarter,
+    solutionCode: wasmThreadsSolution,
+    criteria: [
+      "Requires crossOriginIsolated and SharedArrayBuffer and Memory constructors before enabling threads",
+      "Reserves the main thread and caps worker count at the configured maximum",
+      "Creates shared WebAssembly.Memory with validated initial and maximum page counts",
+      "Returns a scalar fallback plan with a reason for unavailable or failed shared-memory setup",
     ],
   },
   {

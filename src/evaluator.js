@@ -2582,6 +2582,22 @@ export class Evaluator {
         passed: code.includes("finally") && code.includes("exports.free(pointer)"),
         detail: "Returns valid guest-owned memory after both successful and throwing calls",
       });
+    } else if (id === "task_webassembly_threaded_runtime_gate") {
+      results.push({
+        name: "Isolation and Runtime Capability Gate",
+        passed: code.includes("crossOriginIsolated") && code.includes("SharedArrayBufferCtor") && code.includes("typeof Memory"),
+        detail: "Requires browser isolation and both shared-memory APIs before opting into a threaded build",
+      });
+      results.push({
+        name: "Bounded Worker Pool and Validated Memory Pages",
+        passed: code.includes("hardwareConcurrency - 1") && code.includes("Math.min(maxWorkers") && code.includes("maximumPages > 65536"),
+        detail: "Leaves the UI thread capacity available and rejects invalid 32-bit memory limits",
+      });
+      results.push({
+        name: "Reasoned Single-Threaded Fallback",
+        passed: code.includes('mode: "single-threaded"') && code.includes("shared-memory-construction-failed"),
+        detail: "Falls back cleanly when isolation or shared memory cannot be enabled at runtime",
+      });
     } else if (id === "task_webnn_tensor_inference_lifecycle") {
       results.push({
         name: "Least-Privilege Tensor Permissions",
@@ -8308,6 +8324,71 @@ export class Evaluator {
         name: "Unicode Byte Length, Memory Growth & Trap-Safe Free",
         passed: Boolean(res?.wasmUtf8AbiOk),
         detail: "Round-trips multibyte text after allocator-driven growth and releases each pointer even after a trap",
+      });
+    } else if (taskId === "task_webassembly_threaded_runtime_gate") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            class FakeSharedBuffer { constructor(byteLength) { this.byteLength = byteLength; } }
+            const descriptors = [];
+            class FakeMemory {
+              constructor(descriptor) {
+                descriptors.push(descriptor);
+                if (descriptor.fail) throw new Error("shared memory unavailable");
+                this.buffer = new FakeSharedBuffer(descriptor.initial * 65536);
+              }
+            }
+            const isolated = createWasmThreadPlan({
+              crossOriginIsolated: true,
+              SharedArrayBufferCtor: FakeSharedBuffer,
+              hardwareConcurrency: 8,
+              maxWorkers: 3,
+              initialPages: 2,
+              maximumPages: 12,
+              Memory: FakeMemory,
+            });
+            const constructionCount = descriptors.length;
+            const notIsolated = createWasmThreadPlan({
+              crossOriginIsolated: false,
+              SharedArrayBufferCtor: FakeSharedBuffer,
+              hardwareConcurrency: 8,
+              Memory: FakeMemory,
+            });
+            const noCapacity = createWasmThreadPlan({
+              crossOriginIsolated: true,
+              SharedArrayBufferCtor: FakeSharedBuffer,
+              hardwareConcurrency: 1,
+              Memory: FakeMemory,
+            });
+            class ThrowingMemory { constructor() { throw new Error("unsupported"); } }
+            const unavailable = createWasmThreadPlan({
+              crossOriginIsolated: true,
+              SharedArrayBufferCtor: FakeSharedBuffer,
+              hardwareConcurrency: 4,
+              Memory: ThrowingMemory,
+            });
+            let invalidLimitsRejected = false;
+            try {
+              createWasmThreadPlan({ crossOriginIsolated: true, SharedArrayBufferCtor: FakeSharedBuffer,
+                hardwareConcurrency: 4, Memory: FakeMemory, maximumPages: 65537 });
+            } catch (error) { invalidLimitsRejected = error instanceof RangeError; }
+            return {
+              wasmThreadGateOk: isolated.mode === "threaded" && isolated.workerCount === 3 &&
+                isolated.sharedMemory instanceof FakeMemory && descriptors[0].shared === true &&
+                descriptors[0].initial === 2 && descriptors[0].maximum === 12 &&
+                constructionCount === 1 && notIsolated.mode === "single-threaded" &&
+                noCapacity.reason === "insufficient-worker-capacity" &&
+                unavailable.reason === "shared-memory-construction-failed" && invalidLimitsRejected,
+            };
+          } catch { return { wasmThreadGateOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Isolation, Worker Budget, Memory Construction & Fallback",
+        passed: Boolean(res?.wasmThreadGateOk),
+        detail: "Creates a bounded shared-memory plan only after isolation and capability checks, with reliable fallback cases",
       });
     } else if (taskId === "task_webnn_tensor_inference_lifecycle") {
       const harness = `
