@@ -2122,6 +2122,22 @@ export class Evaluator {
         passed: code.includes("byteOffset") && code.includes("byteLength") && code.includes("releaseLock()") && code.includes("finally"),
         detail: "Sends only the selected view bytes and releases the writer lock after close",
       });
+    } else if (id === "task_webtransport_framed_stream") {
+      results.push({
+        name: "Incremental Big-Endian Framing",
+        passed: code.includes("getUint32") && code.includes("reader.read()") && code.includes("pending"),
+        detail: "Reassembles framed payloads independently of stream read boundaries",
+      });
+      results.push({
+        name: "Frame Size Cap & Consumer Backpressure",
+        passed: code.includes("maxFrameBytes") && code.includes("await onFrame"),
+        detail: "Rejects oversized frames and waits for each consumer callback before continuing",
+      });
+      results.push({
+        name: "Truncated Stream & Reader Cleanup",
+        passed: code.includes("SyntaxError") && code.includes("releaseLock()"),
+        detail: "Detects incomplete frames at EOF and releases stream ownership",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7349,6 +7365,43 @@ export class Evaluator {
         name: "WebTransport Datagram Expiry, Backpressure & View Bounds",
         passed: Boolean(res?.datagramSenderOk),
         detail: "Queues only the selected typed-view bytes, honors readiness and refuses oversized datagrams",
+      });
+    } else if (taskId === "task_webtransport_framed_stream") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const frames = [];
+            const chunks = [
+              new Uint8Array([0, 0, 0]),
+              new Uint8Array([3, 65, 66, 67, 0, 0, 0]),
+              new Uint8Array([2, 68]),
+              new Uint8Array([69]),
+            ];
+            const stream = new ReadableStream({ start(controller) { for (const chunk of chunks) controller.enqueue(chunk); controller.close(); } });
+            const count = await decodeLengthPrefixedStream(stream, {
+              maxFrameBytes: 4,
+              async onFrame(frame) { await Promise.resolve(); frames.push([...frame].join(",")); },
+            });
+            let oversizedRejected = false;
+            try {
+              const oversized = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array([0, 0, 1, 0])); controller.close(); } });
+              await decodeLengthPrefixedStream(oversized, { maxFrameBytes: 4, onFrame() {} });
+            } catch (error) { oversizedRejected = error instanceof RangeError; }
+            let truncatedRejected = false;
+            try {
+              const truncated = new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array([0, 0, 0, 2, 65])); controller.close(); } });
+              await decodeLengthPrefixedStream(truncated, { onFrame() {} });
+            } catch (error) { truncatedRejected = error instanceof SyntaxError; }
+            return { framedStreamOk: count === 2 && frames.join("|") === "65,66,67|68,69" && oversizedRejected && truncatedRejected };
+          } catch { return { framedStreamOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Split and Merged WebTransport Frame Reassembly",
+        passed: Boolean(res?.framedStreamOk),
+        detail: "Decodes two messages across fragmented headers and bodies, rejecting oversized and incomplete frames",
       });
     } else {
       // General syntax evaluation
