@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 215 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 216 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -87,6 +87,8 @@ import namedDetailsStarter from "../exercises/html/named_details_group/starter.t
 import namedDetailsSolution from "../exercises/html/named_details_group/solution.ts" with { type: "text" };
 import bidiSupportStarter from "../exercises/html/bidi_directionality_support_form/starter.ts" with { type: "text" };
 import bidiSupportSolution from "../exercises/html/bidi_directionality_support_form/solution.ts" with { type: "text" };
+import hiddenAnnexStarter from "../exercises/html/hidden_until_found_annex/starter.ts" with { type: "text" };
+import hiddenAnnexSolution from "../exercises/html/hidden_until_found_annex/solution.ts" with { type: "text" };
 import prioritizedWorkStarter from "../exercises/platform/scheduling/chunked_priority_work/starter.ts" with { type: "text" };
 import prioritizedWorkSolution from "../exercises/platform/scheduling/chunked_priority_work/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
@@ -6449,6 +6451,22 @@ export function renderModernInteractiveShell(spec: InteractiveShellSpec): string
       "Keeps the interface direction on an ltr/rtl whitelist and gives unknown text controls dir=\"auto\" plus unique dirname submission fields",
       "Isolates mixed-direction reference text with <bdi dir=\"auto\"> and escapes untrusted content in both attributes and text nodes",
       "Uses logical CSS, container-aware layout, and :dir(rtl) for directional decoration while leaving native form serialization intact",
+    ],
+  },
+  {
+    id: "task_html_hidden_until_found_support_annex",
+    title: "Keep Long Support Annexes Findable While Collapsed",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "hidden-until-found", "find-in-page", "beforematch", "fragment-navigation", "progressive-enhancement", "accessibility"],
+    instructions:
+      "A product support manual has a long troubleshooting annex that should stay out of the way until a reader needs it. Render the annex visible in server HTML, with a hidden optional toggle and links to the annex and its subsections. After binding, feature-detect the enumerated hidden property before setting hidden=\"until-found\"; browsers without it must keep the annex visible and the toggle hidden. Give the annex layout containment in CSS so browser find-in-page and fragment navigation can reveal its content, and do not override display or content-visibility on the panel. Listen for beforematch to synchronize the accessible toggle state, but leave hidden removal and scrolling to the browser; manual expansion may remove hidden and collapse may set hidden=\"until-found\". Preserve an initial fragment that already targets the annex or one of its descendants, escape supplied content, validate generated IDs, and return a disposer that removes listeners and restores the visible fallback. Use this for secondary reference material because hidden content is also unavailable to assistive technology until revealed; keep essential instructions in the main flow.",
+    starterCode: hiddenAnnexStarter.trimEnd(),
+    solutionCode: hiddenAnnexSolution.trimEnd(),
+    criteria: [
+      "Server-renders an escaped support annex and fragment links while leaving the annex visible and its optional button hidden",
+      "Feature-detects hidden=\"until-found\", preserves an initial fragment target, and leaves unsupported browsers with visible content",
+      "Uses layout containment and beforematch without overriding panel display or content-visibility, and cleans up listeners on disposal",
     ],
   },
   {
