@@ -73,6 +73,8 @@ import webtransportFramedStarter from "../exercises/platform/webtransport/framed
 import webtransportFramedSolution from "../exercises/platform/webtransport/framed_stream/solution.js" with { type: "text" };
 import webtransportReplayStarter from "../exercises/platform/webtransport/datagram_replay_window/starter.js" with { type: "text" };
 import webtransportReplaySolution from "../exercises/platform/webtransport/datagram_replay_window/solution.js" with { type: "text" };
+import wasmMemoryStarter from "../exercises/platform/webassembly/memory_view/starter.js" with { type: "text" };
+import wasmMemorySolution from "../exercises/platform/webassembly/memory_view/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -147,6 +149,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "WebTransport, QUIC Datagrams & Multiplexed Streams",
     categories: ["webtransport"],
   },
+  "webassembly-runtime": {
+    id: "webassembly-runtime",
+    name: "WebAssembly JavaScript Interop & Component Lifetimes",
+    categories: ["webassembly"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -188,6 +195,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   webrtc: "gpu-realtime-media",
   webcodecs: "gpu-realtime-media",
   webtransport: "webtransport-networking",
+  webassembly: "webassembly-runtime",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10334,6 +10342,23 @@ export class VirtualizedShadowListEngine {
       "Accepts new packets and nearby out-of-order packets while rejecting duplicates",
       "Drops packets older than the configured window and rejects ambiguous half-range jumps",
       "Uses wrap-safe serial arithmetic so uint32 rollover advances the window correctly",
+    ],
+  },
+  {
+    id: "task_webassembly_memory_view_refresh",
+    title: "Refresh WebAssembly Memory Views After Growth and Validate Pointers",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "memory", "memory-growth", "typed-arrays", "interop"],
+    instructions:
+      "A JavaScript wrapper cached a DataView over an exported WebAssembly.Memory buffer. After wasm memory.grow, fixed-length buffers may be detached and stale typed-array views no longer refer to the current allocation. Build U32 and UTF-8 accessors that fetch the current memory.buffer on every operation, validate offsets without overflowing offset + length, and reject out-of-bounds or unsafe pointers before constructing views.",
+    starterCode: wasmMemoryStarter,
+    solutionCode: wasmMemorySolution,
+    criteria: [
+      "Reads the current memory.buffer for each access instead of retaining a stale typed-array view",
+      "Checks safe non-negative offsets and lengths using subtraction-based bounds validation",
+      "Reads and writes little-endian unsigned 32-bit values with value-range validation",
+      "Decodes only the requested UTF-8 byte range and rejects malformed UTF-8",
     ],
   },
 ];
