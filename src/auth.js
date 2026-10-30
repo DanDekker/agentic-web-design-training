@@ -1,8 +1,6 @@
-import { randomBytes, createHash } from "node:crypto";
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { randomBytes } from "node:crypto";
 import { ValidationError } from "./store.js";
-import { readJsonStore } from "./persistence.js";
+import { readJsonStore, writeJsonFile } from "./persistence.js";
 
 function randomToken(bytes = 32) {
   return randomBytes(bytes).toString("hex");
@@ -13,9 +11,11 @@ export class AuthStore {
   #users = [];
   #sessions = new Map(); // token -> { userId, expiresAt, createdAt, userAgent }
   #queue = Promise.resolve();
+  #write;
 
-  constructor(file) {
+  constructor(file, { write = writeJsonFile } = {}) {
     this.#file = file;
+    this.#write = write;
   }
 
   async load() {
@@ -38,7 +38,7 @@ export class AuthStore {
   async #seedDefaults() {
     const agentHash = await Bun.password.hash("agent-demo-2026", { algorithm: "bcrypt", cost: 4 });
     const ppHash = await Bun.password.hash("curriculum-1m", { algorithm: "bcrypt", cost: 4 });
-    this.#users = [
+    const users = [
       {
         id: "usr_agent",
         username: "agent",
@@ -56,19 +56,8 @@ export class AuthStore {
         createdAt: new Date().toISOString(),
       },
     ];
-    await this.#persist();
-  }
-
-  async #persist() {
-    const payload = JSON.stringify({ version: 1, users: this.#users }, null, 2);
-    const run = this.#queue.catch(() => {}).then(async () => {
-      await mkdir(dirname(this.#file), { recursive: true });
-      const tmp = `${this.#file}.${process.pid}.tmp`;
-      await writeFile(tmp, payload, "utf8");
-      await rename(tmp, this.#file);
-    });
-    this.#queue = run.catch(() => {});
-    return run;
+    await this.#write(this.#file, JSON.stringify({ version: 1, users }, null, 2));
+    this.#users = users;
   }
 
   listUsers() {
@@ -83,6 +72,7 @@ export class AuthStore {
   }
 
   getUserByUsername(username) {
+    if (typeof username !== "string") return null;
     const user = this.#users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
     return user ? { ...user } : null;
   }
@@ -112,10 +102,16 @@ export class AuthStore {
       createdAt: new Date().toISOString(),
     };
 
-    this.#users.push(user);
-    await this.#persist();
-    const { passwordHash: _, ...safe } = user;
-    return safe;
+    const run = this.#queue.then(async () => {
+      if (this.getUserByUsername(cleanUser)) throw new ValidationError("Username already taken.");
+      const users = [...this.#users, user];
+      await this.#write(this.#file, JSON.stringify({ version: 1, users }, null, 2));
+      this.#users = users;
+      const { passwordHash: _, ...safe } = user;
+      return safe;
+    });
+    this.#queue = run.catch(() => {});
+    return run;
   }
 
   async verifyCredentials(username, password) {
