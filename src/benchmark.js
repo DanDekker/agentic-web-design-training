@@ -51,25 +51,38 @@ export class BenchmarkSuite {
    */
   async runFullBenchmark({ category = null } = {}) {
     const startTime = performance.now();
-    const taskResults = [];
     const targetTasks = category
       ? REFACTORING_CURRICULUM_TASKS.filter((t) => t.category === category)
       : REFACTORING_CURRICULUM_TASKS;
 
-    for (const task of targetTasks) {
-      const solution = task.solutionCode;
-      const evalResult = await this.#evaluator.evaluate(task.id, solution);
-      taskResults.push({
-        taskId: task.id,
-        title: task.title,
-        difficulty: task.difficulty,
-        category: task.category,
-        passed: evalResult.passed,
-        score: evalResult.score,
-        durationMs: evalResult.telemetry.durationMs,
-        lineDelta: evalResult.diff.lineDelta,
-      });
-    }
+    // Independent reference runs share the evaluator's bounded worker pool.
+    // Keep catalog order in the report even when workers finish out of order.
+    const taskResults = new Array(targetTasks.length);
+    let nextIndex = 0;
+    let failure;
+    const runNext = async () => {
+      while (!failure && nextIndex < targetTasks.length) {
+        const index = nextIndex++;
+        const task = targetTasks[index];
+        try {
+          const evalResult = await this.#evaluator.evaluate(task.id, task.solutionCode);
+          taskResults[index] = {
+            taskId: task.id,
+            title: task.title,
+            difficulty: task.difficulty,
+            category: task.category,
+            passed: evalResult.passed,
+            score: evalResult.score,
+            durationMs: evalResult.telemetry.durationMs,
+            lineDelta: evalResult.diff.lineDelta,
+          };
+        } catch (error) {
+          failure ??= error;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, targetTasks.length) }, runNext));
+    if (failure) throw failure;
 
     const totalDurationMs = Math.round((performance.now() - startTime) * 100) / 100;
     const count = taskResults.length || 1;
