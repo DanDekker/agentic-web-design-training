@@ -132,8 +132,10 @@ class Element {
     this.open = false;
     this.document.dialogs = this.document.dialogs.filter((dialog) => dialog !== this);
     if (this.opener?.isConnected) this.opener.focus();
-    else this.document.body.focus();
-    queueMicrotask(() => this.emit("close"));
+    queueMicrotask(async () => {
+      await this.emit("close");
+      if (this.contains(this.document.activeElement)) this.document.body.focus();
+    });
   }
 }
 
@@ -156,6 +158,12 @@ export async function createClient({ search = "", route, snapshot: supplied = {}
   document.body = document.querySelector("body");
   document.documentElement = document.querySelector("html");
   document.activeElement = document.body;
+  // The lightweight HTML fixture is otherwise flat; model the focused close control
+  // inside this dialog so close-event focus behavior matches a browser.
+  const refactorDialog = document.querySelector("#refactor-modal");
+  const refactorClose = document.querySelector("#btn-close-refactor");
+  document.children = document.children.filter((child) => child !== refactorClose);
+  refactorDialog.append(refactorClose);
 
   const snapshot = {
     boards: [
