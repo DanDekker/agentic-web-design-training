@@ -12,7 +12,7 @@
 
 ---
 
-**LLM Webdev Gauntlet** is a local curriculum and evaluation workspace for web development agents. It combines code challenges, an interactive task board, automated checks, and a benchmark of the included reference solutions. The application is called **gauntlet-web** and runs on Bun with vanilla JavaScript, HTML, and CSS; it has no runtime package dependencies or build step.
+**LLM Webdev Gauntlet** is a local curriculum and evaluation workspace for web development agents. It combines code challenges, an interactive task board, automated checks, and a benchmark of the included reference solutions. The application is called **gauntlet-web** and runs on Bun with vanilla JavaScript, HTML, and CSS. It includes the parse5 HTML parser as a locked dependency; there is no build step.
 
 ## Technology map
 
@@ -89,6 +89,7 @@ Requires [Bun](https://bun.sh/).
 ```bash
 git clone https://github.com/DanDekker/gauntlet-web.git
 cd gauntlet-web
+bun install --frozen-lockfile --ignore-scripts
 bun run dev
 ```
 
@@ -262,7 +263,7 @@ Live events are notifications, not a replayable history. The browser reloads the
 
 ## CI and container releases
 
-GitHub Actions runs the Bun test suite on Linux and macOS for pushes and pull requests. It also builds the container and checks that the HTTP server responds. [Dependabot](.github/dependabot.yml) proposes updates for workflow actions and the Bun base image.
+GitHub Actions installs the locked dependencies and runs the Bun test suite on Linux and macOS for pushes and pull requests. It also builds the container and checks that the HTTP server responds. [Dependabot](.github/dependabot.yml) proposes updates for Bun packages, workflow actions, and the Bun base image.
 
 Version tags such as `v1.0.0` trigger a tested container build published to `ghcr.io/dandekker/gauntlet-web:1.0.0`. The workflow also tags the latest stable release as `latest`. No image is published from pull requests.
 
