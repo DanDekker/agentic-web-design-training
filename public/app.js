@@ -727,7 +727,8 @@ function restoreRefactorFocus() {
   const target = refactorReturnFocus;
   refactorReturnFocus = null;
   if (!target || target.opener?.isConnected) return;
-  if (document.activeElement && document.activeElement !== document.body && document.activeElement !== document.documentElement) return;
+  const active = document.activeElement;
+  if (active && active !== document.body && active !== document.documentElement && !el.refactorModal?.contains(active)) return;
   (taskControl(target.id, ".refactor-inspect-btn") || el.input)?.focus({ preventScroll: true });
 }
 
