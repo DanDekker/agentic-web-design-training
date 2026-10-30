@@ -1046,6 +1046,33 @@ export class Evaluator {
         passed: code.includes("TRPCError") && code.includes("createCaller"),
         detail: "Throws typed TRPCError codes and exposes createCaller(ctx) for end-to-end RPC dispatch",
       });
+    } else if (id === "task_express5_problem_details_error_pipeline") {
+      results.push({
+        name: "Express 5 Returned Async Route & Typed ApiProblem",
+        passed:
+          code.includes('router.get("/v1/claims/:claimId", async') &&
+          code.includes("repository.findById(req.params.claimId)") &&
+          code.includes("class ApiProblem extends Error") &&
+          !code.includes("catchAsync"),
+        detail: "Returns an async Express 5 handler and models bounded public 4xx failures without a legacy wrapper",
+      });
+      results.push({
+        name: "Ordered RFC 9457 404 and Error Middleware",
+        passed:
+          code.includes('"application/problem+json"') &&
+          code.indexOf("app.use(problemNotFound)") < code.indexOf("app.use(createProblemErrorHandler(logger))") &&
+          code.includes("next(error)"),
+        detail: "Uses a normal 404 handler before four-argument error middleware and delegates after headers are sent",
+      });
+      results.push({
+        name: "Safe Problem Types, Request IDs & Generic 500",
+        passed:
+          code.includes("PROBLEM_TYPES") &&
+          code.includes("SAFE_REQUEST_ID") &&
+          code.includes("Internal Server Error") &&
+          code.includes("Unhandled API request error"),
+        detail: "Constrains public problem data, validates request IDs, and logs unexpected failures privately",
+      });
     } else if (id === "task_migrate_express_to_hono_edge_ts") {
       results.push({
         name: "Web-Standard Request/Response & Typed EdgeContext<TVariables>",
@@ -4956,6 +4983,87 @@ export class Evaluator {
         passed: Boolean(res?.unauth401 && res?.authedOk),
         detail: "Executes Fetch Request/Response middleware, extracts :orgId params, and propagates typed context",
       });
+    } else if (taskId === "task_express5_problem_details_error_pipeline") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const registerRoutes = typeof registerClaimRoutes === "function" ? registerClaimRoutes : exports.registerClaimRoutes;
+          const registerPipeline = typeof registerExpress5ProblemPipeline === "function" ? registerExpress5ProblemPipeline : exports.registerExpress5ProblemPipeline;
+          const ApiProblemCtor = typeof ApiProblem === "function" ? ApiProblem : exports.ApiProblem;
+          const routes = [];
+          const router = { get(path, handler) { routes.push({ path, handler }); } };
+          const stack = [];
+          const app = { use(handler) { stack.push(handler); } };
+          const logs = [];
+          const logger = { error(fields, message) { logs.push({ fields, message }); } };
+          const repository = { async findById(id) { return id === "clm_42" ? { id, status: "review" } : null; } };
+          const request = (id = "req_42", path = "/v1/claims/clm_42", params = { claimId: "clm_42" }) => ({
+            path, params,
+            get(name) { return name.toLowerCase() === "x-request-id" ? id : undefined; },
+          });
+          const response = (headersSent = false) => ({
+            headersSent, statusCode: 0, contentType: "", body: undefined, writes: 0,
+            status(code) { this.statusCode = code; return this; },
+            type(value) { this.contentType = value; return this; },
+            json(body) { this.body = body; this.writes++; return this; },
+          });
+
+          registerRoutes(router, repository);
+          registerPipeline(app, logger);
+          const route = routes[0].handler;
+          const ok = response();
+          await route(request(), ok);
+
+          const missingReq = request("claim-miss", "/v1/claims/missing", { claimId: "missing" });
+          const missing = response();
+          let asyncRejectionForwarded = false;
+          try {
+            await route(missingReq, missing);
+          } catch (error) {
+            asyncRejectionForwarded = error instanceof ApiProblemCtor;
+            stack[1](error, missingReq, missing, () => {});
+          }
+
+          const unmatchedReq = request("unmatched_1", "/v1/unknown", {});
+          const unmatched = response();
+          stack[0](unmatchedReq, unmatched, () => {});
+
+          const privateError = new Error("db-password-marker");
+          privateError.stack = "private-stack-marker";
+          const internal = response();
+          stack[1](privateError, request("unsafe\\r\\nid"), internal, () => {});
+          const internalJson = JSON.stringify(internal.body);
+
+          const alreadySent = response(true);
+          let delegated;
+          const forwarded = stack[1](privateError, request(), alreadySent, (error) => { delegated = error; });
+
+          let rejectsServerProblem = false;
+          let rejectsUnknownType = false;
+          try { new ApiProblemCtor(500, "Oops", "private"); } catch { rejectsServerProblem = true; }
+          try { new ApiProblemCtor(404, "Not Found", "safe", "https://attacker.test/problem"); } catch { rejectsUnknownType = true; }
+
+          return {
+            registeredPath: routes[0].path === "/v1/claims/:claimId",
+            asyncSuccess: ok.statusCode === 200 && ok.body.claim.id === "clm_42",
+            asyncProblemForwarded: asyncRejectionForwarded && missing.statusCode === 404 && missing.body.requestId === "claim-miss",
+            middlewareOrder: stack.length === 2 && stack[0].length === 3 && stack[1].length === 4,
+            unmatchedProblem: unmatched.statusCode === 404 && unmatched.contentType === "application/problem+json" && unmatched.body.requestId === "unmatched_1",
+            genericInternalError: internal.statusCode === 500 && internal.contentType === "application/problem+json" && internal.body.detail === "An unexpected error occurred." && !internal.body.requestId && !internalJson.includes("db-password-marker") && !internalJson.includes("private-stack-marker") && logs.length === 1,
+            sentHeadersDelegated: forwarded === privateError && delegated === privateError && alreadySent.writes === 0,
+            publicProblemValidation: rejectsServerProblem && rejectsUnknownType,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      for (const [name, passed, detail] of [
+        ["Async Route Results & Express 5 Rejection Flow", res?.registeredPath && res?.asyncSuccess && res?.asyncProblemForwarded, "Resolves an existing claim and forwards a rejected async lookup into the 404 problem handler"],
+        ["Middleware Arity, Order & Unmatched-Route Problem", res?.middlewareOrder && res?.unmatchedProblem, "Places the three-argument 404 responder before the four-argument error handler"],
+        ["Safe 500 Response, Request ID Validation & Private Logging", res?.genericInternalError, "Hides internal message/stack and rejects an invalid request ID while retaining a private log"],
+        ["Headers-Sent Delegation & Public Problem Constraints", res?.sentHeadersDelegated && res?.publicProblemValidation, "Delegates the original error after headers are sent and rejects unsafe status/type values"],
+      ]) {
+        results.push({ name, passed: Boolean(passed), detail });
+      }
     } else if (taskId === "task_migrate_react_hooks_to_svelte5_vue3_signals") {
       const harness = `
         ${sanitizedCode};
