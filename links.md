@@ -77,7 +77,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Hono | <https://github.com/honojs/hono> |
 | Fastify | <https://github.com/fastify/fastify> |
 
-### Express 5 API migration lab
+### Express 5 API migration labs
 
 | Topic | Official reference |
 | --- | --- |
@@ -88,6 +88,13 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Stripe webhook signatures and duplicate deliveries | <https://docs.stripe.com/webhooks> |
 | Express 5 migration guide | <https://expressjs.com/en/guide/migrating-5/> |
 | Problem Details for HTTP APIs (RFC 9457) | <https://www.rfc-editor.org/rfc/rfc9457.html> |
+
+### Accessible interaction patterns
+
+| Topic | Official reference |
+| --- | --- |
+| Tabs and keyboard navigation | <https://www.w3.org/WAI/ARIA/apg/patterns/tabs/> |
+| Combobox and listbox interaction | <https://www.w3.org/WAI/ARIA/apg/patterns/combobox/> |
 
 ### OAuth demo references
 
