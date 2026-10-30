@@ -92,7 +92,7 @@ cd gauntlet-web
 bun run dev
 ```
 
-Open **http://localhost:3000**. Use **Demo Agent** on the sign-in screen, then open the curriculum board. Select an exercise to read its prompt, starter code, and acceptance criteria. Submit a JavaScript or TypeScript solution to see assertion results and a diff. The **Benchmark** view runs the bundled reference solutions across the catalog and can export a Markdown report.
+Open **http://localhost:3000**. Use **Demo Agent** on the sign-in screen, then open the curriculum board. Select an exercise to read its prompt, starter code, and acceptance criteria. Submit a JavaScript or TypeScript solution to see assertion results and a diff. The **Benchmark** view runs the bundled reference solutions across the catalog and can export a Markdown report. A new task store is seeded on first launch; use **Curriculum** to add missing exercises later without replacing existing progress.
 
 For a regular server without file watching, use `bun run start`. Run the test suite with `bun test`.
 
@@ -246,7 +246,11 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | [`.github/workflows/`](.github/workflows/) | CI checks and tagged container publishing |
 | [`Dockerfile`](Dockerfile) | Bun runtime image for local use and releases |
 
-The server stores local state in `data/`, which is ignored by Git, and listens on `127.0.0.1` by default. Set `PORT` to change the HTTP port, `GUANTLET_WEB_DATA_DIR` to move the data directory, or `GUANTLET_WEB_HOST` to choose another listening address. The container listens on `0.0.0.0` inside the container; the example below publishes it only on the host's loopback interface.
+### Local data and recovery
+
+The server stores tasks, accounts, and OAuth clients in `data/`, which is ignored by Git, and listens on `127.0.0.1` by default. Set `PORT` to change the HTTP port, `GUANTLET_WEB_DATA_DIR` to move the data directory, or `GUANTLET_WEB_HOST` to choose another listening address. Individual file paths can be set with `GUANTLET_WEB_DATA`, `GUANTLET_WEB_AUTH_DATA`, and `GUANTLET_WEB_OAUTH_DATA`. The container listens on `0.0.0.0` inside the container; the example below publishes it only on the host's loopback interface.
+
+Writes are serialized within each store and use a temporary file and rename; run only one server against a data directory because there is no interprocess lock. An existing empty task store remains empty on restart. If a JSON file is malformed, the server moves it to a uniquely named `.corrupt-…` file before initializing a fresh store and logs the backup path. Read errors and unsupported data formats stop startup without replacing the file; preserve the backup before repairing or restoring data.
 
 ## CI and container releases
 
