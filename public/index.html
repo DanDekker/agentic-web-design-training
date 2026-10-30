@@ -655,8 +655,12 @@
     <!-- Command Palette -->
     <dialog class="palette" id="palette" aria-label="Command palette">
       <div class="palette-panel">
-        <input id="palette-input" type="text" placeholder="Type a command…" aria-label="Search commands" autocomplete="off" spellcheck="false" />
+        <div class="palette-search">
+          <input id="palette-input" type="text" role="combobox" aria-expanded="false" aria-controls="palette-list" aria-autocomplete="list" placeholder="Type a command…" aria-label="Search commands" autocomplete="off" spellcheck="false" />
+          <button type="button" class="close-btn" id="palette-close" aria-label="Close command palette">×</button>
+        </div>
         <ul id="palette-list" role="listbox" aria-label="Commands"></ul>
+        <p class="palette-empty" id="palette-empty" role="status" hidden>No commands match.</p>
       </div>
     </dialog>
 

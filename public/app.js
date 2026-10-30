@@ -137,6 +137,8 @@ const el = {
   palette: document.querySelector("#palette"),
   paletteInput: document.querySelector("#palette-input"),
   paletteList: document.querySelector("#palette-list"),
+  paletteClose: document.querySelector("#palette-close"),
+  paletteEmpty: document.querySelector("#palette-empty"),
 };
 
 const state = {
@@ -1475,7 +1477,7 @@ const commands = [
   { label: "Copy summary", hint: "", run: copySummary },
 ];
 
-function renderPalette(query) {
+function renderPalette(query, { scrollActive = false } = {}) {
   if (!el.paletteList) return;
   const q = query.trim().toLowerCase();
   state.matches = q ? commands.filter((c) => c.label.toLowerCase().includes(q)) : commands.slice();
@@ -1484,6 +1486,7 @@ function renderPalette(query) {
   el.paletteList.replaceChildren(
     ...state.matches.map((command, index) => {
       const li = document.createElement("li");
+      li.setAttribute("id", `palette-option-${index}`);
       li.setAttribute("role", "option");
       li.setAttribute("aria-selected", String(index === state.activeCommandIdx));
 
@@ -1507,6 +1510,18 @@ function renderPalette(query) {
       return li;
     }),
   );
+  const hasMatches = state.matches.length > 0;
+  el.paletteList.hidden = !hasMatches;
+  if (el.paletteEmpty) el.paletteEmpty.hidden = hasMatches;
+  if (el.paletteInput) {
+    el.paletteInput.setAttribute("aria-expanded", String(Boolean(el.palette?.open && hasMatches)));
+    if (hasMatches && el.palette?.open) {
+      el.paletteInput.setAttribute("aria-activedescendant", `palette-option-${state.activeCommandIdx}`);
+      if (scrollActive) el.paletteList.children[state.activeCommandIdx]?.scrollIntoView({ block: "nearest" });
+    } else {
+      el.paletteInput.removeAttribute("aria-activedescendant");
+    }
+  }
 }
 
 function openPalette() {
@@ -1521,6 +1536,12 @@ function openPalette() {
 
 function closePalette() {
   closeDialog(el.palette);
+  resetPaletteAccessibility();
+}
+
+function resetPaletteAccessibility() {
+  el.paletteInput?.setAttribute("aria-expanded", "false");
+  el.paletteInput?.removeAttribute("aria-activedescendant");
 }
 
 function runCommand(command) {
@@ -1704,6 +1725,8 @@ el.btnDesignAuditContrast?.addEventListener("click", runDesignContrastSolverUI);
 el.palette?.addEventListener("mousedown", (event) => {
   if (event.target === el.palette) closePalette();
 });
+el.palette?.addEventListener("close", resetPaletteAccessibility);
+el.paletteClose?.addEventListener("click", closePalette);
 
 el.paletteInput?.addEventListener("input", () => {
   state.activeCommandIdx = 0;
@@ -1711,15 +1734,16 @@ el.paletteInput?.addEventListener("input", () => {
 });
 
 el.paletteInput?.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowDown" || (event.key === "Tab" && !event.shiftKey)) {
+  if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+  if (event.key === "ArrowDown" && state.matches.length) {
     event.preventDefault();
     state.activeCommandIdx = clamp(state.activeCommandIdx + 1, 0, state.matches.length - 1);
-    renderPalette(el.paletteInput.value);
-  } else if (event.key === "ArrowUp" || (event.key === "Tab" && event.shiftKey)) {
+    renderPalette(el.paletteInput.value, { scrollActive: true });
+  } else if (event.key === "ArrowUp" && state.matches.length) {
     event.preventDefault();
     state.activeCommandIdx = clamp(state.activeCommandIdx - 1, 0, state.matches.length - 1);
-    renderPalette(el.paletteInput.value);
-  } else if (event.key === "Enter") {
+    renderPalette(el.paletteInput.value, { scrollActive: true });
+  } else if (event.key === "Enter" && state.matches.length) {
     event.preventDefault();
     const command = state.matches[state.activeCommandIdx];
     if (command) runCommand(command);
