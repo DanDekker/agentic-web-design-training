@@ -814,6 +814,11 @@
     }
   }
 
+  #clear[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: progress;
+  }
+
   .hints {
     display: flex;
     flex-wrap: wrap;

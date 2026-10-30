@@ -166,9 +166,11 @@ const pendingToggles = new Map();
 const pendingDeletions = new Set();
 let pendingReorder = null;
 let reorderInFlight = false;
+let clearingBoardId = null;
 
 function taskIsBusy(id) {
-  return pendingTaskActions.has(id) || editDrafts.get(id)?.status === "saving";
+  return pendingTaskActions.has(id) || editDrafts.get(id)?.status === "saving" ||
+    (clearingBoardId !== null && state.tasks.some((task) => task.id === id && task.boardId === clearingBoardId));
 }
 
 function withPendingTaskChanges(tasks) {
@@ -377,6 +379,12 @@ function renderTasks() {
   if (el.counts) el.counts.textContent = total === 0 ? "No tasks" : `${done} of ${total} done`;
   if (el.meter) el.meter.style.width = total === 0 ? "0%" : `${(done / total) * 100}%`;
   if (el.clear) el.clear.hidden = done === 0;
+  if (el.clear) {
+    const busy = clearingBoardId !== null || reorderInFlight || pendingTaskActions.size > 0 ||
+      [...editDrafts.values()].some((draft) => draft.status === "saving");
+    if (busy) el.clear.setAttribute("aria-disabled", "true");
+    else el.clear.removeAttribute("aria-disabled");
+  }
 
   for (const input of el.filters) {
     input.checked = input.dataset.filter === state.filter;
@@ -745,18 +753,33 @@ async function moveBefore(draggedId, targetId) {
 }
 
 async function clearCompleted() {
+  if (clearingBoardId !== null || reorderInFlight || pendingTaskActions.size > 0 ||
+      [...editDrafts.values()].some((draft) => draft.status === "saving")) {
+    return toast("Wait for the current task changes to finish.");
+  }
   const inBoard = state.tasks.filter((t) => t.boardId === state.activeBoardId);
   if (!inBoard.some((t) => t.done)) return toast("Nothing completed on this board yet.");
+  const boardId = state.activeBoardId;
+  const completedIds = new Set(inBoard.filter((task) => task.done).map((task) => task.id));
+  clearingBoardId = boardId;
+  renderAfterTaskMutation();
   try {
     const { tasks, removed } = await api("POST", "/api/tasks/clear-completed", {
-      boardId: state.activeBoardId,
+      boardId,
     });
-    if (Array.isArray(tasks)) state.tasks = tasks;
+    if (Array.isArray(tasks)) {
+      const remainingIds = new Set(tasks.map((task) => task.id));
+      state.tasks = state.tasks.filter((task) => !completedIds.has(task.id) || remainingIds.has(task.id));
+    }
+    await loadInitialState();
     state.cursor = -1;
-    render();
     toast(`Cleared ${removed} completed task${removed === 1 ? "" : "s"}.`);
   } catch (err) {
-    toast(err.message);
+    await loadInitialState();
+    toast(`Could not confirm clearing completed tasks: ${err.message}`);
+  } finally {
+    clearingBoardId = null;
+    renderAfterTaskMutation();
   }
 }
 

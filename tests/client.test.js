@@ -356,6 +356,46 @@ describe("Live state and rendering", () => {
     expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["b", "a", "c", "new"]);
   });
 
+  test("clearing completed tasks preserves newer additions and blocks conflicting actions", async () => {
+    let finish;
+    const completed = { id: "done", title: "Done", boardId: "board_today", done: true };
+    const active = { id: "active", title: "Active", boardId: "board_today", done: false };
+    const app = await createClient({ snapshot: { tasks: [completed, active] }, route: ({ method, path }) =>
+      method === "POST" && path === "/api/tasks/clear-completed"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const clearing = app.get("clear").emit("click");
+    await settle();
+    expect(app.get("clear").getAttribute("aria-disabled")).toBe("true");
+    await app.get("list").children[1].querySelector(".check").emit("click");
+    await app.get("clear").emit("click");
+    expect(app.requests.filter((request) => request.method === "PATCH")).toHaveLength(0);
+    expect(app.requests.filter((request) => request.path === "/api/tasks/clear-completed")).toHaveLength(1);
+    app.snapshot.tasks = [active, { id: "new", title: "New", boardId: "board_today", done: false }];
+    await app.refresh();
+    finish(json({ removed: 1, tasks: [active] }));
+    await clearing;
+    expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["active", "new"]);
+    expect(app.get("toast").textContent).toBe("Cleared 1 completed task.");
+  });
+
+  test("an unconfirmed clear refreshes state instead of restoring tasks already removed", async () => {
+    let finish;
+    const app = await createClient({ snapshot: { tasks: [
+      { id: "done", title: "Done", boardId: "board_today", done: true },
+    ] }, route: ({ method, path }) =>
+      method === "POST" && path === "/api/tasks/clear-completed"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const clearing = app.get("clear").emit("click");
+    await settle();
+    app.snapshot.tasks = [];
+    finish(json({ error: "Connection lost" }, 503));
+    await clearing;
+    expect(app.get("list").children).toHaveLength(0);
+    expect(app.get("toast").textContent).toContain("Could not confirm clearing completed tasks");
+  });
+
   test("SSE refreshes visible tasks while preserving the selected board", async () => {
     const app = await createClient({ search: "?board=agentic-refactoring" });
     await app.click(app.get("board-tabs").children[0]);
