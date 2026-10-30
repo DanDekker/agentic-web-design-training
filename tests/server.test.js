@@ -132,7 +132,9 @@ test("disconnected evaluation requests release worker capacity", async () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ taskId: "task_refactor_async_pipeline", code: "async function processUserData() { return new Promise(() => {}); }" }),
     }).catch(() => null));
-    await Bun.sleep(350);
+    for (let attempt = 0; attempt < 100 && server.pendingRequests < 4; attempt++) await Bun.sleep(20);
+    expect(server.pendingRequests).toBe(4);
+    await Bun.sleep(100);
     controllers.forEach((controller) => controller.abort());
     await Promise.all(requests);
     const response = await fetch(new URL("/api/curriculum/evaluate", server.url), {
