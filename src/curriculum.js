@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 192 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 193 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -85,6 +85,8 @@ import wasmUtf8AbiStarter from "../exercises/platform/webassembly/utf8_abi/start
 import wasmUtf8AbiSolution from "../exercises/platform/webassembly/utf8_abi/solution.js" with { type: "text" };
 import wasmThreadsStarter from "../exercises/platform/webassembly/threaded_runtime/starter.js" with { type: "text" };
 import wasmThreadsSolution from "../exercises/platform/webassembly/threaded_runtime/solution.js" with { type: "text" };
+import wasmPluginStarter from "../exercises/platform/webassembly/plugin_capabilities/starter.js" with { type: "text" };
+import wasmPluginSolution from "../exercises/platform/webassembly/plugin_capabilities/solution.js" with { type: "text" };
 import credentialBuilderStarter from "../exercises/platform/digital_credentials/request_builder/starter.js" with { type: "text" };
 import credentialBuilderSolution from "../exercises/platform/digital_credentials/request_builder/solution.js" with { type: "text" };
 import credentialPromptStarter from "../exercises/platform/digital_credentials/prompt_coordinator/starter.js" with { type: "text" };
@@ -12397,6 +12399,23 @@ export class VirtualizedShadowListEngine {
       "Reserves the main thread and caps worker count at the configured maximum",
       "Creates shared WebAssembly.Memory with validated initial and maximum page counts",
       "Returns a scalar fallback plan with a reason for unavailable or failed shared-memory setup",
+    ],
+  },
+  {
+    id: "task_webassembly_plugin_capabilities",
+    title: "Instantiate a WebAssembly Plugin with Explicit Host Capabilities",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "plugins", "capability-security", "imports", "sandboxing"],
+    instructions:
+      "A reporting platform accepts third-party WebAssembly transformations. Inspect the compiled module import list, build a fresh import object containing only host capabilities explicitly granted for the exact namespace/name pairs it requests, and reject missing grants before instantiation. Do not pass the full host service map to the module: WebAssembly has no ambient browser or server access, so each imported host function, memory, or global is an explicit authority boundary. Keep the WebAssembly API injectable for deterministic policy tests.",
+    starterCode: wasmPluginStarter,
+    solutionCode: wasmPluginSolution,
+    criteria: [
+      "Uses WebAssembly.Module.imports to enumerate requested module/name pairs before linking",
+      "Rejects an import without an own-property capability grant using a clear NotAllowedError",
+      "Builds null-prototype import namespaces containing only the exact capabilities the module requested",
+      "Does not mutate the host capability map and instantiates with the restricted import object",
     ],
   },
   {
