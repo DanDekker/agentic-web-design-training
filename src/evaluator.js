@@ -2138,6 +2138,22 @@ export class Evaluator {
         passed: code.includes("SyntaxError") && code.includes("releaseLock()"),
         detail: "Detects incomplete frames at EOF and releases stream ownership",
       });
+    } else if (id === "task_webtransport_datagram_replay_window") {
+      results.push({
+        name: "Uint32 Input & Bounded Window Validation",
+        passed: code.includes("0xffffffff") && code.includes("windowSize") && code.includes("RangeError"),
+        detail: "Validates sequence input and limits bitmap storage to a bounded replay horizon",
+      });
+      results.push({
+        name: "Duplicate and Reordering Bitmap",
+        passed: code.includes("#bitmap") && code.includes("behind") && code.includes("ahead"),
+        detail: "Tracks seen packets while accepting fresh sequence values that arrive out of order",
+      });
+      results.push({
+        name: "Wrap-Safe Serial Number Comparison",
+        passed: code.includes("0x80000000") && code.includes(">>> 0"),
+        detail: "Distinguishes forward movement across uint32 rollover from stale values",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7402,6 +7418,42 @@ export class Evaluator {
         name: "Split and Merged WebTransport Frame Reassembly",
         passed: Boolean(res?.framedStreamOk),
         detail: "Decodes two messages across fragmented headers and bodies, rejecting oversized and incomplete frames",
+      });
+    } else if (taskId === "task_webtransport_datagram_replay_window") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const window = new DatagramReplayWindow(4);
+            const accepted = [
+              window.accept(0xfffffffe),
+              window.accept(0xffffffff),
+              window.accept(0),
+              window.accept(1),
+            ];
+            const duplicateRejected = !window.accept(0xffffffff) && !window.accept(1);
+            window.accept(2);
+            window.accept(3);
+            window.accept(4);
+            window.accept(5);
+            const staleRejected = !window.accept(0xfffffffe);
+            const halfRangeRejected = !window.accept(0x80000005);
+            let invalidRejected = false;
+            try { window.accept(-1); } catch (error) { invalidRejected = error instanceof RangeError; }
+            let sizeRejected = false;
+            try { new DatagramReplayWindow(33); } catch (error) { sizeRejected = error instanceof RangeError; }
+            return {
+              replayWindowOk: accepted.every(Boolean) && duplicateRejected && staleRejected && halfRangeRejected &&
+                invalidRejected && sizeRejected && window.highestSequence === 5,
+            };
+          } catch { return { replayWindowOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Reordered, Duplicate and Wrapped Datagram Sequence Handling",
+        passed: Boolean(res?.replayWindowOk),
+        detail: "Accepts a rolling uint32 sequence across rollover once and rejects duplicates, stale and half-range packets",
       });
     } else {
       // General syntax evaluation
