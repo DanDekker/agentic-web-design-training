@@ -42,6 +42,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | JavaScript (ECMA-262) | <https://github.com/tc39/ecma262> |
 | HTML Living Standard | <https://github.com/whatwg/html> |
 | HTML Standard: dialog and interactive elements | <https://html.spec.whatwg.org/multipage/interactive-elements.html> |
+| HTML Standard: named, exclusive `<details>` groups | <https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element> |
 | HTML Standard: forms, labels, and input controls | <https://html.spec.whatwg.org/multipage/forms.html> |
 | HTML Standard: forms and constraint validation | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html> |
 | HTML Standard: native form submission and `requestSubmit()` | <https://html.spec.whatwg.org/multipage/forms.html#dom-form-requestsubmit-dev> |
@@ -140,6 +141,7 @@ not assumed to work uniformly across browsers.
 
 | Topic | W3C draft |
 | --- | --- |
+| CSS Paged Media Level 3 (`@page`, margin boxes, page counters) | <https://www.w3.org/TR/css-page-3/> |
 | Box Sizing Level 3 (intrinsic sizing) | <https://www.w3.org/TR/css-sizing-3/> |
 | Display Level 3 (formatting contexts and flow-root) | <https://www.w3.org/TR/css-display-3/> |
 | Positioned Layout Level 3 (sticky/fixed containing blocks and stacking contexts) | <https://www.w3.org/TR/css-position-3/> |
