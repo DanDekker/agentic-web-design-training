@@ -124,7 +124,9 @@ const benchmarkSuite = new BenchmarkSuite();
 
       if (pathname === "/api/auth/login" && req.method === "POST") {
         const { username, password } = await readJson(req);
-        if (!username || !password) throw new HttpError(400, "Username and password required.");
+        if (typeof username !== "string" || !username.trim() || typeof password !== "string" || !password) {
+          throw new HttpError(400, "Username and password required.");
+        }
         const user = await authStore.verifyCredentials(username, password);
         if (!user) throw new HttpError(401, "Invalid username or password.");
         const { token } = authStore.createSession(user.id, req.headers.get("user-agent") || "");

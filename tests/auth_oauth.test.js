@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -99,6 +99,32 @@ describe("1st-Party Proprietary Authentication", () => {
       password: "wrong_password",
     });
     expect(badRes.status).toBe(401);
+    expect((await call("POST", "/api/auth/login", { username: 42, password: "secret" })).status).toBe(400);
+  });
+
+  test("concurrent registrations cannot create duplicate usernames", async () => {
+    const results = await Promise.all([
+      call("POST", "/api/auth/register", { username: "SameUser", password: "password-one" }),
+      call("POST", "/api/auth/register", { username: "sameuser", password: "password-two" }),
+    ]);
+    expect(results.map((response) => response.status).sort()).toEqual([201, 422]);
+    expect(authStore.listUsers().filter((user) => user.username === "sameuser")).toHaveLength(1);
+    expect((await new AuthStore(join(dir, "auth.json")).load()).listUsers().filter((user) => user.username === "sameuser")).toHaveLength(1);
+  });
+
+  test("a failed account write is not visible or persisted by a later registration", async () => {
+    const file = join(dir, "auth.json");
+    const saved = join(dir, "saved-auth.json");
+    await rename(file, saved);
+    await mkdir(file);
+    await expect(authStore.register({ username: "failed-user", password: "password-one" })).rejects.toThrow();
+    expect(authStore.listUsers().some((user) => user.username === "failed-user")).toBe(false);
+    await rm(file, { recursive: true });
+    await rename(saved, file);
+    await authStore.register({ username: "saved-user", password: "password-two" });
+    const users = (await new AuthStore(file).load()).listUsers();
+    expect(users.some((user) => user.username === "failed-user")).toBe(false);
+    expect(users.some((user) => user.username === "saved-user")).toBe(true);
   });
 
   test("logs out and revokes session", async () => {
