@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 180 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 181 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4250,6 +4250,85 @@ care-patient-form::part(medication-hint) {
       "Documents both nested exportparts mappings from control and hint to the medication-control and medication-hint public names",
       "Styles the final exposed parts through the outer care-patient-form host and shares values inward with custom properties",
       "Keeps private shadow implementation details encapsulated and does not use deep selectors or important overrides",
+    ],
+  },
+
+  {
+    id: "task_css_shadow_slots_compound_boundary",
+    title: "Style a CMS Component Slot Without Crossing Its Shadow Boundary",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "shadow-dom", "slots", "slotted", "content-management"],
+    instructions:
+      "A newsroom CMS card receives editor-written paragraphs and primary actions through named slots. Style only the elements directly assigned to those slots with ::slotted() compound selectors; do not try to select links or emphasis nested inside a slotted wrapper. Keep useful base slot styles for browsers without :has-slotted, then use the bare :has-slotted pseudo-class only for a decorative separator. A whitespace text node also makes a slot match :has-slotted, so never use it to decide whether required content exists or hide fallback content. Preserve visible keyboard focus and forced-colors cues. ::slotted() and :has-slotted are defined in CSS Shadow Module Level 1; label this as progressive enhancement.",
+    starterCode: `/* Shadow-root stylesheet for a reusable editorial card. */
+:host {
+  display: block;
+}
+slot[name="primary-actions"] {
+  display: flex;
+}`,
+    solutionCode: `/* Shadow-root stylesheet for the CMS card. */
+:host {
+  display: block;
+  color: CanvasText;
+}
+
+slot[name="primary-actions"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+  border-block-end: 1px solid transparent;
+}
+
+slot[name="primary-actions"]::slotted(a),
+slot[name="primary-actions"]::slotted(button) {
+  min-block-size: 2.75rem;
+  padding-block: 0.5rem;
+  padding-inline: 1rem;
+  border: 1px solid currentColor;
+  background-color: var(--cms-action-surface, #155e75);
+  color: var(--cms-action-ink, #fff);
+  font: inherit;
+}
+
+slot[name="primary-actions"]::slotted(a:focus-visible),
+slot[name="primary-actions"]::slotted(button:focus-visible) {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+slot[name="article-body"]::slotted(p) {
+  max-inline-size: 68ch;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+/* Decorative only: whitespace text nodes also count as slotted content. */
+@supports selector(slot:has-slotted) {
+  slot[name="primary-actions"]:has-slotted {
+    border-block-end-color: currentColor;
+  }
+}
+
+@media (forced-colors: active) {
+  slot[name="primary-actions"]::slotted(a),
+  slot[name="primary-actions"]::slotted(button) {
+    background-color: Canvas;
+    color: LinkText;
+  }
+
+  slot[name="primary-actions"]::slotted(a:focus-visible),
+  slot[name="primary-actions"]::slotted(button:focus-visible) {
+    outline-color: Highlight;
+  }
+}`,
+    criteria: [
+      "Styles only directly assigned action links, buttons, and article paragraphs with ::slotted compound selectors",
+      "Keeps a base separator style and guards decorative :has-slotted styling with selector feature detection",
+      "Accounts for whitespace slotted text and preserves focus and forced-colors cues without using slot presence as required-content state",
     ],
   },
 
