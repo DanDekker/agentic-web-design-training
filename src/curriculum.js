@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 199 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 200 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -6874,6 +6874,204 @@ export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: s
       "Uses a real POST form, fieldset/legend, explicit labels, autocomplete, required native controls, and no novalidate bypass",
       "Links a concise error summary to invalid controls and associates safely escaped field errors through aria-invalid and aria-describedby",
       "Returns scoped container-query CSS with redundant invalid cues, visible focus, touch-sized controls, and forced-colors support",
+    ],
+  },
+  {
+    id: "task_html_dsd_public_css_theming_contract",
+    title: "Define an SSR Shadow Card Contract with Slots, Parts, and Scoped CSS",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "css", "declarative-shadow-dom", "shadow-dom", "slots", "css-parts", "design-systems"],
+    instructions:
+      "A design-system status card renders empty until its component bundle loads, and application teams reach into private shadow markup with brittle selectors. Build a server-rendered status-card compiler returning HTML, shadow CSS, and consumer CSS. Put a Declarative Shadow DOM template first under the host, provide named slots with fallback content, expose the stable `surface`, `heading`, `description`, `badge`, `severity`, and `action` parts for host theming, and use CSS custom properties for tokens. Keep status meaning available as text and accessible semantics; distinguish severity without color alone. Escape all user text and whitelist severity/density attributes so hostile content cannot break out of the SSR markup.",
+    starterCode: `// Client-only custom element with no initial content or styling contract.
+export function renderStatusCard(props: any) {
+  return `<gauntlet-web-status-card>${props.heading}</gauntlet-web-status-card>`;
+}`,
+    solutionCode: `// Streamable SSR markup plus private shadow styles and a limited public theming API.
+export type StatusSeverity = "info" | "warning" | "critical";
+export type StatusDensity = "comfortable" | "compact";
+
+export interface StatusCardProps {
+  readonly id: string;
+  readonly heading: string;
+  readonly message: string;
+  readonly badge: string;
+  readonly actionLabel: string;
+  readonly severity: StatusSeverity;
+  readonly density?: StatusDensity;
+}
+
+function escapeStatusText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function renderStatusCardSSR(props: StatusCardProps): {
+  readonly html: string;
+  readonly shadowCss: string;
+  readonly consumerCss: string;
+} {
+  const id = props.id.replace(/[^A-Za-z0-9_-]/g, "-") || "status-card";
+  const severity: StatusSeverity = ["info", "warning", "critical"].includes(props.severity)
+    ? props.severity
+    : "info";
+  const density: StatusDensity = props.density === "compact" ? "compact" : "comfortable";
+  const severityLabel = severity === "critical" ? "Action required" : severity === "warning" ? "Attention" : "Information";
+  const severityMark = severity === "info" ? "i" : severity === "warning" ? "!" : "×";
+
+  const shadowCss = `
+:host {
+  display: block;
+  color: var(--gw-status-ink, CanvasText);
+  background: var(--gw-status-surface, Canvas);
+  font: inherit;
+}
+
+.status-card {
+  container: status-card / inline-size;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  min-inline-size: 0;
+  padding: 1.25rem;
+  border: 1px solid currentColor;
+  border-inline-start: 0.4rem solid var(--gw-status-accent, currentColor);
+  border-radius: 0.75rem;
+}
+
+:host([density="compact"]) .status-card {
+  gap: 0.75rem;
+  padding: 0.875rem;
+}
+
+.status-card__body {
+  min-inline-size: 0;
+}
+
+.status-card__icon {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+:host([data-severity="warning"]) .status-card__icon {
+  border-style: dashed;
+}
+
+:host([data-severity="critical"]) .status-card__icon {
+  border-width: 4px;
+  border-style: double;
+}
+
+.status-card__heading {
+  margin-block: 0 0.5rem;
+  font-size: 1.5rem;
+  font-size: clamp(1.125rem, 1rem + 1cqi, 1.5rem);
+  text-wrap: balance;
+}
+
+.status-card__description {
+  overflow-wrap: anywhere;
+}
+
+.status-card__action {
+  min-block-size: max(2.75rem, 44px);
+  padding-inline: 1rem;
+  border: 2px solid currentColor;
+  color: inherit;
+  background: var(--gw-status-surface, Canvas);
+  font: inherit;
+}
+
+.status-card__action:focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+slot[name="badge"]::slotted([slot="badge"]) {
+  font-size: 0.875em;
+  font-weight: 700;
+}
+
+@container status-card (max-width: 28rem) {
+  .status-card__body {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (forced-colors: active) {
+  .status-card,
+  .status-card__action {
+    border-color: CanvasText;
+  }
+
+  .status-card__action:focus-visible {
+    outline-color: Highlight;
+  }
+}`;
+
+  const consumerCss = `
+gauntlet-web-status-card {
+  --gw-status-ink: CanvasText;
+  --gw-status-surface: Canvas;
+  --gw-status-accent: #4b5f93;
+}
+
+gauntlet-web-status-card::part(surface) {
+  box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 0.12);
+}
+
+gauntlet-web-status-card::part(heading) {
+  letter-spacing: -0.02em;
+}
+
+gauntlet-web-status-card::part(action) {
+  border-radius: 0.375rem;
+}
+
+@media (forced-colors: active) {
+  gauntlet-web-status-card::part(surface) {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}`;
+
+  const html = [
+    `<gauntlet-web-status-card id="${id}" data-severity="${severity}" density="${density}">`,
+    '  <template shadowrootmode="open" shadowrootdelegatesfocus>',
+    `    <style>${shadowCss}</style>`,
+    `    <article class="status-card" part="surface" role="status" aria-labelledby="${id}-heading" aria-describedby="${id}-description">`,
+    `      <span class="status-card__icon" part="severity" aria-hidden="true">${severityMark}</span>`,
+    '      <div class="status-card__body">',
+    `        <span part="badge"><slot name="badge"><span>Service update</span></slot></span>`,
+    `        <h2 class="status-card__heading" part="heading" id="${id}-heading"><slot name="heading">Service status</slot></h2>`,
+    `        <p class="status-card__description" part="description" id="${id}-description"><slot>${escapeStatusText(props.message)}</slot></p>`,
+    `        <p><slot name="severity"><span>${severityLabel}</span></slot></p>`,
+    `        <button class="status-card__action" part="action" type="button"><slot name="actions">${escapeStatusText(props.actionLabel)}</slot></button>`,
+    "      </div>",
+    "    </article>",
+    "  </template>",
+    `  <span slot="badge">${escapeStatusText(props.badge)}</span>`,
+    `  <span slot="heading">${escapeStatusText(props.heading)}</span>`,
+    `  <span slot="severity">${severityLabel}</span>`,
+    "</gauntlet-web-status-card>",
+  ].join("\\n");
+
+  return { html, shadowCss, consumerCss };
+}`,
+    criteria: [
+      "Streams an open Declarative Shadow DOM template before light-DOM content and supplies fallback content for named and default slots",
+      "Defines a bounded public styling contract with shadow-local :host/::slotted rules, custom-property tokens, and externally reachable ::part names",
+      "Escapes text, normalizes the host ID, whitelists severity and density, and keeps status meaning textual with forced-colors support",
     ],
   },
   {
