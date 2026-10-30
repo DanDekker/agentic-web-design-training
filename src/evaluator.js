@@ -213,24 +213,24 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Focus Without Media Clipping", all: [":focus-within", "outline: 3px solid", "outline-offset: 3px"], none: ["overflow: hidden", "width: 560px", "height: 315px"] },
   ],
   task_css_nested_workspace_scrollers: [
-    { name: "Shrinkable Two-Axis Workspace Tracks", all: ["grid-template-rows: auto minmax(0, 1fr)", "grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr)", "min-inline-size: 0", "min-block-size: 0"] },
-    { name: "Scroll Ownership and Containment", all: [".support-inbox__messages", "overflow: auto", "overscroll-behavior-block: contain", "scrollbar-gutter: stable"], none: ["overflow: hidden"] },
+    { name: "Shrinkable Two-Axis Workspace Tracks", all: ["grid-template-rows: auto minmax(0, 1fr)", "grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr)", "min-inline-size: 0", "min-block-size: 0"], withinRules: [{ selector: ".support-app__workspace", all: ["grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr)", "min-inline-size: 0", "min-block-size: 0"] }, { selector: ".support-inbox", all: ["grid-template-rows: auto minmax(0, 1fr) auto"] }] },
+    { name: "Scroll Ownership and Containment", all: [".support-inbox__messages", "overflow: auto", "overscroll-behavior-block: contain", "scrollbar-gutter: stable"], none: ["overflow: hidden"], withinRules: [{ selector: ".support-inbox__messages", all: ["overflow: auto", "overscroll-behavior-block: contain", "scrollbar-gutter: stable"] }] },
     { name: "Responsive Workspace Keeps Its Document Order", all: ["@media (max-width: 48rem)", "grid-template-columns: minmax(0, 1fr)", "grid-template-rows: auto minmax(0, 1fr)"], none: ["position: fixed"] },
   ],
   task_css_warehouse_pinned_table: [
-    { name: "Native Table in a Two-Axis Scrollport", all: [".warehouse-stock__viewport", "overflow: auto", "border-collapse: separate", "min-inline-size: 100%"], none: ["display: block"] },
-    { name: "Sticky Header and Row Label Intersection", all: ["inset-block-start: 0", "inset-inline-start: 0", "z-index: 2", "z-index: 3", "background: Canvas"] },
-    { name: "Logical Pinning and Print Recovery", all: ["tbody th[scope=\"row\"]", "@media print", "overflow: visible", "position: static", "min-inline-size: 0"] },
+    { name: "Native Table in a Two-Axis Scrollport", all: [".warehouse-stock__viewport", "overflow: auto", "border-collapse: separate", "min-inline-size: 100%"], none: ["display: block"], withinRules: [{ selector: ".warehouse-stock__viewport", all: ["overflow: auto", "max-inline-size: 100%"] }, { selector: ".warehouse-stock table", all: ["border-collapse: separate", "min-inline-size: 100%"] }] },
+    { name: "Sticky Header and Row Label Intersection", all: ["inset-block-start: 0", "inset-inline-start: 0", "z-index: 2", "z-index: 3", "background: Canvas"], withinRules: [{ selector: ".warehouse-stock thead th", all: ["position: sticky", "inset-block-start: 0", "z-index: 2", "background: Canvas"] }, { selector: '.warehouse-stock tbody th[scope="row"]', all: ["inset-inline-start: 0", "background: Canvas"] }, { selector: ".warehouse-stock thead th:first-child", all: ["inset-inline-start: 0", "z-index: 3"] }] },
+    { name: "Logical Pinning and Print Recovery", all: ["tbody th[scope=\"row\"]", "@media print", "overflow: visible", "position: static", "min-inline-size: 0"], withinRules: [{ selector: ".warehouse-stock__viewport", all: ["max-block-size: none", "overflow: visible"] }, { selector: ".warehouse-stock table", all: ["min-inline-size: 0", "table-layout: fixed"] }] },
   ],
   task_css_content_sized_reply_field: [
-    { name: "Usable Legacy Textarea Baseline", all: ["min-block-size: 3.5rem", "inline-size: 100%", "font: inherit", "resize: vertical"] },
-    { name: "Feature-Gated Intrinsic Control Sizing", all: ["@supports (field-sizing: content)", "field-sizing: content", "field-sizing: fixed"] },
-    { name: "Bounded Growth with Native Overflow", all: ["max-block-size: min(38dvh, 18rem)", "overflow-y: auto"], before: [["min-block-size: 3.5rem", "@supports (field-sizing: content)"]] },
+    { name: "Usable Legacy Textarea Baseline", all: ["min-block-size: 3.5rem", "inline-size: 100%", "font: inherit", "resize: vertical"], withinRules: [{ selector: ".ticket-reply__input", all: ["min-block-size: 3.5rem", "inline-size: 100%", "font: inherit", "resize: vertical"] }] },
+    { name: "Feature-Gated Intrinsic Control Sizing", all: ["@supports (field-sizing: content)", "field-sizing: content", "field-sizing: fixed"], withinRules: [{ selector: ".ticket-reply__input", all: ["field-sizing: content"] }] },
+    { name: "Bounded Growth with Native Overflow", all: ["max-block-size: min(38dvh, 18rem)", "overflow-y: auto"], before: [["min-block-size: 3.5rem", "@supports (field-sizing: content)"]], withinRules: [{ selector: ".ticket-reply__input", all: ["max-block-size: min(38dvh, 18rem)", "overflow-y: auto"] }] },
   ],
   task_css_intrinsic_disclosure_transition: [
-    { name: "Native Details Remains the Interaction Baseline", all: ["details", "summary", "details[open]::details-content", ":focus-visible"] },
-    { name: "Feature-Gated Auto-Size Interpolation", all: ["@supports (interpolate-size: allow-keywords)", "selector(details::details-content)", "interpolate-size: allow-keywords", "block-size: 0", "block-size: auto", "transition: block-size"] },
-    { name: "Reduced Motion and No Guessed Height", all: ["prefers-reduced-motion: reduce", "transition: none", "overflow-clip-margin"], none: ["max-height: 999px", "max-block-size: 1000px"] },
+    { name: "Native Details Remains the Interaction Baseline", all: ["details", "summary", "details[open]::details-content", ":focus-visible"], withinRules: [{ selector: ".help-faq summary", all: ["min-block-size: 2.75rem", "cursor: pointer"] }, { selector: ".help-faq summary:focus-visible", all: ["outline: 3px solid Highlight"] }] },
+    { name: "Feature-Gated Auto-Size Interpolation", all: ["@supports (interpolate-size: allow-keywords)", "selector(details::details-content)", "interpolate-size: allow-keywords", "block-size: 0", "block-size: auto", "transition: block-size"], withinRules: [{ selector: ".help-faq", all: ["interpolate-size: allow-keywords"] }, { selector: ".help-faq details::details-content", all: ["block-size: 0", "overflow: clip", "transition: block-size"] }, { selector: ".help-faq details[open]::details-content", all: ["block-size: auto"] }] },
+    { name: "Reduced Motion and No Guessed Height", all: ["prefers-reduced-motion: reduce", "transition: none", "overflow-clip-margin"], none: ["max-height: 999px", "max-block-size: 1000px"], withinRules: [{ selector: ".help-faq details::details-content", all: ["overflow-clip-margin: 0.35rem"] }] },
   ],
 });
 
