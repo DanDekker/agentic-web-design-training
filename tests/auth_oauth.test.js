@@ -131,6 +131,7 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect(disc.token_endpoint).toContain("/oauth/token");
     expect(disc.authorization_endpoint).toContain("/oauth/authorize");
     expect(disc.scopes_supported).toContain("tasks:refactor");
+    expect(disc.code_challenge_methods_supported).toEqual(["S256"]);
   });
 
   test("lists registered 1st-party clients", async () => {
@@ -143,16 +144,15 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
   test("renders consent data as text and preserves state without creating markup", async () => {
     const injectedName = `<img src=x onerror=alert(1)> & 'client'`;
     const injectedState = `"><img src=x onerror=alert(1)> & 'state'`;
-    const injectedScope = "<img/src=x>";
     const client = await oauthServer.registerClient({
       name: injectedName,
       redirectUris: ["http://localhost:3000/oauth/callback"],
-      allowedScopes: ["read:tasks", injectedScope],
+      allowedScopes: ["read:tasks"],
     });
     const params = new URLSearchParams({
       client_id: client.clientId,
       redirect_uri: client.redirectUris[0],
-      scope: `read:tasks ${injectedScope}`,
+      scope: "read:tasks",
       state: injectedState,
       code_challenge: "a".repeat(43),
       code_challenge_method: "S256",
@@ -171,7 +171,7 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect(html).toContain("&lt;img src=x onerror=alert(1)&gt; &amp; &#39;client&#39;");
     // HTMLRewriter exposes the source-encoded attribute values.
     expect(fields.state).toBe("&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; &#39;state&#39;");
-    expect(fields.scope).toBe("read:tasks &lt;img/src=x&gt;");
+    expect(fields.scope).toBe("read:tasks");
     expect(fields.redirect_uri).toBe(client.redirectUris[0]);
   });
 
@@ -217,6 +217,26 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect((await call("POST", "/oauth/token", tokenRequest)).status).toBe(422);
     expect((await call("POST", "/oauth/token", { ...tokenRequest, redirect_uri: `${redirectUri}/other` })).status).toBe(422);
     expect((await call("POST", "/oauth/token", { ...tokenRequest, redirect_uri: redirectUri })).status).toBe(200);
+  });
+
+  test("limits requested scopes to the client's registration in both grant flows", async () => {
+    const redirectUri = "http://localhost:3000/oauth/callback";
+    const params = new URLSearchParams({ client_id: "desktop-curriculum-suite", redirect_uri: redirectUri, scope: "write:tasks" });
+    expect((await call("GET", `/oauth/authorize?${params}`)).status).toBe(422);
+    expect((await call("POST", "/oauth/authorize/decision", {
+      client_id: "desktop-curriculum-suite", redirect_uri: redirectUri, scope: "write:tasks", approved: "true",
+    })).status).toBe(422);
+    expect((await call("POST", "/oauth/token", {
+      grant_type: "client_credentials", client_id: "desktop-curriculum-suite",
+      client_secret: "desktop-eval-secret-99", scope: "write:tasks",
+    })).status).toBe(422);
+    expect((await call("POST", "/oauth/clients", { name: "Bad scope", allowedScopes: ["*"] })).status).toBe(422);
+  });
+
+  test("accepts only well-formed S256 challenges for authorization codes", async () => {
+    const base = { client_id: "agent-runner", redirect_uri: "http://localhost:3000/oauth/callback", approved: "true" };
+    expect((await call("POST", "/oauth/authorize/decision", { ...base, code_challenge: "too-short", code_challenge_method: "S256" })).status).toBe(422);
+    expect((await call("POST", "/oauth/authorize/decision", { ...base, code_challenge: "a".repeat(43), code_challenge_method: "plain" })).status).toBe(422);
   });
 
   test("complete OAuth Authorization Code flow with PKCE S256", async () => {
