@@ -262,10 +262,10 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
-  test("verifies cross-framework TypeScript migration tasks (Express->Hono, React->Svelte5/Vue3, Redux->TanStack, Pages->App Router)", async () => {
+  test("verifies Express 5 and cross-framework TypeScript migration tasks", async () => {
     const tasksRes = await call("GET", "/api/curriculum/tasks?category=framework-migration");
     const { tasks: migTasks } = await tasksRes.json();
-    expect(migTasks.length).toBe(4);
+    expect(migTasks.length).toBe(5);
 
     for (const migTask of migTasks) {
       const verifyRes = await call("POST", "/api/curriculum/verify", {
@@ -505,7 +505,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(217);
+    expect(validation.totalTasks).toBe(218);
     expect(CURRICULUM_CATEGORIES.length).toBe(42);
     expect(Object.keys(CURRICULUM_TRACKS).length).toBe(21);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);

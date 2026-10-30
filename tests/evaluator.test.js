@@ -215,9 +215,10 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     }
   });
 
-  test("evaluates cross-framework TypeScript migration tasks in sandbox", async () => {
+  test("evaluates Express 5 and cross-framework TypeScript migration tasks in sandbox", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
     for (const id of [
+      "task_express5_problem_details_error_pipeline",
       "task_migrate_express_to_hono_edge_ts",
       "task_migrate_react_hooks_to_svelte5_vue3_signals",
       "task_migrate_redux_thunks_to_tanstack_query_ts",
@@ -376,7 +377,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(217);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(218);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
