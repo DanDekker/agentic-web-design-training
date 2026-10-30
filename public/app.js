@@ -340,7 +340,7 @@ function renderBoardsNav() {
 
 function focusedTaskControl() {
   const rows = Array.from(el.list?.children || []);
-  const selectors = [".check", ".remove", ".refactor-inspect-btn", ".task-draft-btn", ".task-edit"];
+  const selectors = [".check", ".remove", ".task-move-up", ".task-move-down", ".refactor-inspect-btn", ".task-draft-btn", ".task-edit"];
   for (const [index, row] of rows.entries()) {
     const selector = selectors.find((candidate) => row.querySelector(candidate) === document.activeElement);
     if (selector) return { id: row.dataset.id, index, selector };
@@ -359,7 +359,7 @@ function renderTasks() {
   if (state.cursor < 0 && items.length > 0 && state.cursor !== -1) state.cursor = -1;
 
   const focus = focusedTaskControl();
-  if (el.list) el.list.replaceChildren(...items.map((task, index) => row(task, index)));
+  if (el.list) el.list.replaceChildren(...items.map((task, index) => row(task, index, items)));
   if (focus) {
     const rows = Array.from(el.list?.children || []);
     const replacement = taskControl(focus.id, focus.selector) ||
@@ -402,7 +402,7 @@ function renderUserPill() {
   }
 }
 
-function row(task, index) {
+function row(task, index, items) {
   const li = document.createElement("li");
   li.className = "task";
   if (task.done) li.classList.add("done");
@@ -494,6 +494,22 @@ function row(task, index) {
   const actions = document.createElement("div");
   actions.className = "task-actions";
 
+  for (const [direction, offset] of [["up", -1], ["down", 1]]) {
+    const move = document.createElement("button");
+    const neighbor = items[index + offset];
+    move.type = "button";
+    move.className = `task-move task-move-${direction}`;
+    move.textContent = direction === "up" ? "↑" : "↓";
+    move.setAttribute("aria-label", `Move “${task.title}” ${direction}`);
+    if (!neighbor || reorderInFlight || taskIsBusy(task.id) || taskIsBusy(neighbor.id)) {
+      move.setAttribute("aria-disabled", "true");
+    }
+    move.addEventListener("click", () => {
+      if (neighbor) moveTask(task.id, neighbor.id, direction === "down");
+    });
+    actions.append(move);
+  }
+
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "remove";
@@ -528,7 +544,7 @@ function row(task, index) {
     li.classList.remove("drop-target");
     const dragged = event.dataTransfer.getData("text/plain") || state.dragId;
     state.dragId = null;
-    if (dragged && dragged !== task.id) moveBefore(dragged, task.id);
+    if (dragged && dragged !== task.id) moveTask(dragged, task.id);
   });
 
   return li;
@@ -722,7 +738,7 @@ function stashEditingDraft() {
   state.editing = null;
 }
 
-async function moveBefore(draggedId, targetId) {
+async function moveTask(draggedId, targetId, after = false) {
   if (reorderInFlight || taskIsBusy(draggedId) || taskIsBusy(targetId)) return;
   const from = state.tasks.findIndex((t) => t.id === draggedId);
   const to = state.tasks.findIndex((t) => t.id === targetId);
@@ -733,7 +749,8 @@ async function moveBefore(draggedId, targetId) {
   reorderInFlight = true;
 
   const [task] = state.tasks.splice(from, 1);
-  state.tasks.splice(from < to ? to - 1 : to, 0, task);
+  const targetIndex = state.tasks.findIndex((item) => item.id === targetId);
+  state.tasks.splice(targetIndex + (after ? 1 : 0), 0, task);
   pendingReorder = { boardId, ids: state.tasks.filter((item) => item.boardId === boardId).map((item) => item.id) };
   render();
 
@@ -741,6 +758,7 @@ async function moveBefore(draggedId, targetId) {
     await api("POST", "/api/tasks/reorder", pendingReorder);
     pendingReorder = null;
     await loadInitialState();
+    toast(`Moved “${task.title}”.`);
   } catch (err) {
     pendingReorder = null;
     state.tasks = applyBoardOrder(state.tasks, boardId, originalIds);

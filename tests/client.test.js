@@ -356,6 +356,49 @@ describe("Live state and rendering", () => {
     expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["b", "a", "c", "new"]);
   });
 
+  test("move buttons reorder visible tasks and keep keyboard focus on the moved item", async () => {
+    const tasks = ["a", "b", "c"].map((id) => ({ id, title: id.toUpperCase(), boardId: "board_today", done: false }));
+    const app = await createClient({ snapshot: { tasks }, route: ({ method, path, body, snapshot }) => {
+      if (method === "POST" && path === "/api/tasks/reorder") {
+        const byId = new Map(snapshot.tasks.map((task) => [task.id, task]));
+        snapshot.tasks = body.ids.map((id) => byId.get(id));
+        return json({ tasks: snapshot.tasks });
+      }
+    } });
+    const rows = () => app.get("list").children;
+    expect(rows()[0].querySelector(".task-move-up").getAttribute("aria-disabled")).toBe("true");
+    expect(rows()[0].querySelector(".task-move-down").getAttribute("aria-label")).toBe("Move “A” down");
+    await app.click(rows()[0].querySelector(".task-move-down"));
+    expect(rows().map((row) => row.dataset.id)).toEqual(["b", "a", "c"]);
+    expect(app.document.activeElement).toBe(rows()[1].querySelector(".task-move-down"));
+    await app.click(rows()[1].querySelector(".task-move-up"));
+    expect(rows().map((row) => row.dataset.id)).toEqual(["a", "b", "c"]);
+    expect(app.document.activeElement).toBe(rows()[0].querySelector(".task-move-up"));
+    expect(app.document.activeElement.getAttribute("aria-disabled")).toBe("true");
+    expect(app.get("toast").textContent).toBe("Moved “A”.");
+  });
+
+  test("moving filtered tasks keeps hidden tasks in the board order", async () => {
+    const tasks = [
+      { id: "a", title: "A", boardId: "board_today", done: false },
+      { id: "hidden", title: "Hidden", boardId: "board_today", done: true },
+      { id: "b", title: "B", boardId: "board_today", done: false },
+    ];
+    const app = await createClient({ snapshot: { tasks }, route: ({ method, path, body, snapshot }) => {
+      if (method === "POST" && path === "/api/tasks/reorder") {
+        const byId = new Map(snapshot.tasks.map((task) => [task.id, task]));
+        snapshot.tasks = body.ids.map((id) => byId.get(id));
+        return json({ tasks: snapshot.tasks });
+      }
+    } });
+    await app.get("filter-active").emit("change");
+    await app.click(app.get("list").children[0].querySelector(".task-move-down"));
+    expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["b", "a"]);
+    expect(app.requests.find((request) => request.path === "/api/tasks/reorder").body.ids).toEqual(["hidden", "b", "a"]);
+    await app.get("filter-all").emit("change");
+    expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["hidden", "b", "a"]);
+  });
+
   test("clearing completed tasks preserves newer additions and blocks conflicting actions", async () => {
     let finish;
     const completed = { id: "done", title: "Done", boardId: "board_today", done: true };
