@@ -21,6 +21,7 @@ const el = {
   filters: Array.from(document.querySelectorAll("[data-filter]")),
 
   // Header buttons & User
+  curriculumCount: document.querySelector("#curriculum-count"),
   userPill: document.querySelector("#user-pill"),
   userName: document.querySelector("#user-name"),
   btnCurriculum: document.querySelector("#btn-curriculum"),
@@ -621,7 +622,7 @@ function toggleTheme() {
 /* ── Refactoring Tasks Curriculum ────────────────────────── */
 
 async function seedCurriculum() {
-  toast("Seeding 170 curriculum exercises...");
+  toast("Seeding curriculum exercises...");
   try {
     const res = await api("POST", "/api/curriculum/seed");
     // Reload state
@@ -947,13 +948,70 @@ async function simulateAgentOAuthPkce() {
   }
 }
 
-/* ── Agentic 170-Exercise Benchmark Suite Modal ───────────────────── */
+/* ── Curriculum Benchmark Suite Modal ───────────────────── */
+
+let benchmarkCatalog = null;
+let benchmarkCatalogRequest = null;
+
+function updateBenchmarkTaskCount() {
+  if (!benchmarkCatalog || !el.benchTotalTasks) return;
+  const category = el.benchCategoryFilter?.value;
+  const count = category ? benchmarkCatalog.byCategory[category] : benchmarkCatalog.totalTasks;
+  el.benchTotalTasks.textContent = Number.isSafeInteger(count) ? String(count) : "—";
+}
+
+function renderBenchmarkCatalog(stats) {
+  if (!Number.isSafeInteger(stats?.totalTasks) || stats.totalTasks < 0 ||
+      !stats.byCategory || typeof stats.byCategory !== "object" || Array.isArray(stats.byCategory)) {
+    throw new Error("Could not load the curriculum catalog.");
+  }
+  const categories = Object.entries(stats.byCategory)
+    .filter(([, count]) => Number.isSafeInteger(count) && count >= 0)
+    .sort(([a], [b]) => a.localeCompare(b));
+  benchmarkCatalog = stats;
+  if (el.curriculumCount) el.curriculumCount.textContent = `${stats.totalTasks} exercises`;
+  let selectionRemoved = false;
+  if (el.benchCategoryFilter) {
+    const selected = el.benchCategoryFilter.value;
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = `All ${categories.length} categories (${stats.totalTasks} exercises)`;
+    const options = categories.map(([category, count]) => {
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = `${category} (${count})`;
+      return option;
+    });
+    el.benchCategoryFilter.replaceChildren(all, ...options);
+    const selectionExists = categories.some(([category]) => category === selected);
+    selectionRemoved = Boolean(selected) && !selectionExists;
+    el.benchCategoryFilter.value = selectionExists ? selected : "";
+  }
+  if (selectionRemoved) changeBenchmarkCategory();
+  else updateBenchmarkTaskCount();
+}
+
+function loadBenchmarkCatalog() {
+  if (!benchmarkCatalogRequest) {
+    benchmarkCatalogRequest = api("GET", "/api/curriculum/benchmark")
+      .then(renderBenchmarkCatalog)
+      .finally(() => { benchmarkCatalogRequest = null; });
+  }
+  return benchmarkCatalogRequest;
+}
+
+function changeBenchmarkCategory() {
+  updateBenchmarkTaskCount();
+  for (const value of [el.benchPassRate, el.benchAvgScore, el.benchAvgDuration]) {
+    if (value) value.textContent = "—";
+  }
+  el.benchTableBody?.replaceChildren();
+}
 
 async function openBenchmarkModal() {
   openDialog(el.benchmarkModal);
   try {
-    const stats = await api("GET", "/api/curriculum/benchmark");
-    if (el.benchTotalTasks) el.benchTotalTasks.textContent = stats.totalTasks || 170;
+    await loadBenchmarkCatalog();
   } catch (err) {
     toast(err.message);
   }
@@ -967,6 +1025,7 @@ async function runFullBenchmarkUI() {
   if (!el.btnRunFullBenchmark) return;
   const originalText = el.btnRunFullBenchmark.textContent;
   el.btnRunFullBenchmark.disabled = true;
+  if (el.benchCategoryFilter) el.benchCategoryFilter.disabled = true;
   el.btnRunFullBenchmark.textContent = "Running Benchmark Suite...";
 
   try {
@@ -1003,13 +1062,16 @@ async function runFullBenchmarkUI() {
     toast(`Benchmark error: ${err.message}`);
   } finally {
     el.btnRunFullBenchmark.disabled = false;
+    if (el.benchCategoryFilter) el.benchCategoryFilter.disabled = false;
     el.btnRunFullBenchmark.textContent = originalText;
   }
 }
 
 async function downloadBenchmarkMarkdown() {
   try {
-    const res = await fetch("/api/curriculum/benchmark?format=markdown");
+    const params = new URLSearchParams({ format: "markdown" });
+    if (el.benchCategoryFilter?.value) params.set("category", el.benchCategoryFilter.value);
+    const res = await fetch(`/api/curriculum/benchmark?${params}`);
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const md = await res.text();
     const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
@@ -1372,7 +1434,7 @@ const commands = [
   { label: "New task", hint: "N", run: () => el.input?.focus() },
   { label: "Toggle theme", hint: "T", run: toggleTheme },
   { label: "Agentic Refactoring Curriculum", hint: "R", run: seedCurriculum },
-  { label: "Agentic 170-Exercise Benchmark Suite", hint: "B", run: openBenchmarkModal },
+  { label: "Curriculum Benchmark Suite", hint: "B", run: openBenchmarkModal },
   { label: "Two-User Real-Time Chat & Debugger", hint: "C", run: openChatModal },
   { label: "Web Shop Storefront, Checkout & Order History", hint: "S", run: openShopModal },
   { label: "Web Cookies, Client Data & HTTP Traffic Inspector", hint: "W", run: openTrafficModal },
@@ -1574,6 +1636,7 @@ el.btnSimulateOAuth?.addEventListener("click", simulateAgentOAuthPkce);
 // Benchmark Modal Wiring
 el.btnBenchmarkPortal?.addEventListener("click", openBenchmarkModal);
 el.btnCloseBenchmark?.addEventListener("click", closeBenchmarkModal);
+el.benchCategoryFilter?.addEventListener("change", changeBenchmarkCategory);
 el.btnRunFullBenchmark?.addEventListener("click", runFullBenchmarkUI);
 el.btnDownloadBenchmarkMd?.addEventListener("click", downloadBenchmarkMarkdown);
 
@@ -1824,4 +1887,5 @@ async function loadInitialState() {
 }
 
 loadInitialState();
+loadBenchmarkCatalog().catch(() => {});
 connectEvents();

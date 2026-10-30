@@ -245,4 +245,66 @@ describe("Live state and rendering", () => {
     await app.click("btn-download-benchmark-md");
     expect(app.get("toast").textContent).toContain("Failed to download report: Request failed (503)");
   });
+
+  test("benchmark filters and report requests follow the live catalog", async () => {
+    const stats = { totalTasks: 9, byCategory: { css: 6, webassembly: 1, "technical-seo": 2 } };
+    const app = await createClient({ route: ({ method, path }) => {
+      if (path === "/api/curriculum/benchmark") return json(stats);
+      if (path.startsWith("/api/curriculum/benchmark?format=markdown")) return json({ error: "Unavailable" }, 503);
+      if (method === "POST" && path === "/api/curriculum/benchmark/run-all") {
+        return json({ summary: { totalTasks: 2, passedTasks: 2, passRate: "100%", averageScore: 100, averageDurationMs: 1 }, results: [] });
+      }
+    } });
+    expect(app.get("curriculum-count").textContent).toBe("9 exercises");
+    const filter = app.get("bench-category-filter");
+    expect(filter.children.map((option) => [option.value, option.textContent])).toEqual([
+      ["", "All 3 categories (9 exercises)"],
+      ["css", "css (6)"],
+      ["technical-seo", "technical-seo (2)"],
+      ["webassembly", "webassembly (1)"],
+    ]);
+    await app.click("btn-benchmark-portal");
+    filter.value = "technical-seo";
+    await filter.emit("change");
+    expect(app.get("bench-total-tasks").textContent).toBe("2");
+    await app.click("btn-run-full-benchmark");
+    expect(app.requests.find((request) => request.path === "/api/curriculum/benchmark/run-all").body).toEqual({ category: "technical-seo" });
+    expect(app.get("bench-pass-rate").textContent).toBe("100%");
+    await app.click("btn-download-benchmark-md");
+    const report = app.requests.find((request) => request.path.includes("format=markdown"));
+    expect(new URL(report.path, "http://gauntlet-web.test").searchParams.get("category")).toBe("technical-seo");
+    filter.value = "css";
+    await filter.emit("change");
+    expect(app.get("bench-total-tasks").textContent).toBe("6");
+    expect(app.get("bench-pass-rate").textContent).toBe("—");
+  });
+
+  test("search and density controls have accessible names", async () => {
+    const app = await createClient();
+    expect(app.get("search-input").getAttribute("aria-label")).toBe("Search tasks and tags");
+    expect(app.get("density-toggle").getAttribute("aria-label")).toBe("Compact density");
+  });
+
+  test("benchmark catalog retries after a failed initial request and preserves available selection", async () => {
+    let attempts = 0;
+    const stats = { totalTasks: 8, byCategory: { css: 5, "technical-seo": 3 } };
+    const app = await createClient({ route: ({ path }) => {
+      if (path === "/api/curriculum/benchmark") {
+        attempts++;
+        return attempts === 1 ? json({ error: "Unavailable" }, 503) : json(stats);
+      }
+    } });
+    await app.click("btn-benchmark-portal");
+    expect(attempts).toBe(2);
+    expect(app.get("curriculum-count").textContent).toBe("8 exercises");
+    const filter = app.get("bench-category-filter");
+    filter.value = "technical-seo";
+    await filter.emit("change");
+    await app.click("btn-close-benchmark");
+    stats.totalTasks = 10;
+    stats.byCategory["technical-seo"] = 5;
+    await app.click("btn-benchmark-portal");
+    expect(filter.value).toBe("technical-seo");
+    expect(app.get("bench-total-tasks").textContent).toBe("5");
+  });
 });
