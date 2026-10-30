@@ -4,10 +4,11 @@
  * half-written data file behind. Supports single-list legacy calls and multi-board
  * rich refactoring task workflows.
  */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
+import { readJsonStore } from "./persistence.js";
 
 export const TITLE_MAX = 300;
 export const NOTES_MAX = 4000;
@@ -87,22 +88,9 @@ export class TaskStore {
   }
 
   async load() {
-    try {
-      const raw = await readFile(this.#file, "utf8");
-      this.#hydrate(JSON.parse(raw));
-    } catch (err) {
-      if (err.code === "ENOENT") {
-        await this.#seedFresh();
-      } else if (err instanceof SyntaxError) {
-        // Never lose data silently: quarantine the unreadable file and start clean.
-        const aside = `${this.#file}.corrupt-${Date.now()}`;
-        await rename(this.#file, aside).catch(() => {});
-        console.warn(`[store] unreadable data file moved to ${aside}`);
-        await this.#seedFresh();
-      } else {
-        throw err;
-      }
-    }
+    const stored = await readJsonStore(this.#file, "store");
+    if (stored.found) this.#hydrate(stored.value);
+    else await this.#seedFresh();
     return this;
   }
 
@@ -115,8 +103,18 @@ export class TaskStore {
   }
 
   #hydrate(parsed) {
-    const boards = Array.isArray(parsed?.boards) ? parsed.boards.filter(isBoard) : [];
-    const rawTasks = Array.isArray(parsed?.tasks) ? parsed.tasks.filter(isTask) : [];
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
+        (parsed.version !== undefined && parsed.version !== 1) || !Array.isArray(parsed.tasks) ||
+        (parsed.boards !== undefined && !Array.isArray(parsed.boards))) {
+      throw new Error("Invalid or unsupported task store format; the data file was left unchanged.");
+    }
+    const boards = parsed.boards ?? [];
+    const rawTasks = parsed.tasks;
+    if (!boards.every(isBoard) || !rawTasks.every(isTask) ||
+        new Set(boards.map((board) => board.id)).size !== boards.length ||
+        new Set(rawTasks.map((task) => task.id)).size !== rawTasks.length) {
+      throw new Error("Invalid or duplicate task store records; the data file was left unchanged.");
+    }
 
     if (boards.length === 0) {
       // v1 migration: a single flat list becomes the first board.

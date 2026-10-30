@@ -1,7 +1,8 @@
 import { randomBytes, createHash } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ValidationError } from "./store.js";
+import { readJsonStore } from "./persistence.js";
 
 function randomToken(bytes = 32) {
   return randomBytes(bytes).toString("hex");
@@ -18,20 +19,18 @@ export class AuthStore {
   }
 
   async load() {
-    try {
-      const raw = await readFile(this.#file, "utf8");
-      const parsed = JSON.parse(raw);
-      this.#users = Array.isArray(parsed?.users) ? parsed.users : [];
-    } catch (err) {
-      if (err.code === "ENOENT") {
-        this.#users = [];
-        await this.#seedDefaults();
-      } else {
-        this.#users = [];
-      }
-    }
-    if (this.#users.length === 0) {
+    const stored = await readJsonStore(this.#file, "auth");
+    if (!stored.found) {
       await this.#seedDefaults();
+    } else {
+      const parsed = stored.value;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) ||
+          (parsed.version !== undefined && parsed.version !== 1) || !Array.isArray(parsed.users) ||
+          !parsed.users.every((user) => user && typeof user === "object" &&
+            typeof user.id === "string" && typeof user.username === "string" && typeof user.passwordHash === "string")) {
+        throw new Error("Invalid or unsupported account store format; the data file was left unchanged.");
+      }
+      this.#users = parsed.users;
     }
     return this;
   }
