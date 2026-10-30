@@ -79,6 +79,8 @@ import wasmResourcesStarter from "../exercises/platform/webassembly/component_re
 import wasmResourcesSolution from "../exercises/platform/webassembly/component_resources/solution.js" with { type: "text" };
 import wasmJspiStarter from "../exercises/platform/webassembly/jspi_bindings/starter.js" with { type: "text" };
 import wasmJspiSolution from "../exercises/platform/webassembly/jspi_bindings/solution.js" with { type: "text" };
+import webnnInferenceStarter from "../exercises/platform/webnn/tensor_inference/starter.js" with { type: "text" };
+import webnnInferenceSolution from "../exercises/platform/webnn/tensor_inference/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -158,6 +160,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "WebAssembly JavaScript Interop & Component Lifetimes",
     categories: ["webassembly"],
   },
+  "web-neural-compute": {
+    id: "web-neural-compute",
+    name: "WebNN Graph Compilation, Tensors & Device Recovery",
+    categories: ["webnn"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -200,6 +207,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   webcodecs: "gpu-realtime-media",
   webtransport: "webtransport-networking",
   webassembly: "webassembly-runtime",
+  webnn: "web-neural-compute",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10397,6 +10405,23 @@ export class VirtualizedShadowListEngine {
       "Wraps imported JavaScript functions in new WebAssembly.Suspending instances",
       "Wraps exported Wasm functions through WebAssembly.promising while preserving non-function exports",
       "Copies nested import namespaces and leaves caller-provided objects unmodified",
+    ],
+  },
+  {
+    id: "task_webnn_tensor_inference_lifecycle",
+    title: "Run a WebNN Graph with Permissioned Tensors and Failure-Safe Cleanup",
+    category: "webnn",
+    difficulty: "advanced",
+    tags: ["webnn", "mlgraph", "mltensor", "permissions", "device-compute"],
+    instructions:
+      "A compiled WebNN MLGraph accepts named inputs and writes named output tensors. Allocate input tensors as writable and output tensors as readable, enqueue writes, submit the graph synchronously with context.dispatch, then await context.readTensor because dispatch itself has no completion promise. Return the named ArrayBuffers and destroy every tensor you allocated even if creation, writing, dispatch, or readback fails. Leave the caller-owned graph and context intact.",
+    starterCode: webnnInferenceStarter,
+    solutionCode: webnnInferenceSolution,
+    criteria: [
+      "Allocates input tensors with writable permission and output tensors with readable permission",
+      "Writes named inputs and submits the graph once without treating dispatch as a Promise",
+      "Awaits readTensor for each named output before returning its data",
+      "Destroys all created tensors in a finally block while preserving caller ownership of graph and context",
     ],
   },
 ];
