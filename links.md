@@ -40,6 +40,9 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Bun | <https://github.com/oven-sh/bun> |
 | JavaScript (ECMA-262) | <https://github.com/tc39/ecma262> |
 | HTML Living Standard | <https://github.com/whatwg/html> |
+| HTML Standard: dialog and interactive elements | <https://html.spec.whatwg.org/multipage/interactive-elements.html> |
+| HTML Standard: forms and constraint validation | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html> |
+| HTML Standard: templates and Declarative Shadow DOM | <https://html.spec.whatwg.org/multipage/scripting.html#the-template-element> |
 | CSS WG Drafts | <https://github.com/w3c/csswg-drafts> |
 
 **Frameworks & UI state**
@@ -122,6 +125,7 @@ not assumed to work uniformly across browsers.
 | Transitions Level 2 (`@starting-style`, discrete transitions) | <https://www.w3.org/TR/css-transitions-2/> |
 | View Transitions Level 1 | <https://www.w3.org/TR/css-view-transitions-1/> |
 | Color Adjustment Level 1 (color-scheme and forced colors) | <https://www.w3.org/TR/css-color-adjust-1/> |
+| CSS Pseudo-Elements Level 4 (`::backdrop`) | <https://www.w3.org/TR/css-pseudo-4/> |
 | HTML Living Standard: custom elements and custom states | <https://html.spec.whatwg.org/multipage/custom-elements.html> |
 
 **Evolving CSSWG drafts used in advanced exercises**
