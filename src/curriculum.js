@@ -6886,7 +6886,7 @@ export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: s
       "A design-system status card renders empty until its component bundle loads, and application teams reach into private shadow markup with brittle selectors. Build a server-rendered status-card compiler returning HTML, shadow CSS, and consumer CSS. Put a Declarative Shadow DOM template first under the host, provide named slots with fallback content, expose the stable `surface`, `heading`, `description`, `badge`, `severity`, and `action` parts for host theming, and use CSS custom properties for tokens. Keep status meaning available as text and accessible semantics; distinguish severity without color alone. Escape all user text and whitelist severity/density attributes so hostile content cannot break out of the SSR markup.",
     starterCode: `// Client-only custom element with no initial content or styling contract.
 export function renderStatusCard(props: any) {
-  return `<gauntlet-web-status-card>${props.heading}</gauntlet-web-status-card>`;
+  return "<gauntlet-web-status-card>" + props.heading + "</gauntlet-web-status-card>";
 }`,
     solutionCode: `// Streamable SSR markup plus private shadow styles and a limited public theming API.
 export type StatusSeverity = "info" | "warning" | "critical";
