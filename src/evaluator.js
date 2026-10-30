@@ -162,6 +162,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Scroll-State Surface Enhancement", all: ["@supports (container-type: scroll-state)", "container-type: scroll-state", "@container scroll-state(stuck: block-start)", "box-shadow: 0 0.5rem 1rem"], withinRules: [{ selector: ".checkout-summary__surface", all: ["background-color: Canvas", "transition: box-shadow"] }] },
     { name: "Reduced-Motion and Layout-Stable State", all: ["prefers-reduced-motion: reduce", "transition: none"], none: ["transform:", "block-size:"] },
   ],
+  task_css_shadow_nested_exportparts_contract: [
+    { name: "Two-Level Part Forwarding Contract", all: ['exportparts="control: field-control, hint: field-hint"', 'exportparts="field-control: medication-control, field-hint: medication-hint"'] },
+    { name: "Public Parts and Theme Tokens", all: ["care-patient-form::part(medication-control)", "care-patient-form::part(medication-hint)", "--patient-field-accent:", "var(--patient-field-accent)"] },
+    { name: "Encapsulation Boundary", none: ["::part(private", ">>>", "/deep/", "!important"], all: ["medication-control", "medication-hint"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
