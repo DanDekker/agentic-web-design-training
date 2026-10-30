@@ -1953,6 +1953,24 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webgpu_buffer_readback") {
+      results.push({
+        name: "GPU Readback Usage & Copy Alignment",
+        passed:
+          code.includes("COPY_DST") && code.includes("MAP_READ") &&
+          code.includes("Math.ceil(byteLength / 4) * 4"),
+        detail: "Uses a correctly aligned MAP_READ staging buffer for GPU-to-CPU copies",
+      });
+      results.push({
+        name: "Exact-Length Returned View",
+        passed: code.includes("getMappedRange()") && code.includes("byteLength") && code.includes("slice()"),
+        detail: "Returns a detached copy of the requested bytes without exposing padded GPU data",
+      });
+      results.push({
+        name: "Failure-Safe GPU Buffer Cleanup",
+        passed: code.includes("finally") && code.includes("staging.destroy()") && code.includes("staging.unmap()"),
+        detail: "Releases the staging allocation when mapping, copying or reading fails",
+      });
     } else if (id === "task_webgpu_capability_selection") {
       results.push({
         name: "Required Capability Failure",
@@ -6788,6 +6806,63 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webgpu_buffer_readback") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const flags = { COPY_DST: 4, MAP_READ: 1 };
+          const source = { size: 8 };
+          const descriptors = [];
+          let copy;
+          let submitCount = 0;
+          let mappedFlag;
+          const staging = {
+            async mapAsync(flag) { mappedFlag = flag; },
+            getMappedRange() { return Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8]).buffer; },
+            unmap() { this.didUnmap = true; },
+            destroy() { this.didDestroy = true; },
+          };
+          const device = {
+            createBuffer(value) { descriptors.push(value); return staging; },
+            createCommandEncoder() {
+              return {
+                copyBufferToBuffer(...args) { copy = args; },
+                finish() { return {}; },
+              };
+            },
+            queue: { submit() { submitCount += 1; } },
+          };
+          try {
+            const bytes = await readGpuBufferBytes(device, source, 5, flags);
+            let failureWasCleaned = false;
+            const failingStaging = {
+            async mapAsync() { throw new Error("device lost"); },
+              destroy() { failureWasCleaned = true; },
+            };
+            let mappingRejected = false;
+            try {
+              await readGpuBufferBytes({ ...device, createBuffer(value) { descriptors.push(value); return failingStaging; } }, source, 4, flags);
+            } catch { mappingRejected = true; }
+            let shortSourceRejected = false;
+            try {
+              await readGpuBufferBytes(device, { size: 7 }, 5, flags);
+            } catch (error) { shortSourceRejected = error instanceof RangeError; }
+            return {
+              gpuReadbackOk:
+                bytes.length === 5 && bytes[0] === 1 && bytes[4] === 5 &&
+                descriptors[0].size === 8 && descriptors[0].usage === 5 && mappedFlag === flags.MAP_READ &&
+                copy[4] === 8 && submitCount === 2 && staging.didUnmap && staging.didDestroy &&
+                mappingRejected && failureWasCleaned && shortSourceRejected,
+            };
+          } catch { return { gpuReadbackOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Aligned GPU Readback, Exact Byte Count & Error Cleanup",
+        passed: Boolean(res?.gpuReadbackOk),
+        detail: "Reads five bytes using an eight-byte staging copy and verifies map failure cleanup",
       });
     } else if (taskId === "task_webgpu_capability_selection") {
       const harness = `

@@ -53,6 +53,8 @@ import gpuDispatchStarter from "../exercises/platform/webgpu/dispatch_tiling/sta
 import gpuDispatchSolution from "../exercises/platform/webgpu/dispatch_tiling/solution.js" with { type: "text" };
 import gpuCapabilitiesStarter from "../exercises/platform/webgpu/capability_selection/starter.js" with { type: "text" };
 import gpuCapabilitiesSolution from "../exercises/platform/webgpu/capability_selection/solution.js" with { type: "text" };
+import gpuReadbackStarter from "../exercises/platform/webgpu/buffer_readback/starter.js" with { type: "text" };
+import gpuReadbackSolution from "../exercises/platform/webgpu/buffer_readback/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10135,6 +10137,23 @@ export class VirtualizedShadowListEngine {
       "Enables an optional feature group only when every feature in the group is supported",
       "Deduplicates and deterministically sorts the requested GPU feature names",
       "Clamps optional limits to adapter support and omits unknown optional limits",
+    ],
+  },
+  {
+    id: "task_webgpu_buffer_readback",
+    title: "Read Back GPU Buffer Results with Aligned Staging and Reliable Cleanup",
+    category: "webgpu",
+    difficulty: "advanced",
+    tags: ["webgpu", "gpu-buffer", "mapAsync", "readback", "resource-lifecycle"],
+    instructions:
+      "Compute results live in a GPU buffer that cannot be mapped for reading. Copy them into a MAP_READ/COPY_DST staging buffer, align the GPU copy size to four bytes, and return only the requested bytes. Reject requests that exceed the source allocation, and unmap and destroy the staging allocation through both success and failure paths.",
+    starterCode: gpuReadbackStarter,
+    solutionCode: gpuReadbackSolution,
+    criteria: [
+      "Uses a MAP_READ and COPY_DST staging buffer instead of mapping the compute source",
+      "Rounds GPU copy sizes to four-byte alignment while returning exactly the requested byte count",
+      "Checks the padded range against the source allocation before issuing the copy",
+      "Destroys the staging buffer on success and on map or copy failure",
     ],
   },
 ];
