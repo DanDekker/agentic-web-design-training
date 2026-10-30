@@ -117,11 +117,14 @@ not assumed to work uniformly across browsers.
 | Containment Level 2 (`content-visibility`) | <https://www.w3.org/TR/css-contain-2/> |
 | Transitions Level 2 (`@starting-style`, discrete transitions) | <https://www.w3.org/TR/css-transitions-2/> |
 | View Transitions Level 1 | <https://www.w3.org/TR/css-view-transitions-1/> |
+| HTML Living Standard: custom elements and custom states | <https://html.spec.whatwg.org/multipage/custom-elements.html> |
 
 **Evolving CSSWG drafts used in advanced exercises**
 
 | Topic | W3C draft |
 | --- | --- |
+| CSS Conditional Rules Level 5 (scroll-state container queries) | <https://www.w3.org/TR/css-conditional-5/> |
+| CSS Shadow Module Level 1 (`:host()`, `::slotted()`, `:has-slotted`, `::part()`, `exportparts`) | <https://drafts.csswg.org/css-shadow-parts/> |
 | Cascade Level 6 (`@scope` and scope proximity) | <https://www.w3.org/TR/css-cascade-6/> |
 | Functions and Mixins (`@function`) | <https://www.w3.org/TR/css-mixins-1/> |
 | Values and Units Level 5 (`if()`) | <https://www.w3.org/TR/css-values-5/> |
