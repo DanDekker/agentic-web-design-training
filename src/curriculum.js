@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 212 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 214 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -83,6 +83,8 @@ import protectedDialogStarter from "../exercises/html/dialog_close_policy/starte
 import protectedDialogSolution from "../exercises/html/dialog_close_policy/solution.ts" with { type: "text" };
 import nativeFormStarter from "../exercises/html/native_form_submitter/starter.ts" with { type: "text" };
 import nativeFormSolution from "../exercises/html/native_form_submitter/solution.ts" with { type: "text" };
+import namedDetailsStarter from "../exercises/html/named_details_group/starter.ts" with { type: "text" };
+import namedDetailsSolution from "../exercises/html/named_details_group/solution.ts" with { type: "text" };
 import prioritizedWorkStarter from "../exercises/platform/scheduling/chunked_priority_work/starter.ts" with { type: "text" };
 import prioritizedWorkSolution from "../exercises/platform/scheduling/chunked_priority_work/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
@@ -3469,6 +3471,124 @@ html body #app .panel .toolbar .button.primary:hover {
     ],
   },
   {
+    id: "task_css_paged_media_report_furniture",
+    title: "Add Running Headers, Page Counters, and Cover Rules to a Printed Claims Report",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "paged-media", "print", "page-counters", "insurance-claims"],
+    instructions:
+      "A claims operations team exports long case reports to paper and PDF. Its existing print stylesheet hides the toolbar but has no running page furniture, so reviewers lose the case context and page position in a thick packet. Keep a readable @media print baseline, then add @page margin-box headers and footers with page/total counters, alternate the footer placement on left and right pages, and suppress that furniture on the first (cover) page. Put basic @page size and margin declarations before nested margin at-rules so clients that ignore page-margin boxes can still use the paper setup. Treat margin boxes as progressive enhancement: keep essential report content in normal document flow, avoid JavaScript pagination, and do not rely on a margin box for information needed on screen or in unsupported print engines.",
+    starterCode: `/* The report prints, but reviewers cannot orient themselves in a long packet. */
+.claims-report {
+  width: 1180px;
+  color: white;
+  background: #121722;
+}
+.claims-report__toolbar {
+  position: sticky;
+  top: 0;
+}
+.claims-report__case {
+  break-inside: auto;
+}`,
+    solutionCode: `@media print {
+  @page {
+    size: letter portrait;
+    margin: 18mm 16mm 20mm;
+
+    @top-left {
+      content: "CLAIMS OPERATIONS";
+      color: #444;
+      font: 8pt/1.2 sans-serif;
+    }
+
+    @top-right {
+      content: "CONFIDENTIAL CASE REPORT";
+      color: #444;
+      font: 8pt/1.2 sans-serif;
+    }
+
+    @bottom-left {
+      content: "Claims review packet";
+      font: 8pt/1.2 sans-serif;
+    }
+
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font: 8pt/1.2 sans-serif;
+    }
+  }
+
+  @page :left {
+    @bottom-left {
+      content: "Claims review packet · Page " counter(page) " of " counter(pages);
+    }
+
+    @bottom-right {
+      content: none;
+    }
+  }
+
+  @page :right {
+    @bottom-left {
+      content: none;
+    }
+
+    @bottom-right {
+      content: "Claims review packet · Page " counter(page) " of " counter(pages);
+    }
+  }
+
+  /* Keep this after :left and :right so the cover has no running furniture. */
+  @page :first {
+    margin-top: 12mm;
+
+    @top-left {
+      content: none;
+    }
+
+    @top-right {
+      content: none;
+    }
+
+    @bottom-left {
+      content: none;
+    }
+
+    @bottom-right {
+      content: none;
+    }
+  }
+
+  .claims-report {
+    inline-size: auto;
+    margin: 0;
+    color: #111;
+    background: #fff;
+  }
+
+  .claims-report__toolbar,
+  .screen-only {
+    display: none;
+  }
+
+  .claims-report__case {
+    break-inside: avoid;
+    border-block-end: 1px solid #999;
+  }
+
+  .claims-report h1,
+  .claims-report h2 {
+    break-after: avoid;
+  }
+}`,
+    criteria: [
+      "Keeps readable report styling in @media print and declares page size and margins before nested page-margin boxes",
+      "Adds running headers and page/total counters with left/right footer placement and first-page suppression",
+      "Keeps report content in normal flow, hides screen-only controls, and protects case sections from awkward page splits",
+    ],
+  },
+  {
     id: "task_css_js_class_to_has_state",
     title: "Replace Parent-State JavaScript Classes with the Relational :has() Selector",
     category: "css",
@@ -6295,6 +6415,22 @@ export function renderModernInteractiveShell(spec: InteractiveShellSpec): string
       "Rejects unrelated forms and non-submit controls, and invokes the owning realm's HTMLFormElement.prototype.requestSubmit with the chosen button",
       "Reads intent from SubmitEvent.submitter name/value and returns null when no valid named submitter belongs to the submitted form",
       "Leaves native constraint validation, form* submitter overrides, and successful-control serialization to the browser without direct form.submit() fallback",
+    ],
+  },
+  {
+    id: "task_html_named_details_exclusive_disclosure",
+    title: "Replace Scripted One-at-a-Time Support Steps with Named Native Details Groups",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "details", "exclusive-disclosure", "native-interaction", "server-rendering"],
+    instructions:
+      "A support team presents an incident triage flow whose scripted disclosure rows install click handlers and manually close siblings. Render the flow with native <details name> groups so the browser enforces one-open-at-a-time behavior within a flow, and use <summary> as each first child. Namespace the group name from a validated component ID so separate flows remain independent; escape all title, question, and answer text; reject duplicate item IDs and more than one initially open item. Do not add JavaScript toggling or claim the disclosure is a tab interface. Exclusive opening can frustrate readers who need to compare panels, so reserve this pattern for genuinely sequential workflows; ordinary reference FAQs should omit the shared name when multiple answers may stay open.",
+    starterCode: namedDetailsStarter.trimEnd(),
+    solutionCode: namedDetailsSolution.trimEnd(),
+    criteria: [
+      "Renders repeated native <details name> elements whose first child is a semantic <summary>",
+      "Namespaces the exclusive group per component and rejects duplicate IDs or conflicting initial open states",
+      "Escapes user text and leaves mutual exclusion to the browser without scripted toggle handlers",
     ],
   },
   {

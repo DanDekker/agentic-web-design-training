@@ -77,6 +77,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Removes Screen-Only Controls", all: [".invoice-actions", ".screen-only", "display: none"] },
     { name: "Readable Page Breaks and Link Destinations", all: ["break-inside: avoid", "a[href^=\"http\"]::after", "attr(href)"] },
   ],
+  task_css_paged_media_report_furniture: [
+    { name: "Progressive Page Furniture and Counters", all: ["@media print", "@top-left", "@top-right", "counter(page)", "counter(pages)"], before: [["margin: 18mm 16mm 20mm;", "@top-left"]] },
+    { name: "Cover and Recto/Verso Page Rules", all: ["@page :first", "@page :left", "@page :right", "content: none"] },
+    { name: "Readable Print Fallback", all: [".claims-report", "inline-size: auto", "display: none", "break-inside: avoid"] },
+  ],
   task_css_js_class_to_has_state: [
     { name: "Relational Parent State", all: [":has(> .favorite-toggle[aria-pressed=\"true\"])"] },
     { name: "Progressive Selector Feature Detection", all: ["@supports selector(.product-card:has("] },
@@ -1255,6 +1260,31 @@ export class Evaluator {
         name: "Native Validation and Submission Overrides Remain Browser-Owned",
         passed: !code.includes("form.submit(") && !code.includes("form.submit()") && !code.includes("preventDefault"),
         detail: "Avoids bypassing validation or suppressing the submit event and leaves form* overrides to the browser",
+      });
+    } else if (id === "task_html_named_details_exclusive_disclosure") {
+      results.push({
+        name: "Native Exclusive Group and Summary Semantics",
+        passed:
+          code.includes('<details id="${spec.groupId}--item-${item.id}" name="${groupName}"') &&
+          code.includes("<summary>") &&
+          code.includes('name="${groupName}"'),
+        detail: "Emits repeated named details disclosures with a semantic summary controlling each panel",
+      });
+      results.push({
+        name: "Component Isolation and Invalid Initial State Guards",
+        passed:
+          code.includes("const groupName = `${spec.groupId}-disclosures`") &&
+          code.includes("new Set<string>()") &&
+          code.includes("initiallyOpenCount > 1"),
+        detail: "Namespaces independent flows and rejects duplicate item IDs or multiple default-open disclosures",
+      });
+      results.push({
+        name: "Escaped Plain Text and Browser-Owned Toggle Behavior",
+        passed:
+          code.includes("escapeDisclosureText") &&
+          code.includes('.replace(/</g, "&lt;")') &&
+          !code.includes("addEventListener"),
+        detail: "Escapes supplied text and relies on HTML details grouping rather than custom toggle listeners",
       });
     } else if (id === "task_html_responsive_picture_fetchpriority_lcp") {
       results.push({
@@ -5263,6 +5293,64 @@ export class Evaluator {
         name: "SubmitEvent.submitter Intent and Guarded Failure Paths",
         passed: Boolean(res?.rejectsUnrelatedControlsAndMissingNativeMethod),
         detail: "Reads name/value from the activated button, returns null without one, and rejects unsafe or unsupported programmatic paths",
+      });
+    } else if (taskId === "task_html_named_details_exclusive_disclosure") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const render = typeof renderNamedDisclosureGroup === "function"
+            ? renderNamedDisclosureGroup
+            : exports.renderNamedDisclosureGroup;
+
+          const markup = render({
+            groupId: "claim-flow",
+            title: "<Claim & Review>",
+            items: [
+              { id: "notice", question: "What does <status> mean?", answer: "Ask R&D & <partner>.", open: true },
+              { id: "documents", question: "Which documents are needed?", answer: "Upload the signed form." },
+            ],
+          });
+          const otherGroup = render({
+            groupId: "delivery-flow",
+            title: "Delivery triage",
+            items: [{ id: "tracking", question: "Is tracking available?", answer: "Check the carrier receipt." }],
+          });
+
+          const detailsAttrs = [...markup.matchAll(/<details\\b([^>]*)>/g)].map((match) => match[1]);
+          const groupNames = detailsAttrs.map((attrs) => attrs.match(/\\bname="([^"]+)"/)?.[1]);
+          const openCount = detailsAttrs.filter((attrs) => /\\bopen(?:\\s|$)/.test(attrs)).length;
+          const firstChildSummaryCount = [...markup.matchAll(/<details\\b[^>]*>\\s*<summary>/g)].length;
+          const otherGroupName = otherGroup.match(/<details\\b[^>]*\\bname="([^"]+)"/)?.[1];
+
+          let duplicateRejected = false;
+          let multipleOpenRejected = false;
+          let invalidGroupRejected = false;
+          try { render({ groupId: "claim-flow", title: "Duplicate", items: [{ id: "same", question: "A", answer: "A" }, { id: "same", question: "B", answer: "B" }] }); } catch { duplicateRejected = true; }
+          try { render({ groupId: "claim-flow", title: "Two open", items: [{ id: "one", question: "A", answer: "A", open: true }, { id: "two", question: "B", answer: "B", open: true }] }); } catch { multipleOpenRejected = true; }
+          try { render({ groupId: "bad id", title: "Invalid", items: [{ id: "one", question: "A", answer: "A" }] }); } catch { invalidGroupRejected = true; }
+
+          return {
+            nativeGroupingAndStructure: detailsAttrs.length === 2 && groupNames.every((name) => name === "claim-flow-disclosures") && firstChildSummaryCount === 2 && openCount === 1,
+            escapingAndGroupIsolation: markup.includes("&lt;Claim &amp; Review&gt;") && markup.includes("What does &lt;status&gt; mean?") && markup.includes("Ask R&amp;D &amp; &lt;partner&gt;.") && otherGroupName === "delivery-flow-disclosures",
+            rejectsInvalidGroupStates: duplicateRejected && multipleOpenRejected && invalidGroupRejected && !/<script\\b|\\bon[a-z]+\\s*=/i.test(markup),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Native Grouping, Summary Order, and Single Initial Disclosure",
+        passed: Boolean(res?.nativeGroupingAndStructure),
+        detail: "Verifies a shared per-component details name, first-child summaries, and at most one initially open item",
+      });
+      results.push({
+        name: "Escaped Text and Independent Component Groups",
+        passed: Boolean(res?.escapingAndGroupIsolation),
+        detail: "Confirms supplied title, question, and answer text is escaped and distinct flows receive different names",
+      });
+      results.push({
+        name: "Rejects Duplicate IDs and Conflicting Open Defaults",
+        passed: Boolean(res?.rejectsInvalidGroupStates),
+        detail: "Rejects invalid identifiers, duplicate item IDs, and multiple initial open states without adding script handlers",
       });
     } else if (taskId === "task_html_responsive_picture_fetchpriority_lcp") {
       const harness = `
