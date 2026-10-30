@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **191 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **192 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -168,6 +168,7 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | WebAssembly JSPI proposal | [Bridge promises across experimental boundaries](exercises/platform/webassembly/jspi_bindings/starter.js) |
 | WebAssembly | [Load modules across CDN MIME and runtime differences](exercises/platform/webassembly/streaming_loader/starter.js) |
 | WebAssembly | [Marshal UTF-8 strings across the guest allocator boundary](exercises/platform/webassembly/utf8_abi/starter.js) |
+| WebAssembly threads | [Gate shared memory on browser isolation](exercises/platform/webassembly/threaded_runtime/starter.js) |
 | WebNN | [Run a graph with permissioned tensors and cleanup](exercises/platform/webnn/tensor_inference/starter.js) |
 | WebNN | [Serialize concurrent runs over shared tensors](exercises/platform/webnn/shared_tensor_queue/starter.js) |
 | WebNN | [Recover inference sessions after context loss](exercises/platform/webnn/context_loss_runner/starter.js) |
