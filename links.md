@@ -5,6 +5,7 @@ last re-verified on **2026-10-30**.
 
 - [Project links](#project-links)
 - [Technology map](#technology-map)
+- [CSS specifications and emerging proposals](#css-specifications-and-emerging-proposals)
 - [Logo & asset provenance](#logo--asset-provenance)
 - [Structured data & vocabulary](#structured-data--vocabulary)
 - [Agentic web, WebMCP & 2026 discovery citations](#agentic-web-webmcp--2026-discovery-citations)
@@ -95,6 +96,38 @@ Every logo in the README links to the upstream project the curriculum exercises 
 The WebTransport and WebNN exercises follow their evolving W3C specifications. The
 JSPI task is explicitly proposal-level and injects the runtime API so it can be learned
 and evaluated even where JSPI is not implemented.
+
+## CSS specifications and emerging proposals
+
+These primary CSSWG references support the CSS Engineering track. The specifications
+have different maturity and implementation status; the emerging proposals below are
+not assumed to work uniformly across browsers.
+
+**Core layout, cascade, and production features**
+
+| Topic | W3C reference |
+| --- | --- |
+| Selectors Level 4 (`:where()`, `:is()`, `:has()`) | <https://www.w3.org/TR/selectors-4/> |
+| Flexible Box Layout | <https://www.w3.org/TR/css-flexbox-1/> |
+| Grid Layout Level 2 and subgrid | <https://www.w3.org/TR/css-grid-2/> |
+| Logical Properties and Values | <https://www.w3.org/TR/css-logical-1/> |
+| Values and Units Level 4 | <https://www.w3.org/TR/css-values-4/> |
+| Cascade Level 5 | <https://www.w3.org/TR/css-cascade-5/> |
+| Scroll Snap Level 1 | <https://www.w3.org/TR/css-scroll-snap-1/> |
+| Containment Level 2 (`content-visibility`) | <https://www.w3.org/TR/css-contain-2/> |
+| Transitions Level 2 (`@starting-style`, discrete transitions) | <https://www.w3.org/TR/css-transitions-2/> |
+| View Transitions Level 1 | <https://www.w3.org/TR/css-view-transitions-1/> |
+
+**Evolving CSSWG drafts used in advanced exercises**
+
+| Topic | W3C draft |
+| --- | --- |
+| Cascade Level 6 (`@scope` and scope proximity) | <https://www.w3.org/TR/css-cascade-6/> |
+| Functions and Mixins (`@function`) | <https://www.w3.org/TR/css-mixins-1/> |
+| Values and Units Level 5 (`if()`) | <https://www.w3.org/TR/css-values-5/> |
+| View Transitions Level 2 (`view-transition-class`) | <https://www.w3.org/TR/css-view-transitions-2/> |
+
+Check a draft's status and browser support before using a proposal in production.
 
 **Emerging browser capabilities**
 
