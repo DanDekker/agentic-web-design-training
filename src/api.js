@@ -193,8 +193,7 @@ const benchmarkSuite = new BenchmarkSuite();
         const codeChallenge = searchParams.get("code_challenge") || "";
         const codeChallengeMethod = searchParams.get("code_challenge_method") || "S256";
 
-        const client = oauthServer.getClient(clientId);
-        if (!client) throw new HttpError(400, "Invalid client_id.");
+        const client = oauthServer.validateRedirectUri(clientId, redirectUri);
 
         // If request wants JSON (API/agent client)
         if (req.headers.get("accept")?.includes("application/json")) {
@@ -273,8 +272,11 @@ const benchmarkSuite = new BenchmarkSuite();
         }
 
         const approved = String(body.approved) === "true";
-        const redirectUri = body.redirect_uri || "http://localhost:3000/oauth/callback";
+        const redirectUri = body.redirect_uri;
         const state = body.state || "";
+
+        // Validate before either granting a code or redirecting a denied request.
+        oauthServer.validateRedirectUri(body.client_id, redirectUri);
 
         if (!approved) {
           const target = new URL(redirectUri);

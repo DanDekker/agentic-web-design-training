@@ -16,6 +16,17 @@ function sha256Base64Url(str) {
     .replace(/=+$/, "");
 }
 
+function isValidRedirectUri(value) {
+  if (typeof value !== "string" || !value || value.trim() !== value || value.includes("#")) return false;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      !url.username && !url.password && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
 export class OAuthServer {
   #file;
   #clients = [];
@@ -102,6 +113,13 @@ export class OAuthServer {
   async registerClient({ name, description = "", redirectUris = [], allowedScopes = ["read:tasks", "write:tasks"] }) {
     const cleanName = String(name || "").trim();
     if (!cleanName) throw new ValidationError("Client app needs a name.");
+    if (!Array.isArray(redirectUris)) throw new ValidationError("redirectUris must be an array.");
+    const registeredRedirectUris = redirectUris.length
+      ? redirectUris
+      : ["http://localhost:3000/oauth/callback"];
+    if (!registeredRedirectUris.every(isValidRedirectUri)) {
+      throw new ValidationError("Redirect URIs must be absolute HTTP(S) URLs without credentials or fragments.");
+    }
     const clientId = `gauntlet-web_${randomToken(8)}`;
     const clientSecret = `sec_${randomToken(24)}`;
 
@@ -111,7 +129,7 @@ export class OAuthServer {
       clientSecret,
       name: cleanName,
       description: String(description || "").trim(),
-      redirectUris: Array.isArray(redirectUris) && redirectUris.length ? redirectUris : ["http://localhost:3000/oauth/callback"],
+      redirectUris: [...registeredRedirectUris],
       allowedScopes,
       isFirstParty: false,
       createdAt: new Date().toISOString(),
@@ -122,9 +140,17 @@ export class OAuthServer {
     return { ...client };
   }
 
-  createAuthorizationCode({ clientId, userId, redirectUri, scope, codeChallenge, codeChallengeMethod = "S256" }) {
+  validateRedirectUri(clientId, redirectUri) {
     const client = this.getClient(clientId);
     if (!client) throw new ValidationError("Unknown client_id.");
+    if (!isValidRedirectUri(redirectUri) || !Array.isArray(client.redirectUris) || !client.redirectUris.includes(redirectUri)) {
+      throw new ValidationError("redirect_uri must exactly match a registered redirect URI.");
+    }
+    return client;
+  }
+
+  createAuthorizationCode({ clientId, userId, redirectUri, scope, codeChallenge, codeChallengeMethod = "S256" }) {
+    this.validateRedirectUri(clientId, redirectUri);
 
     const code = `authcode_${randomToken(20)}`;
     const expiresAt = Date.now() + 1000 * 60 * 10; // 10 minutes
@@ -153,7 +179,7 @@ export class OAuthServer {
     if (record.clientId !== clientId) {
       throw new ValidationError("client_id does not match authorization code.");
     }
-    if (record.redirectUri && redirectUri && record.redirectUri !== redirectUri) {
+    if (record.redirectUri !== redirectUri) {
       throw new ValidationError("redirect_uri does not match.");
     }
 
