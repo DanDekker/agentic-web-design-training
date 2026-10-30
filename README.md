@@ -50,6 +50,7 @@ The app uses the first row. The remaining logos show technologies covered by the
 
 <table>
   <tr>
+    <td align="center"><a href="https://github.com/expressjs/express"><img src="assets/logos/express.svg" alt="Express logo" width="40" height="40"><br>Express</a></td>
     <td align="center"><a href="https://github.com/nestjs/nest"><img src="assets/logos/nestjs.svg" alt="NestJS logo" width="40" height="40"><br>NestJS</a></td>
     <td align="center"><a href="https://github.com/trpc/trpc"><img src="assets/logos/trpc.svg" alt="tRPC logo" width="40" height="40"><br>tRPC</a></td>
     <td align="center"><a href="https://github.com/colinhacks/zod"><img src="assets/logos/zod.svg" alt="Zod logo" width="40" height="40"><br>Zod</a></td>
@@ -151,6 +152,15 @@ Technical SEO covers crawl/index reconciliation, migration planning, JavaScript 
 
 GitHub's **Languages** bar counts source file types, not frameworks. These exercises contribute to **TypeScript** there; React and Angular do not appear as separate languages. The Vue and Svelte exercise models their reactive primitives in TypeScript rather than shipping `.vue` or `.svelte` components.
 
+### Server framework exercises
+
+| Framework | Exercise |
+| --- | --- |
+| Express 5 | [Upgrade a claims API error pipeline](exercises/frameworks/express5_problem_details/starter.ts) |
+| Express and Hono | [Migrate callback middleware to a Fetch-based router](exercises/frameworks/migrate_express_to_hono_edge_ts/starter.ts) |
+| NestJS | [Build dependency injection, authorization guards, and interceptors](exercises/frameworks/ts_nestjs_di_guard_interceptor/starter.ts) |
+| tRPC | [Model typed procedures and input validation](exercises/frameworks/ts_trpc_zod_end_to_end_rpc/starter.ts) |
+
 ### Browser platform exercises
 
 | Platform primitive | Exercise |
@@ -216,7 +226,7 @@ These exercises track live 2026 drafts and protocols. The primary sources behind
 
 ## How evaluation works
 
-The [evaluator](src/evaluator.js) combines structural checks with task-specific runtime assertions. It reports pass/fail results, a score, execution time, and a line diff. TypeScript submissions are transpiled with Bun before evaluation. The [benchmark suite](src/benchmark.js) runs those same checks against the bundled reference solutions, either for one category or for the full catalog.
+The [evaluator](src/evaluator.js) combines structural checks with task-specific runtime assertions. It reports pass/fail results, a score, execution time, and a line diff. TypeScript submissions are transpiled with Bun before evaluation. The [benchmark suite](src/benchmark.js) runs those same checks against the bundled reference solutions, either for one category or for the full catalog. Its category choices and counts come from the current catalog; downloading a Markdown report uses the selected category.
 
 Evaluation uses `node:vm` to run submitted code. **A VM context is not a security boundary.** Run this application locally with code you trust; do not expose the evaluator as a public service for untrusted submissions.
 
@@ -229,7 +239,7 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | [`exercises/platform/`](exercises/platform/) | Starter and reference files for browser platforms, GPU, realtime media, and agentic-web challenges |
 | [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
-| [`src/server.js`](src/server.js) and [`src/api.js`](src/api.js) | Bun server and HTTP routes |
+| [`src/server.js`](src/server.js), [`src/http.js`](src/http.js), and [`src/api.js`](src/api.js) | Bun server, request routing, and HTTP endpoints |
 | [`src/store.js`](src/store.js) | JSON-backed task boards and persistence |
 | [`public/`](public/) | Browser interface and web components |
 | [`tests/`](tests/) | Bun tests for the curriculum and application modules |
@@ -255,4 +265,6 @@ The volume keeps local board and account data between runs. Keep the evaluator o
 
 ## Scope
 
-The project also contains local demos for auth, OAuth, chat, storefront flows, web traffic, and design systems. They provide hands-on context for the exercises. The seeded sign-in accounts are for local use only; replace them before using this application in any shared environment.
+The project also contains local demos for auth, OAuth, chat, storefront flows, web traffic, and design systems. The OAuth demo checks exact registered redirect URIs and allowed scopes, supports S256 PKCE, and binds refresh tokens to clients. Authorization-code exchanges without PKCE require a client secret. Integrations using `plain` PKCE, an unregistered or omitted redirect URI, or a refresh request without a matching `client_id` need to be updated.
+
+These auth features are demonstrations: task endpoints do not enforce OAuth permissions, authorization can fall back to the demo agent, and sessions and tokens live in memory. The seeded accounts and clients are intended for a trusted local workspace; the application is not a production identity provider or a service for untrusted submissions.
