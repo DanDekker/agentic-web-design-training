@@ -2154,6 +2154,22 @@ export class Evaluator {
         passed: code.includes("0x80000000") && code.includes(">>> 0"),
         detail: "Distinguishes forward movement across uint32 rollover from stale values",
       });
+    } else if (id === "task_webassembly_memory_view_refresh") {
+      results.push({
+        name: "Current Buffer and Overflow-Safe Pointer Checks",
+        passed: code.includes("memory.buffer") && code.includes("Number.isSafeInteger") && code.includes("buffer.byteLength - offset"),
+        detail: "Creates views from the current memory allocation and checks bounds without addition overflow",
+      });
+      results.push({
+        name: "Little-Endian Wasm Integer Interop",
+        passed: code.includes("getUint32") && code.includes("setUint32") && code.includes("true"),
+        detail: "Reads and writes little-endian uint32 values with explicit range checks",
+      });
+      results.push({
+        name: "Exact Fatal UTF-8 Decode",
+        passed: code.includes("TextDecoder") && code.includes("fatal: true") && code.includes("new Uint8Array"),
+        detail: "Decodes the requested memory slice and rejects malformed UTF-8",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7454,6 +7470,40 @@ export class Evaluator {
         name: "Reordered, Duplicate and Wrapped Datagram Sequence Handling",
         passed: Boolean(res?.replayWindowOk),
         detail: "Accepts a rolling uint32 sequence across rollover once and rejects duplicates, stale and half-range packets",
+      });
+    } else if (taskId === "task_webassembly_memory_view_refresh") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            let buffer = new ArrayBuffer(8);
+            const memory = { get buffer() { return buffer; } };
+            const access = createMemoryAccessor(memory);
+            access.writeU32(0, 0x12345678);
+            new Uint8Array(buffer).set(new TextEncoder().encode("OK"), 4);
+            const oldBuffer = buffer;
+            buffer = new ArrayBuffer(16);
+            new Uint8Array(buffer).set(new Uint8Array(oldBuffer));
+            new Uint8Array(buffer)[6] = 0xc3;
+            access.writeU32(8, 0xfedcba98);
+            let boundsRejected = false;
+            let unsafeRejected = false;
+            let malformedRejected = false;
+            try { access.readU32(13); } catch (error) { boundsRejected = error instanceof RangeError; }
+            try { access.decodeUtf8(Number.MAX_SAFE_INTEGER, 1); } catch (error) { unsafeRejected = error instanceof RangeError; }
+            try { access.decodeUtf8(6, 1); } catch (error) { malformedRejected = error instanceof TypeError; }
+            return {
+              wasmMemoryViewOk: access.readU32(0) === 0x12345678 && access.readU32(8) === 0xfedcba98 &&
+                access.decodeUtf8(4, 2) === "OK" && boundsRejected && unsafeRejected && malformedRejected,
+            };
+          } catch { return { wasmMemoryViewOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Memory Growth, Pointer Bounds and UTF-8 Interop",
+        passed: Boolean(res?.wasmMemoryViewOk),
+        detail: "Reads from the replacement buffer after growth and rejects unsafe, out-of-range and malformed inputs",
       });
     } else {
       // General syntax evaluation
