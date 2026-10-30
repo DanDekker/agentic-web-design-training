@@ -182,6 +182,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Container-Fitting Auto-Grid", all: ["repeat(auto-fit, minmax(min(100%, 21rem), 1fr))", "gap: 1rem"] },
     { name: "Long Data and Media Stay Contained", all: ["overflow-wrap: anywhere", "flex-wrap: wrap", "max-inline-size: 100%", "block-size: auto"], none: ["white-space: nowrap", "repeat(3, 22rem)"] },
   ],
+  task_css_flow_root_legacy_float_containment: [
+    { name: "Contained Float Without Clearfix", all: ["display: flow-root"], withinRules: [{ selector: ".claim-explanation", all: ["display: flow-root"], none: ["overflow: hidden"] }] },
+    { name: "Intentional Logical Float and Responsive Media", all: ["float: inline-start", "inline-size: min(40%, 18rem)", "aspect-ratio: 4 / 3", "object-fit: cover", "margin-inline-end: 1rem"] },
+    { name: "Removes Legacy Float Containment Hacks", none: ["::after", "content:", "clear: both", "overflow: hidden"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
