@@ -61,6 +61,10 @@ import rtcIceStarter from "../exercises/platform/webrtc/ice_candidate_inbox/star
 import rtcIceSolution from "../exercises/platform/webrtc/ice_candidate_inbox/solution.js" with { type: "text" };
 import rtcBackpressureStarter from "../exercises/platform/webrtc/data_channel_backpressure/starter.js" with { type: "text" };
 import rtcBackpressureSolution from "../exercises/platform/webrtc/data_channel_backpressure/solution.js" with { type: "text" };
+import codecQueueStarter from "../exercises/platform/webcodecs/bounded_encode_queue/starter.js" with { type: "text" };
+import codecQueueSolution from "../exercises/platform/webcodecs/bounded_encode_queue/solution.js" with { type: "text" };
+import codecTimestampStarter from "../exercises/platform/webcodecs/timestamp_mapper/starter.js" with { type: "text" };
+import codecTimestampSolution from "../exercises/platform/webcodecs/timestamp_mapper/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -169,6 +173,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "web-streams": "browser-platform",
   webgpu: "gpu-realtime-media",
   webrtc: "gpu-realtime-media",
+  webcodecs: "gpu-realtime-media",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10212,6 +10217,23 @@ export class VirtualizedShadowListEngine {
       "Pauses sends at a high-water mark using bufferedAmountLowThreshold and bufferedamountlow",
       "Serializes concurrent producers so they cannot collectively overshoot the limit",
       "Removes event and abort listeners when a wait resolves, fails, closes or is cancelled",
+    ],
+  },
+  {
+    id: "task_webcodecs_bounded_encode_queue",
+    title: "Bound VideoEncoder Queues and Close Every Submitted VideoFrame",
+    category: "webcodecs",
+    difficulty: "advanced",
+    tags: ["webcodecs", "videoencoder", "backpressure", "videoframe", "keyframes"],
+    instructions:
+      "A real-time recorder enqueues frames faster than the browser can encode them, driving encodeQueueSize without limit and leaking VideoFrame resources. Wait on dequeue events at a configured queue cap, request periodic keyframes, close each transferred frame even on a failed encode, release unsubmitted frames when cancelled, and flush the final output.",
+    starterCode: codecQueueStarter,
+    solutionCode: codecQueueSolution,
+    criteria: [
+      "Waits on VideoEncoder dequeue when encodeQueueSize reaches the configured bound",
+      "Requests a first-frame keyframe and repeats at the configured interval",
+      "Closes each submitted or discarded VideoFrame on both successful and failing paths",
+      "Flushes the VideoEncoder before reporting the submitted and keyframe counts",
     ],
   },
 ];
