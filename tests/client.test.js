@@ -631,6 +631,26 @@ describe("Live state and rendering", () => {
     expect(app.get("list").children).toHaveLength(0);
   });
 
+  test("a late edit response reconciles newer title and completion changes", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "PATCH" && path === "/api/tasks/task-one"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    await app.key("j");
+    await app.key("Enter");
+    const editor = app.get("list").querySelector(".task-edit");
+    editor.value = "Earlier edit";
+    await app.key("Enter", {}, editor);
+    app.snapshot.tasks[0].title = "Newer remote edit";
+    app.snapshot.tasks[0].done = true;
+    await app.refresh();
+    finish(json({ id: "task-one", boardId: "board_today", title: "Earlier edit", done: false }));
+    await settle();
+    expect(app.get("list").querySelector(".task-title").textContent).toBe("Newer remote edit");
+    expect(app.get("list").querySelector(".check").getAttribute("aria-pressed")).toBe("true");
+  });
+
   test("a create response arriving after SSE does not duplicate a task", async () => {
     let finish;
     const pending = new Promise((resolve) => { finish = resolve; });

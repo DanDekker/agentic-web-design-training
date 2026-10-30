@@ -576,8 +576,9 @@ function editField(task) {
     try {
       const saved = await api("PATCH", `/api/tasks/${task.id}`, { title: next });
       const current = state.tasks.find((item) => item.id === task.id);
-      if (current) Object.assign(current, saved);
+      if (current) current.title = saved.title;
       editDrafts.delete(task.id);
+      await loadInitialState();
     } catch (err) {
       draft.status = "unsaved";
       toast(`Could not save edit: ${err.message}. Your draft is available to retry.`);
@@ -788,6 +789,7 @@ async function clearCompleted() {
     if (Array.isArray(tasks)) {
       const remainingIds = new Set(tasks.map((task) => task.id));
       state.tasks = state.tasks.filter((task) => !completedIds.has(task.id) || remainingIds.has(task.id));
+      for (const id of completedIds) if (!remainingIds.has(id)) editDrafts.delete(id);
     }
     await loadInitialState();
     state.cursor = -1;
