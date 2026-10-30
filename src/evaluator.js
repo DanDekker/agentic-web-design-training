@@ -157,6 +157,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Scoped Components and Tokens", all: ["--admin-ink:", "--admin-accent:", ".admin-shell .widget", ":where(.u-hidden)", "layer(vendor)"], withinRules: [{ selector: ".admin-shell", all: ["color: var(--admin-ink)", "font: 1rem/1.5"] }, { selector: ".admin-shell .widget-primary button", all: ["min-block-size: 2.75rem"] }] },
     { name: "Quarantined Vendor Exception", max: [["!important", 2]], none: ["#admin-root", "html body"], withinRules: [{ selector: ".admin-shell .widget-primary button", all: ["background: var(--admin-accent) !important", "color: #fff !important"] }] },
   ],
+  task_css_native_scroll_state_checkout_summary: [
+    { name: "Functional Sticky Fallback", all: ["position: sticky", "inset-block-start: var(--checkout-header-size, 0px)", "z-index: 2"], withinRules: [{ selector: ".checkout-summary", all: ["position: sticky", "inset-block-start: var(--checkout-header-size, 0px)"] }] },
+    { name: "Scroll-State Surface Enhancement", all: ["@supports (container-type: scroll-state)", "container-type: scroll-state", "@container scroll-state(stuck: block-start)", "box-shadow: 0 0.5rem 1rem"], withinRules: [{ selector: ".checkout-summary__surface", all: ["background-color: Canvas", "transition: box-shadow"] }] },
+    { name: "Reduced-Motion and Layout-Stable State", all: ["prefers-reduced-motion: reduce", "transition: none"], none: ["transform:", "block-size:"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
