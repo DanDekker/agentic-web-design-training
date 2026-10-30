@@ -404,20 +404,20 @@ function hasBalancedCssStructure(code) {
   return stack.length === 0;
 }
 
+export function prepareEvaluation(taskId, code) {
+  const task = REFACTORING_CURRICULUM_TASKS.find((item) => item.id === taskId);
+  if (!task) throw new Error(`Unknown curriculum task '${taskId}'.`);
+  const trimmedCode = String(code || "").trim();
+  if (!trimmedCode) throw new Error("Submitted code cannot be empty.");
+  return { task, trimmedCode };
+}
+
 export class Evaluator {
   /**
    * Evaluates submitted code for a specific curriculum task.
    */
   async evaluate(taskId, code, options = {}) {
-    const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === taskId);
-    if (!task) {
-      throw new Error(`Unknown curriculum task '${taskId}'.`);
-    }
-
-    const trimmedCode = String(code || "").trim();
-    if (!trimmedCode) {
-      throw new Error("Submitted code cannot be empty.");
-    }
+    const { task, trimmedCode } = prepareEvaluation(taskId, code);
 
     const startTime = performance.now();
     const assertionResults = [];
@@ -440,6 +440,22 @@ export class Evaluator {
       });
     }
 
+    return this.#evaluationResult(task, trimmedCode, startTime, assertionResults, sandboxError);
+  }
+
+  /** Preserve the usual result shape when the execution worker cannot complete. */
+  failedEvaluation(taskId, code, reason, startTime) {
+    const { task, trimmedCode } = prepareEvaluation(taskId, code);
+    const assertionResults = this.#verifyCriteria(task, trimmedCode);
+    assertionResults.push({
+      name: "Sandbox Execution",
+      passed: false,
+      detail: `Runtime execution error: ${reason}`,
+    });
+    return this.#evaluationResult(task, trimmedCode, startTime, assertionResults, reason);
+  }
+
+  #evaluationResult(task, trimmedCode, startTime, assertionResults, sandboxError) {
     const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
     const passedCount = assertionResults.filter((a) => a.passed).length;
     const totalCount = assertionResults.length;
@@ -447,7 +463,7 @@ export class Evaluator {
     const passed = score === 100 && !sandboxError;
 
     return {
-      taskId,
+      taskId: task.id,
       passed,
       score,
       telemetry: {
@@ -3386,7 +3402,7 @@ export class Evaluator {
 
     const sanitizedCode = executableCode.replace(/\bexport\s+(default\s+)?/g, "");
 
-    // Safe isolated execution context
+    // VM contexts provide exercise globals, not a security boundary.
     const sandbox = {
       console: { log: () => {}, warn: () => {}, error: () => {} },
       setTimeout,

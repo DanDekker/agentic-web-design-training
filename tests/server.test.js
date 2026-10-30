@@ -87,6 +87,37 @@ test("restarting an existing empty store does not recreate curriculum tasks", as
   }
 }, 20000);
 
+test("an async runaway evaluation times out without blocking the HTTP server", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-eval-server-"));
+  const controller = new AbortController();
+  let server;
+  let pending;
+  try {
+    server = await startServer(dir);
+    pending = fetch(new URL("/api/curriculum/evaluate", server.address), {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        taskId: "task_refactor_async_pipeline",
+        code: "async function processUserData() { await Promise.resolve(); while (true) {} }",
+      }),
+    });
+    pending.catch(() => {});
+    await Bun.sleep(300);
+    const health = await fetch(new URL("/api/health", server.address), { signal: AbortSignal.timeout(1500) });
+    expect(await health.json()).toEqual({ ok: true });
+    const result = await (await pending).json();
+    expect(result.passed).toBe(false);
+    expect(result.assertionResults.some((entry) => entry.name === "Sandbox Execution" && entry.detail.includes("timed out"))).toBe(true);
+    expect((await fetch(new URL("/api/health", server.address))).status).toBe(200);
+  } finally {
+    controller.abort();
+    await server?.stop();
+    await rm(dir, { recursive: true, force: true });
+  }
+}, 12000);
+
 test("event streams stay open across the server idle timeout and deliver later updates", async () => {
   const hub = createHub();
   const handler = createRequestHandler({
