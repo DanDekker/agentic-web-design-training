@@ -536,6 +536,34 @@ export class Evaluator {
         passed: code.includes("subarray") || code.includes("copyWithin"),
         detail: "Maintains ring/sliding buffer with copyWithin or subarray offsets",
       });
+    } else if (id === "task_performance_prioritized_chunk_scheduler") {
+      results.push({
+        name: "Bounded Prioritized Tasks and Yield Continuations",
+        passed:
+          code.includes("scheduler.postTask") &&
+          code.includes("scheduler.yield") &&
+          code.includes("batchSize") &&
+          code.includes("processBatch"),
+        detail: "Runs bounded record batches as prioritized browser tasks and yields between continuations",
+      });
+      results.push({
+        name: "TaskSignal Priority Inheritance and Cancellation",
+        passed:
+          code.includes("TaskSignal") &&
+          code.includes("signal?.priority") &&
+          code.includes("signal.aborted") &&
+          code.includes("taskOptions(priority, input.signal)"),
+        detail: "Lets TaskController reprioritize dynamic TaskSignal work and propagates aborts through queued tasks and yields",
+      });
+      results.push({
+        name: "Honest Timer Fallback and Outcome Telemetry",
+        passed:
+          code.includes("setTimeout(resolve, 0)") &&
+          code.includes('"timer-fallback"') &&
+          code.includes("chunksProcessed") &&
+          code.includes("yieldedCount"),
+        detail: "Yields with timers when the browser scheduler is missing and reports the lower-capability fallback mode",
+      });
     } else if (id === "task_refactor_middleware_pipeline") {
       results.push({
         name: "Middleware Pipeline Registration",
@@ -3298,6 +3326,63 @@ export class Evaluator {
         name: "Zero-Allocation Uint8Array Stream Slicing",
         passed: Boolean(res?.count === 2 && res?.first === "pkt1" && res?.second === "pkt2"),
         detail: "Reassembles split byte chunks across boundaries and dispatches exact slices",
+      });
+    } else if (taskId === "task_performance_prioritized_chunk_scheduler") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const run = typeof runChunkedPriorityWork === "function" ? runChunkedPriorityWork : exports.runChunkedPriorityWork;
+          const dynamicSignal = { aborted: false, priority: "background" };
+          const observedOptions = [];
+          let yields = 0;
+          const yieldingScheduler = {
+            postTask(callback, options) { observedOptions.push(options); return Promise.resolve().then(callback); },
+            yield() { yields += 1; return Promise.resolve(); },
+          };
+          const complete = await run({
+            items: [1, 2, 3, 4, 5],
+            processItem: (item) => item * 2,
+            batchSize: 2,
+            priority: "user-visible",
+            signal: dynamicSignal,
+            scheduler: yieldingScheduler,
+          });
+
+          const cancelSignal = { aborted: false, priority: "user-visible" };
+          const cancelScheduler = {
+            postTask(callback) { return Promise.resolve().then(callback); },
+            yield() { cancelSignal.aborted = true; return Promise.reject(new Error("cancelled")); },
+          };
+          const canceled = await run({ items: [1, 2, 3, 4], processItem: (item) => item, batchSize: 2, signal: cancelSignal, scheduler: cancelScheduler });
+
+          let chunkPosts = 0;
+          const chunkScheduler = {
+            postTask(callback, options) { chunkPosts += 1; return Promise.resolve().then(callback); },
+          };
+          const chunked = await run({ items: [1, 2, 3], processItem: (item) => item + 10, batchSize: 2, priority: "user-blocking", scheduler: chunkScheduler });
+          const fallback = await run({ items: [2, 4, 6], processItem: (item) => item / 2, batchSize: 2, scheduler: null });
+          let invalidBatchRejected = false;
+          try { await run({ items: [1], processItem: (item) => item, batchSize: 0, scheduler: null }); } catch { invalidBatchRejected = true; }
+
+          return {
+            prioritizedYielding: complete.results.join(",") === "2,4,6,8,10" && complete.completedCount === 5 && complete.chunksProcessed === 3 && complete.yieldedCount === 2 && complete.schedulingMode === "prioritized-yield",
+            preservesDynamicPriority: observedOptions.length === 1 && observedOptions[0].signal === dynamicSignal && observedOptions[0].priority === undefined,
+            abortsContinuationWithPartialResults: canceled.canceled && canceled.completedCount === 2 && canceled.chunksProcessed === 1 && canceled.results.join(",") === "1,2",
+            postsSeparateChunksWhenYieldIsMissing: chunked.results.join(",") === "11,12,13" && chunked.chunksProcessed === 2 && chunkPosts === 2 && chunked.schedulingMode === "prioritized-chunks",
+            yieldsWithoutClaimingNativePriority: fallback.results.join(",") === "1,2,3" && fallback.schedulingMode === "timer-fallback" && invalidBatchRejected,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Prioritized Batch Scheduling, TaskSignal Inheritance, and Yielding",
+        passed: Boolean(res?.prioritizedYielding && res?.preservesDynamicPriority && res?.postsSeparateChunksWhenYieldIsMissing),
+        detail: "Uses user-visible priorities, signal-driven reprioritization, cooperative continuations, and per-task bounded batches",
+      });
+      results.push({
+        name: "Abortable Work and Non-Priority Timer Fallback",
+        passed: Boolean(res?.abortsContinuationWithPartialResults && res?.yieldsWithoutClaimingNativePriority),
+        detail: "Returns completed work after cancellation and yields through timers when the prioritized scheduler is unavailable",
       });
     } else if (taskId === "task_refactor_middleware_pipeline") {
       const harness = `

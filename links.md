@@ -45,6 +45,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | HTML Standard: forms, labels, and input controls | <https://html.spec.whatwg.org/multipage/forms.html> |
 | HTML Standard: forms and constraint validation | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html> |
 | HTML Standard: templates and Declarative Shadow DOM | <https://html.spec.whatwg.org/multipage/scripting.html#the-template-element> |
+| WICG Prioritized Task Scheduling API (`postTask()`, `yield()`, `TaskController`) | <https://wicg.github.io/scheduling-apis/> |
 | CSS WG Drafts | <https://github.com/w3c/csswg-drafts> |
 
 **Frameworks & UI state**
@@ -104,6 +105,9 @@ Every logo in the README links to the upstream project the curriculum exercises 
 The WebTransport and WebNN exercises follow their evolving W3C specifications. The
 JSPI task is explicitly proposal-level and injects the runtime API so it can be learned
 and evaluated even where JSPI is not implemented.
+
+Prioritized Task Scheduling is a WICG Community Group report, not a W3C Standard. The
+exercise feature-detects `scheduler` and keeps a yielding timer fallback.
 
 ## CSS specifications and emerging proposals
 

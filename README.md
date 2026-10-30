@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **208 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **209 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -120,6 +120,8 @@ The dedicated **CSS Engineering** track contains 53 exercises that move from fun
 The newest exercises cover bounded `@scope`, proposed `@function` and `if()` syntax, cross-document View Transitions, scroll-state queries, and advanced Shadow DOM styling. The latest practical labs also cover nested scroll containment, two-axis sticky data tables, content-sized textareas through `field-sizing`, and feature-gated `<details>` animations through `interpolate-size`. CSS Shadow Module Level 1 and CSS Sizing Level 4 are CSSWG drafts; the labs mark feature maturity and keep useful baseline behavior where browser support may vary. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
 
 HTML and CSS now meet in production interface work too: the clinical intake lab pairs semantic forms with container-aware error styling, and the SSR status-card lab defines a Declarative Shadow DOM and CSS theming contract using slots, `::part()`, custom properties, and forced-colors support.
+
+Less common platform details now have dedicated labs too: `timeline-scope` isolates repeated named scroll timelines, CSS `reading-flow` aligns navigation with dense Grid placement, dialog `requestClose()` keeps close requests cancellable, and prioritized `scheduler.postTask()`/`yield()` work supports bounded batches with cancellation and a lower-capability fallback.
 
 Technical SEO covers crawl/index reconciliation, migration planning, JavaScript render parity, multilingual sitemaps, and Search Console triage. Labs distinguish robots.txt crawl blocks from fetched `noindex`, audit redirect graphs and final destinations, compare source and rendered metadata/content, validate reciprocal locale clusters, and analyze page-level CTR against market/device/position-specific baselines.
 
