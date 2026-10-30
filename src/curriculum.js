@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 209 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 210 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -77,6 +77,8 @@ import seoMigrationStarter from "../exercises/seo/technical/migration_audit/star
 import seoMigrationSolution from "../exercises/seo/technical/migration_audit/solution.ts" with { type: "text" };
 import seoRenderStarter from "../exercises/seo/technical/render_parity/starter.ts" with { type: "text" };
 import seoRenderSolution from "../exercises/seo/technical/render_parity/solution.ts" with { type: "text" };
+import seoFacetedStarter from "../exercises/seo/technical/faceted_navigation/starter.ts" with { type: "text" };
+import seoFacetedSolution from "../exercises/seo/technical/faceted_navigation/solution.ts" with { type: "text" };
 import protectedDialogStarter from "../exercises/html/dialog_close_policy/starter.ts" with { type: "text" };
 import protectedDialogSolution from "../exercises/html/dialog_close_policy/solution.ts" with { type: "text" };
 import prioritizedWorkStarter from "../exercises/platform/scheduling/chunked_priority_work/starter.ts" with { type: "text" };
@@ -7417,6 +7419,22 @@ export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec)
       "Compares normalized source and rendered title, canonical, noindex, hreflang, structured-data IDs, and primary content signals",
       "Handles crawl-blocked, non-200, and non-HTML pages without making unsupported render-state claims",
       "Reports blocked render dependencies, missing expected content markers, and deterministic per-finding totals",
+    ],
+  },
+  {
+    id: "task_seo_faceted_navigation_url_governance",
+    title: "Govern Faceted Commerce URLs Without Hiding Curated Landing Pages",
+    category: "technical-seo",
+    difficulty: "advanced",
+    tags: ["seo", "technical-seo", "faceted-navigation", "crawl-budget", "canonicalization", "robots-txt", "ecommerce"],
+    instructions:
+      "A large product catalog lets shoppers combine brand, color, and size filters, producing thousands of URLs; merchandising also maintains a small set of valuable curated landing pages. Build a deterministic URL policy auditor that orders facet parameters, strips known tracking and sorting parameters, preserves explicitly curated facet combinations as self-canonical indexable pages, and estimates the potential URL state count with safe saturation. For uncurated combinations, support three mutually exclusive strategies: crawlable canonical hints to the base category, robots.txt crawl blocking with no page-level noindex claim, or crawlable noindex. Return 404 for empty, duplicate, or unsupported facet combinations, and route unknown query parameters to manual review instead of silently dropping possible content signals. Keep sitemap eligibility limited to canonical indexable pages.",
+    starterCode: seoFacetedStarter.trimEnd(),
+    solutionCode: seoFacetedSolution.trimEnd(),
+    criteria: [
+      "Normalizes facet order, removes only classified non-content parameters, preserves curated combinations, and estimates URL state growth safely",
+      "Separates canonical hints, robots.txt crawl blocking, and crawlable noindex behavior without contradictory page directives",
+      "Returns 404 for empty or invalid combinations and requires review before dropping unclassified query parameters",
     ],
   },
 
