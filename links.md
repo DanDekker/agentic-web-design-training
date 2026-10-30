@@ -88,9 +88,12 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Technology | Primary specification or proposal |
 | --- | --- |
 | WebTransport | <https://www.w3.org/TR/webtransport/> |
+| WebAssembly Core 3.0 | <https://webassembly.github.io/spec/core/> |
 | WebAssembly JavaScript API | <https://webassembly.github.io/spec/js-api/> |
+| WebAssembly Web API, including streaming instantiation | <https://webassembly.github.io/spec/web-api/> |
 | WebAssembly Component Model | <https://github.com/WebAssembly/component-model> |
 | WebAssembly JS Promise Integration proposal | <https://github.com/WebAssembly/js-promise-integration> |
+| HTML cross-origin isolation and SharedArrayBuffer exposure | <https://html.spec.whatwg.org/multipage/webappapis.html> |
 | WebNN | <https://www.w3.org/TR/webnn/> |
 
 The WebTransport and WebNN exercises follow their evolving W3C specifications. The

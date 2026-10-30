@@ -193,7 +193,7 @@ export const CURRICULUM_TRACKS = Object.freeze({
   },
   "webassembly-runtime": {
     id: "webassembly-runtime",
-    name: "WebAssembly JavaScript Interop & Component Lifetimes",
+    name: "WebAssembly Runtime, Interop & Component Lifetimes",
     categories: ["webassembly"],
   },
   "web-neural-compute": {
