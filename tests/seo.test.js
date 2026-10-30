@@ -141,6 +141,9 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     ]) expect(check(markup).passed).toBe(false);
     expect(check("", '<link rel="canonical" href="https://example.test/">').passed).toBe(false);
     expect(check('<meta name="description" content="Second">').passed).toBe(false);
+    // Non-breaking space is not HTML's ASCII token-separating whitespace.
+    expect(check('<link rel="&nbsp;canonical" href="/relative">').detail).toContain("canonicals=0");
+    expect(check('<link rel="alternate&#9;canonical" href="/relative">').passed).toBe(false);
     const emptyTitle = auditHtmlSeoAndStructuredData('<head><title>&#32;&nbsp;</title><meta name="description" content="x"><meta property="og:title" content="x"></head>');
     expect(emptyTitle.checks.find((item) => item.id === "technical_seo_head").passed).toBe(false);
   });
