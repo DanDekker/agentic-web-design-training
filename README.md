@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **180 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **181 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -115,7 +115,7 @@ Each exercise defines a prompt, starter code, acceptance criteria, and a referen
 
 ### CSS engineering and renewal
 
-The dedicated **CSS Engineering** track contains 37 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling.
+The dedicated **CSS Engineering** track contains 38 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling.
 
 The newest exercises cover bounded `@scope`, the proposed `@function` and `if()` syntax, and cross-document View Transitions. These proposals are evolving W3C drafts; the curriculum labels the experimental syntax and asks for production fallbacks where appropriate. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
 

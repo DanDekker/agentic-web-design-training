@@ -167,6 +167,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Public Parts and Theme Tokens", all: ["care-patient-form::part(medication-control)", "care-patient-form::part(medication-hint)", "--patient-field-accent:", "var(--patient-field-accent)"] },
     { name: "Encapsulation Boundary", none: ["::part(private", ">>>", "/deep/", "!important"], all: ["medication-control", "medication-hint"] },
   ],
+  task_css_shadow_slots_compound_boundary: [
+    { name: "Direct Assigned Element Styling", all: ['slot[name="primary-actions"]::slotted(a)', 'slot[name="primary-actions"]::slotted(button)', 'slot[name="article-body"]::slotted(p)'], none: ["::slotted(a strong)", "::slotted(button span)"] },
+    { name: "Progressive Slot Presence Decoration", all: ["@supports selector(slot:has-slotted)", ":has-slotted", "border-block-end-color: transparent", "border-block-end-color: currentColor"] },
+    { name: "Focus and High-Contrast Cues", all: [":focus-visible", "forced-colors: active", "outline-offset: 3px", "LinkText", "Highlight"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
