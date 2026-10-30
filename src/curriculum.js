@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 170 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 178 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -103,6 +103,7 @@ import webnnQueueStarter from "../exercises/platform/webnn/shared_tensor_queue/s
 import webnnQueueSolution from "../exercises/platform/webnn/shared_tensor_queue/solution.js" with { type: "text" };
 import webnnLossStarter from "../exercises/platform/webnn/context_loss_runner/starter.js" with { type: "text" };
 import webnnLossSolution from "../exercises/platform/webnn/context_loss_runner/solution.js" with { type: "text" };
+import { cssIndustryExercises } from "../exercises/css/industry_implementations.js";
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -4019,6 +4020,136 @@ function positionTooltip(triggerEl, tooltipEl) {
       "Opts both same-origin documents into cross-document navigation transitions with @view-transition and navigation: auto",
       "Assigns unique view-transition-name values and uses view-transition-class for shared ::view-transition-group() styling",
       "Disables navigation transitions under prefers-reduced-motion and notes that a transition class alone does not capture an element",
+    ],
+  },
+
+  /* ── Industry CSS Labs: retail, healthcare, finance, logistics, publishing, hospitality, government, SaaS ── */
+  {
+    id: "task_css_industry_retail_catalog",
+    title: "Rebuild a Retail Catalog for Variable Product Content and Embedded Merchandising",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "industry-retail", "product-catalog", "container-queries", "responsive-commerce"],
+    instructions:
+      "A retailer embeds the same catalog in a full-width search page, a narrow campaign rail, and a side panel. Product names, localized prices, and variant counts vary; the old three-column float layout clips long names and gives every image a different height. Implement the provided .retail-catalog > .retail-product markup with intrinsic grid tracks, shrink-safe cards, stable media geometry, and a named inline-size query that changes the card's inner layout when the card itself has room. Make variant buttons at least 44 CSS pixels in both axes, visibly distinguish aria-pressed state without relying on color alone, and preserve keyboard focus. Do not solve a container-width problem with viewport breakpoints.",
+    starterCode: cssIndustryExercises.retail.starter,
+    solutionCode: cssIndustryExercises.retail.solution,
+    criteria: [
+      "Builds an intrinsic auto-fitting product grid with minmax(min(100%, ...)) and no fixed card width or float layout",
+      "Uses a named inline-size container on each card and changes only its descendant layout inside @container",
+      "Keeps localized content and media contained, uses 44px variant targets, and visibly marks selection and keyboard focus",
+    ],
+  },
+  {
+    id: "task_css_industry_healthcare_intake",
+    title: "Renew a Healthcare Intake Form for Long Labels, Validation, and Assistive Use",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "industry-healthcare", "forms", "accessibility", "container-queries"],
+    instructions:
+      "A patient intake form is reused in a full portal and an embedded scheduling panel. Translated labels and medication names are longer than the original English copy; validation errors currently use only a red border, fields overflow at high zoom, and keyboard focus is hard to see. Implement CSS for the supplied fieldsets, .patient-intake__grid, .patient-intake__field, and controls carrying aria-invalid. Use logical sizing, minmax(0, 1fr), a container query for the embedded form, a persistent non-color error cue, large controls, :focus-visible, and forced-colors system colors. The HTML already supplies labels, legends, help text, and visible error text; do not generate essential instructions with pseudo-elements.",
+    starterCode: cssIndustryExercises.healthcare.starter,
+    solutionCode: cssIndustryExercises.healthcare.solution,
+    criteria: [
+      "Uses a shrink-safe form grid and a container query that collapses the form in a narrow embedding",
+      "Makes controls fluid and touch-sized, preserves visible error copy, and does not use color as the only invalid-state cue",
+      "Uses logical error borders, visible keyboard focus, and forced-colors system colors",
+    ],
+  },
+  {
+    id: "task_css_industry_bank_ledger",
+    title: "Make a Banking Transaction Ledger Work on Narrow Screens and on Paper",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "industry-finance", "data-tables", "responsive-overflow", "print"],
+    instructions:
+      "A bank ledger has date, merchant, reference, debit, credit, and balance columns. A failed phone redesign turns rows and cells into blocks, breaking column relationships and making amounts hard to compare. Keep the semantic table intact. Put horizontal overflow on the dedicated .bank-ledger__scroll wrapper, keep the header visible while scrolling, align amounts with tabular numerals, and add print rules that remove screen overflow and sticky positioning. Use logical properties so the account portal can change writing direction.",
+    starterCode: cssIndustryExercises.banking.starter,
+    solutionCode: cssIndustryExercises.banking.solution,
+    criteria: [
+      "Preserves native table display and moves horizontal overflow to the dedicated logical-width wrapper",
+      "Keeps column headings visible in the scroll viewport and aligns monetary values with tabular numerals",
+      "Prints the financial record without screen scrolling or sticky positioning",
+    ],
+  },
+  {
+    id: "task_css_industry_logistics_dispatch",
+    title: "Refactor a Logistics Dispatch Board for Wall Displays, Tablets, and Embedded Views",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "industry-logistics", "operations-dashboard", "container-queries", "forced-colors"],
+    instructions:
+      "Dispatchers use one live order board on a control-room display, a tablet, and a narrow split-screen panel. The old layout switches at device-specific viewport breakpoints, clips long destination names, and marks late orders only by red/green color. Implement the supplied .dispatch-board, .dispatch-board__lanes, .dispatch-lane, .dispatch-order, and .ops-status styles using a named size container and shrink-safe grid tracks. Keep status text meaningful, add distinct border patterns for delayed and critical states, preserve them in forced-colors mode, and remove motion when reduced motion is requested.",
+    starterCode: cssIndustryExercises.logistics.starter,
+    solutionCode: cssIndustryExercises.logistics.solution,
+    criteria: [
+      "Adapts to the board's embedding width with a named size container instead of viewport breakpoints",
+      "Uses minmax(0, 1fr), min-inline-size: 0, and text wrapping to contain long dispatch data",
+      "Distinguishes severity with border patterns and text and disables motion for reduced-motion users",
+    ],
+  },
+  {
+    id: "task_css_industry_newsroom_story",
+    title: "Modernize a Newsroom Story Template for Long-Form Reading and Print",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "industry-media", "editorial-typography", "content-layout", "print"],
+    instructions:
+      "A newsroom story template must render breaking-news headlines, translated names, inline photos, embeds, code samples, and wide data tables. Its fixed article column clips content, while printouts include navigation and ads. Build around a readable measure and fluid type, prevent long words widening the page, preserve media ratios, and contain wide code and tables in local scrollers. Add a print mode that retains the story and external link destinations while removing screen chrome. Add the secondary rail only when the story container has room.",
+    starterCode: cssIndustryExercises.newsroom.starter,
+    solutionCode: cssIndustryExercises.newsroom.solution,
+    criteria: [
+      "Uses a readable 68ch measure, fluid typography, and wrapping for translated or untrusted content",
+      "Keeps media responsive and constrains code and data tables to local overflow regions",
+      "Adds a rail at a named container width and prints the story without navigation, ads, or controls",
+    ],
+  },
+  {
+    id: "task_css_industry_restaurant_pos",
+    title: "Build a Touch-First Restaurant POS Menu for Keyboard and High-Contrast Use",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "industry-hospitality", "touch-targets", "keyboard-accessibility", "forced-colors"],
+    instructions:
+      "A restaurant POS menu runs on a counter tablet and a back-office workstation. Item tiles currently respond only to hover, the order panel is clipped by mobile browser chrome, and selected items are shown only by fill color. Implement a content-growing viewport-safe shell and intrinsic tile grid. Make controls at least 52 CSS pixels tall, style aria-pressed state with a clear border and a supplied selected marker, restrict hover motion to fine pointers, and provide :focus-visible, forced-colors, and reduced-motion rules. The selected marker is in the HTML and must stay visible in every color scheme.",
+    starterCode: cssIndustryExercises.restaurant.starter,
+    solutionCode: cssIndustryExercises.restaurant.solution,
+    criteria: [
+      "Uses svh/dvh sizing, safe-area padding, and an auto-fitting menu grid instead of a fixed tablet canvas",
+      "Provides 52px menu targets, keyboard focus, and an aria-pressed style with a non-color marker",
+      "Restricts hover motion to fine pointers and adapts to reduced motion and forced colors",
+    ],
+  },
+  {
+    id: "task_css_industry_public_permit",
+    title: "Renew a Public Permit Application for Reflow, Validation, and High Zoom",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "industry-government", "public-forms", "reflow", "accessibility"],
+    instructions:
+      "A city permit application has a long form beside a review summary. Residents use phones, keyboard navigation, screen magnification, and translated content; the current fixed sidebar covers the focused submit button and errors use only red text. Build a container-responsive layout with a single-column fallback, shrink-safe controls, visible error summary and field states, and focus indicators that survive high-contrast modes. Keep the summary in normal flow; do not fix it over interactive content. Preserve the supplied fieldset, legend, label, aria-invalid, and error-summary markup.",
+    starterCode: cssIndustryExercises.publicService.starter,
+    solutionCode: cssIndustryExercises.publicService.solution,
+    criteria: [
+      "Uses a shrink-safe content grid and container-width fallback instead of fixed or viewport-locked columns",
+      "Allows controls to shrink and grow, gives invalid fields a non-color cue, and keeps the error summary in flow",
+      "Provides visible focus and forced-colors system colors while preserving the semantic form structure",
+    ],
+  },
+  {
+    id: "task_css_industry_saas_vendor_migration",
+    title: "Migrate a SaaS Admin Screen off Vendor Specificity Wars with Layered CSS",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "industry-saas", "legacy-migration", "cascade-layers", "vendor-css"],
+    instructions:
+      "A SaaS admin product loads a vendor stylesheet that uses IDs, chained selectors, and important declarations. Teams append overrides to each screen, so every release adds another cascade conflict. Declare the layer order, import vendor rules into their own layer, and place reset, tokens, components, utilities, and owned overrides in named layers. Because vendor important declarations cannot be beaten by later normal layers, quarantine only the two required fixes in a first-priority legacy-important layer, scoped to the admin shell and marked for removal when the vendor dependency is replaced. Do not add ID chains or spread important overrides across the app. Keep the existing HTML classes unchanged during the migration.",
+    starterCode: cssIndustryExercises.saasMigration.starter,
+    solutionCode: cssIndustryExercises.saasMigration.solution,
+    criteria: [
+      "Declares a first-priority compatibility layer, deterministic layer order, and a vendor-only import layer",
+      "Scopes owned components beneath .admin-shell and separates tokens, components, utilities, and app overrides",
+      "Quarantines only two required important declarations in the compatibility layer and removes ID-selector escalation",
     ],
   },
 
