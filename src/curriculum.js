@@ -83,6 +83,8 @@ import webnnInferenceStarter from "../exercises/platform/webnn/tensor_inference/
 import webnnInferenceSolution from "../exercises/platform/webnn/tensor_inference/solution.js" with { type: "text" };
 import webnnQueueStarter from "../exercises/platform/webnn/shared_tensor_queue/starter.js" with { type: "text" };
 import webnnQueueSolution from "../exercises/platform/webnn/shared_tensor_queue/solution.js" with { type: "text" };
+import webnnLossStarter from "../exercises/platform/webnn/context_loss_runner/starter.js" with { type: "text" };
+import webnnLossSolution from "../exercises/platform/webnn/context_loss_runner/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10441,6 +10443,23 @@ export class VirtualizedShadowListEngine {
       "Serializes the entire input write, synchronous dispatch, and output readback sequence",
       "Returns named output buffers and recovers the queue after a failed inference",
       "Stops accepting runs on dispose and drains earlier runs without destroying caller-owned tensors",
+    ],
+  },
+  {
+    id: "task_webnn_context_loss_recovery",
+    title: "Rebuild a WebNN Session Safely After MLContext Loss",
+    category: "webnn",
+    difficulty: "advanced",
+    tags: ["webnn", "mlcontext", "device-loss", "recovery", "generation-fence"],
+    instructions:
+      "An MLContext can become lost, which destroys its graphs and tensors and rejects outstanding operations. Build a lazy session runner that shares concurrent session creation, observes each context's lost promise, fences results from stale sessions, and retries idempotent inference against a freshly compiled session at most a configured number of times. Closing the runner must stop new work and invalidate its active generation. The operation callback should not perform non-idempotent side effects because it may be retried.",
+    starterCode: webnnLossStarter,
+    solutionCode: webnnLossSolution,
+    criteria: [
+      "Creates sessions lazily and shares one in-flight createSession promise across concurrent callers",
+      "Observes MLContext.lost and invalidates only the session generation that was lost",
+      "Discards outcomes from a lost generation and retries inference only within the configured attempt limit",
+      "Stops new operations on close and does not return stale graph results after device loss",
     ],
   },
 ];

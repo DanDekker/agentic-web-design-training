@@ -2234,6 +2234,22 @@ export class Evaluator {
         passed: code.includes("accepting = false") && code.includes("disposePromise = tail") && !code.includes("tensor.destroy"),
         detail: "Stops new work, drains accepted calls and leaves tensor ownership with the caller",
       });
+    } else if (id === "task_webnn_context_loss_recovery") {
+      results.push({
+        name: "Single-Flight Session Creation",
+        passed: code.includes("if (!creating)") && code.includes("creating = pending") && code.includes("createSession"),
+        detail: "Shares one lazy session build across callers arriving during initialization",
+      });
+      results.push({
+        name: "MLContext Loss Generation Fence",
+        passed: code.includes("session.context.lost") && code.includes("record.generation") && code.includes("current === record"),
+        detail: "Invalidates only the lost session record and prevents its late result from escaping",
+      });
+      results.push({
+        name: "Bounded Idempotent Inference Retry",
+        passed: code.includes("attempt < maxAttempts") && code.includes("Promise.race") && code.includes("record.lost"),
+        detail: "Retries after a lost context but stops at the caller's configured attempt limit",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7766,6 +7782,55 @@ export class Evaluator {
         name: "WebNN Shared-Tensor Isolation, Failure Recovery & Drain",
         passed: Boolean(res?.webnnQueueOk),
         detail: "Returns distinct queued results, recovers after a failed readback and rejects runs after disposal",
+      });
+    } else if (taskId === "task_webnn_context_loss_recovery") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const sessions = [];
+            const runner = createWebNNSessionRunner(async () => {
+              await Promise.resolve();
+              let resolveLost;
+              const lost = new Promise((resolve) => { resolveLost = resolve; });
+              const session = { id: sessions.length + 1, context: { lost }, markLost: resolveLost };
+              sessions.push(session);
+              return session;
+            }, { maxAttempts: 2 });
+            let startFirst;
+            let finishFirst;
+            const firstStarted = new Promise((resolve) => { startFirst = resolve; });
+            const firstWork = new Promise((resolve) => { finishFirst = resolve; });
+            const staleRun = runner.run(async (session) => {
+              if (session.id === 1) {
+                startFirst();
+                await firstWork;
+                return "stale-result";
+              }
+              return "session-" + session.id;
+            });
+            await firstStarted;
+            sessions[0].markLost({ message: "device reset" });
+            const concurrentA = runner.run((session) => session.id);
+            const concurrentB = runner.run((session) => session.id);
+            const [recoveredResult, resultA, resultB] = await Promise.all([staleRun, concurrentA, concurrentB]);
+            finishFirst();
+            const generation = runner.generation;
+            await runner.close();
+            let closedRejected = false;
+            try { await runner.run(() => "should not run"); } catch { closedRejected = true; }
+            return {
+              webnnRecoveryOk: recoveredResult === "session-2" && resultA === 2 && resultB === 2 &&
+                sessions.length === 2 && generation === 2 && closedRejected,
+            };
+          } catch { return { webnnRecoveryOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1500 });
+      results.push({
+        name: "WebNN Context Loss Retry, Session Sharing & Stale Result Fence",
+        passed: Boolean(res?.webnnRecoveryOk),
+        detail: "Rebuilds once after loss, shares the replacement session among callers and discards the old result",
       });
     } else {
       // General syntax evaluation
