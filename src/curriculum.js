@@ -3999,7 +3999,7 @@ function positionTooltip(triggerEl, tooltipEl) {
   view-transition-class: commerce-item;
 }
 
-/* The class styles captured pseudo-elements; view-transition-name still opts in. */
+/* view-transition-class styles captured pseudo-elements; it does not capture an element by itself. */
 ::view-transition-group(*.commerce-item) {
   animation-duration: 320ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
