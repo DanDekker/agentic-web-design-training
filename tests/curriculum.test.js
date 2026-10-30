@@ -330,6 +330,23 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
+  test("verifies the technical SEO crawl and indexing category", async () => {
+    const tasksRes = await call("GET", "/api/curriculum/tasks?category=technical-seo");
+    const { tasks: technicalSeoTasks } = await tasksRes.json();
+    expect(technicalSeoTasks.length).toBe(1);
+
+    for (const task of technicalSeoTasks) {
+      const verifyRes = await call("POST", "/api/curriculum/verify", {
+        taskId: task.id,
+        code: task.solutionCode,
+      });
+      expect(verifyRes.status).toBe(200);
+      const body = await verifyRes.json();
+      expect(body.success).toBe(true);
+      expect(body.score).toBe(100);
+    }
+  });
+
   test("verifies E-Commerce & Checkout engineering tasks (Dinero cents, Inventory TTL holds, EU VAT Reverse Charge, 3DS Saga, Polar.sh MoR entitlements)", async () => {
     const tasksRes = await call("GET", "/api/curriculum/tasks?category=ecommerce-checkout");
     const { tasks: ecomTasks } = await tasksRes.json();
@@ -488,8 +505,8 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(200);
-    expect(CURRICULUM_CATEGORIES.length).toBe(41);
+    expect(validation.totalTasks).toBe(201);
+    expect(CURRICULUM_CATEGORIES.length).toBe(42);
     expect(Object.keys(CURRICULUM_TRACKS).length).toBe(21);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });

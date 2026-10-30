@@ -6,6 +6,7 @@ last re-verified on **2026-10-30**.
 - [Project links](#project-links)
 - [Technology map](#technology-map)
 - [CSS specifications and emerging proposals](#css-specifications-and-emerging-proposals)
+- [Technical SEO and Search Console](#technical-seo-and-search-console)
 - [Logo & asset provenance](#logo--asset-provenance)
 - [Structured data & vocabulary](#structured-data--vocabulary)
 - [Agentic web, WebMCP & 2026 discovery citations](#agentic-web-webmcp--2026-discovery-citations)
@@ -197,6 +198,17 @@ commit above. See [`assets/logos/SOURCES.md`](assets/logos/SOURCES.md) for the f
 | `OfferShippingDetails` — `ReturnByMail` | <https://schema.org/ReturnByMail> |
 | `TechArticle` | <https://schema.org/TechArticle> |
 | SVG namespace | <http://www.w3.org/2000/svg> |
+
+## Technical SEO and Search Console
+
+| Topic | Primary documentation |
+| --- | --- |
+| Google Search robots meta rules and `X-Robots-Tag` | <https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag> |
+| Google Search robots.txt crawl controls | <https://developers.google.com/search/docs/crawling-indexing/robots/intro> |
+| Sitemap construction, absolute URLs, and size limits | <https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap> |
+| Sitemap index file limits | <https://developers.google.com/search/docs/crawling-indexing/sitemaps/large-sitemaps> |
+| Search Console Performance report metrics and dimensions | <https://support.google.com/webmasters/answer/7576553?hl=en> |
+| Search Console page-versus-property aggregation | <https://support.google.com/webmasters/answer/17011364?hl=en> |
 
 ## Agentic web, WebMCP & 2026 discovery citations
 

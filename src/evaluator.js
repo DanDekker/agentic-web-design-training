@@ -1342,6 +1342,36 @@ export class Evaluator {
           code.includes("sameAs"),
         detail: "Connects Organization sameAs, WebSite SearchAction, and FAQPage Question/Answer nodes",
       });
+    } else if (id === "task_seo_indexability_signal_reconciler") {
+      results.push({
+        name: "Crawl Permission and HTTP State Precedence",
+        passed:
+          code.includes("robotsAllowed") &&
+          code.includes('"CRAWL_BLOCKED"') &&
+          code.includes('"REDIRECT"') &&
+          code.includes('"NOT_MODIFIED"') &&
+          code.includes("rulesObserved: false"),
+        detail: "Separates crawl blocking, redirects, cached responses, and HTTP errors before page directives",
+      });
+      results.push({
+        name: "Applicable HTML and Response Header Directives",
+        passed:
+          code.includes("metaRobots") &&
+          code.includes("xRobotsTags") &&
+          code.includes('"text/html"') &&
+          code.includes('"googlebot"') &&
+          code.includes('"noindex"'),
+        detail: "Reads HTML meta rules and Googlebot-scoped response headers, including for non-HTML resources",
+      });
+      results.push({
+        name: "Canonical and Sitemap Review Findings",
+        passed:
+          code.includes("CANONICAL_HINT_POINTS_TO_OTHER_URL") &&
+          code.includes("SITEMAP_ENTRY_IS_NOT_THE_CANONICAL_URL") &&
+          code.includes("NOINDEX_NOT_OBSERVABLE_WHILE_CRAWL_BLOCKED") &&
+          code.includes('"NO_RESTRICTIVE_DIRECTIVE"'),
+        detail: "Reports contradictory URL signals without treating canonicalization as a guaranteed directive",
+      });
     } else if (id === "task_ecom_integer_cents_dinero_cart_engine") {
       results.push({
         name: "Integer Minor-Unit (Dinero) & Multi-Currency Exponent Guard",
@@ -5216,6 +5246,58 @@ export class Evaluator {
         name: "Dataset DataDownload, WebSite SearchAction & FAQPage @graph Verification",
         passed: Boolean(res?.datasetOk && res?.searchActionOk && res?.faqOk),
         detail: "Verifies linked Dataset distribution, SearchAction urlTemplate, and FAQPage Question/Answer graph",
+      });
+    } else if (taskId === "task_seo_indexability_signal_reconciler") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const reconcile = typeof reconcileGooglebotIndexability === "function"
+            ? reconcileGooglebotIndexability
+            : exports.reconcileGooglebotIndexability;
+
+          const blocked = reconcile({
+            url: "https://journal.example.test/preview/story",
+            status: 200,
+            robotsAllowed: false,
+            contentType: "text/html",
+            inSitemap: true,
+            metaRobots: [{ name: "robots", content: "noindex" }],
+          });
+          const pdf = reconcile({
+            url: "https://shop.example.test/manuals/espresso.pdf",
+            status: 200,
+            robotsAllowed: true,
+            contentType: "application/pdf",
+            inSitemap: true,
+            xRobotsTags: ["googlebot: noindex", "otherbot: noindex"],
+            canonicalUrl: "https://shop.example.test/manuals/espresso-manual",
+          });
+          const redirect = reconcile({
+            url: "https://shop.example.test/old-coat",
+            status: 301,
+            robotsAllowed: true,
+            contentType: "text/html",
+            inSitemap: true,
+            redirectUrl: "/products/wool-coat",
+            metaRobots: [{ name: "robots", content: "index" }],
+          });
+          return {
+            crawlPrecedence: blocked.disposition === "CRAWL_BLOCKED" && blocked.rulesObserved === false && blocked.directives.length === 0 && blocked.findings.includes("NOINDEX_NOT_OBSERVABLE_WHILE_CRAWL_BLOCKED"),
+            nonHtmlHeaderAndCanonical: pdf.disposition === "NOINDEX" && pdf.directives.includes("noindex") && pdf.findings.includes("CANONICAL_HINT_POINTS_TO_OTHER_URL") && pdf.findings.includes("SITEMAP_ENTRY_IS_NOT_THE_CANONICAL_URL"),
+            redirectPrecedence: redirect.disposition === "REDIRECT" && redirect.redirectTarget === "https://shop.example.test/products/wool-coat" && redirect.findings.includes("SITEMAP_CONTAINS_REDIRECT_URL"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Crawl-vs-Index Rules and Non-HTML noindex Reconciliation",
+        passed: Boolean(res?.crawlPrecedence && res?.nonHtmlHeaderAndCanonical),
+        detail: "Keeps a robots-blocked noindex page distinct from an accessible PDF carrying X-Robots-Tag",
+      });
+      results.push({
+        name: "Redirect and Sitemap Conflict Reporting",
+        passed: Boolean(res?.redirectPrecedence),
+        detail: "Classifies an HTTP redirect before page metadata and flags the sitemap entry for cleanup",
       });
     } else if (taskId === "task_ecom_integer_cents_dinero_cart_engine") {
       const harness = `

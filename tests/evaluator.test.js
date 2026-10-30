@@ -262,6 +262,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       "task_seo_canonical_hreflang_opengraph_head",
       "task_seo_semantic_microdata_landmarks_audit",
       "task_seo_software_app_faq_dataset_graph",
+      "task_seo_indexability_signal_reconciler",
     ]) {
       const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
       expect(task).toBeTruthy();
@@ -365,7 +366,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(200);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(201);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
