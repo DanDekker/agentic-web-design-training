@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **209 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **210 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -123,7 +123,7 @@ HTML and CSS now meet in production interface work too: the clinical intake lab 
 
 Less common platform details now have dedicated labs too: `timeline-scope` isolates repeated named scroll timelines, CSS `reading-flow` aligns navigation with dense Grid placement, dialog `requestClose()` keeps close requests cancellable, and prioritized `scheduler.postTask()`/`yield()` work supports bounded batches with cancellation and a lower-capability fallback.
 
-Technical SEO covers crawl/index reconciliation, migration planning, JavaScript render parity, multilingual sitemaps, and Search Console triage. Labs distinguish robots.txt crawl blocks from fetched `noindex`, audit redirect graphs and final destinations, compare source and rendered metadata/content, validate reciprocal locale clusters, and analyze page-level CTR against market/device/position-specific baselines.
+Technical SEO covers crawl/index reconciliation, migration planning, JavaScript render parity, multilingual sitemaps, Search Console triage, and faceted commerce URL governance. Labs distinguish robots.txt crawl blocks from fetched `noindex`, audit redirect graphs and final destinations, compare source and rendered metadata/content, preserve curated facet landing pages while containing filter URL growth, validate reciprocal locale clusters, and analyze page-level CTR against market/device/position-specific baselines.
 
 | Renewal stage | Topics |
 | --- | --- |

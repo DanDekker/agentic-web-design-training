@@ -214,10 +214,17 @@ commit above. See [`assets/logos/SOURCES.md`](assets/logos/SOURCES.md) for the f
 | Google Search site moves and URL migrations | <https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes> |
 | Google Search redirect behavior and recommendations | <https://developers.google.com/search/docs/crawling-indexing/301-redirects> |
 | Google Search JavaScript rendering and rendered HTML | <https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics> |
+| Google faceted navigation crawl management | <https://developers.google.com/crawling/docs/faceted-navigation> |
+| Google URL canonicalization and duplicate-page signals | <https://developers.google.com/search/docs/crawling-indexing/canonicalization> |
+| Google crawl budget and URL inventory management | <https://developers.google.com/crawling/docs/crawl-budget> |
 | Sitemap construction, absolute URLs, and size limits | <https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap> |
 | Sitemap index file limits | <https://developers.google.com/search/docs/crawling-indexing/sitemaps/large-sitemaps> |
 | Search Console Performance report metrics and dimensions | <https://support.google.com/webmasters/answer/7576553?hl=en> |
 | Search Console page-versus-property aggregation | <https://support.google.com/webmasters/answer/17011364?hl=en> |
+
+The faceted-navigation exercise keeps three controls distinct: `robots.txt` controls
+crawling, canonical URLs are consolidation signals, and a `noindex` rule must remain
+crawlable so the crawler can observe it.
 
 ## Agentic web, WebMCP & 2026 discovery citations
 
