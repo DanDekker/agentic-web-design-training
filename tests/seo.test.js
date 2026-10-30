@@ -63,4 +63,21 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(body.passed).toBe(true);
     expect(body.score).toBe(100);
   });
+
+  test("checks all JSON-LD blocks regardless of order and accepts mixed graphs", () => {
+    const block = (value) => `<script type="application/ld+json">${value}</script>`;
+    const valid = block(JSON.stringify({ "@context": "https://schema.org/", "@graph": [
+      { "@id": "https://example.test/#reference" },
+      { "@type": ["Thing", "Product"], name: "Product" },
+    ] }));
+    const invalid = block('{"@context":');
+    const check = (html) => auditHtmlSeoAndStructuredData(html).checks.find((item) => item.id === "schema_org_json_ld");
+    expect(check(valid).passed).toBe(true);
+    expect(check(valid + invalid).passed).toBe(false);
+    expect(check(invalid + valid).passed).toBe(false);
+    expect(check(valid + block("null")).passed).toBe(false);
+    const array = block(JSON.stringify([{ "@context": { "@vocab": "https://schema.org/" }, "@type": "Article" }]));
+    expect(check(array).passed).toBe(true);
+    expect(check(block(JSON.stringify({ "@context": "https://example.test/context", "@type": "Thing" }))).passed).toBe(false);
+  });
 });
