@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 198 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 199 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -5243,7 +5243,9 @@ clinic-dose-field::part(control) {
   @media (max-width: 42rem) {
     .claim-review__dialog:modal {
       position: fixed;
-      inset: auto 0 0;
+      inset-block-start: auto;
+      inset-inline: 0;
+      inset-block-end: 0;
       inline-size: 100%;
       max-inline-size: none;
       max-block-size: min(90dvh, calc(100dvh - env(safe-area-inset-top)));
@@ -5257,7 +5259,8 @@ clinic-dose-field::part(control) {
 
 @media (forced-colors: active) {
   .claim-review__dialog::backdrop {
-    background: Canvas;
+    background: CanvasText;
+    opacity: 0.55;
   }
 
   .claim-review__dialog {
@@ -6672,6 +6675,205 @@ export function compileImportMapBootstrapHtml(config: ImportMapConfig): {
       "Emits <script type=\"importmap\"> strictly before any <link rel=\"modulepreload\"> or <script type=\"module\"> tags",
       "Populates the WHATWG importmap integrity dictionary mapping resolved module URLs to sha384- SRI digests",
       "Generates <link rel=\"modulepreload\" integrity=\"...\" crossorigin=\"anonymous\"> hints to flatten ESM dependency waterfalls",
+    ],
+  },
+  {
+    id: "task_html_patient_intake_accessible_error_styling",
+    title: "Render a Clinical Intake Form with Linked Errors and Container-Aware Styling",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "css", "healthcare", "forms", "validation", "accessibility", "container-queries"],
+    instructions:
+      "A clinic check-in form appears inside both a full-page portal and a narrow appointment drawer. Its clickable div labels are unreliable, server validation errors are announced only by red borders, and the old 640px grid overflows in the drawer. Build a server-rendered form that returns both HTML and scoped CSS. Use native form submission, fieldset/legend grouping, explicit labels, autocomplete and required attributes, a linked error summary, and field-level aria-invalid / aria-describedby relationships. Escape server-supplied validation messages. Style the form using its own container width, with keyboard focus and forced-colors cues that do not depend on color alone.",
+    starterCode: `// Old portal returns a form with clickable div labels and unassociated errors.
+export function renderPatientIntakeForm(errors: unknown[]) {
+  return { html: "<div onclick=\\\"focusName()\\\">Name</div><input><span>Invalid</span>", css: "" };
+}`,
+    solutionCode: `// Server-rendered clinical intake markup and component-scoped responsive styles.
+export interface PatientIntakeIssue {
+  readonly field: "fullName" | "dateOfBirth";
+  readonly message: string;
+}
+
+export interface PatientIntakeSpec {
+  readonly errors?: readonly PatientIntakeIssue[];
+}
+
+function escapePatientText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: string; css: string } {
+  const issues = spec.errors ?? [];
+  const fields = [
+    {
+      name: "fullName" as const,
+      id: "patient-full-name",
+      label: "Full legal name",
+      type: "text",
+      autocomplete: "name",
+      hint: "Enter the name used on your health record.",
+    },
+    {
+      name: "dateOfBirth" as const,
+      id: "patient-date-of-birth",
+      label: "Date of birth",
+      type: "date",
+      autocomplete: "bday",
+      hint: "Use the date shown on your identification.",
+    },
+  ];
+
+  const renderedFields = fields.map((field) => {
+    const issue = issues.find((candidate) => candidate.field === field.name);
+    const hintId = `${field.id}-hint`;
+    const errorId = `${field.id}-error`;
+    const describedBy = issue ? `${hintId} ${errorId}` : hintId;
+    const invalid = issue ? ' aria-invalid="true"' : "";
+    const errorMarkup = issue
+      ? `<p class="patient-intake__error" id="${errorId}">${escapePatientText(issue.message)}</p>`
+      : "";
+
+    return [
+      `<div class="patient-intake__field">`,
+      `  <label for="${field.id}">${field.label}</label>`,
+      `  <p class="patient-intake__hint" id="${hintId}">${field.hint}</p>`,
+      `  <input class="patient-intake__control" id="${field.id}" name="${field.name}" type="${field.type}" autocomplete="${field.autocomplete}" required aria-describedby="${describedBy}"${invalid}>`,
+      `  ${errorMarkup}`,
+      `</div>`,
+    ].join("\\n");
+  });
+
+  const summaryFields = fields
+    .map((field) => ({ field, issue: issues.find((candidate) => candidate.field === field.name) }))
+    .filter((item) => item.issue);
+  const errorSummary = summaryFields.length
+    ? [
+        '<section class="patient-intake__error-summary" role="alert" tabindex="-1" aria-labelledby="patient-intake-error-title">',
+        '  <h2 id="patient-intake-error-title">Review these details</h2>',
+        "  <ul>",
+        ...summaryFields.map(({ field, issue }) =>
+          `    <li><a href="#${field.id}">${field.label}: ${escapePatientText(issue!.message)}</a></li>`,
+        ),
+        "  </ul>",
+        "</section>",
+      ].join("\\n")
+    : "";
+
+  const html = [
+    '<form class="patient-intake" action="/appointments/check-in" method="post">',
+    '  <fieldset class="patient-intake__group">',
+    "    <legend>Patient details</legend>",
+    `    ${errorSummary}`,
+    '    <div class="patient-intake__fields">',
+    ...renderedFields.map((markup) => `      ${markup}`),
+    "    </div>",
+    '    <button class="patient-intake__submit" type="submit">Continue check-in</button>',
+    "  </fieldset>",
+    "</form>",
+  ].join("\\n");
+
+  const css = `
+.patient-intake {
+  container: patient-intake / inline-size;
+  min-inline-size: 0;
+  max-inline-size: 48rem;
+  color: CanvasText;
+  background: Canvas;
+}
+
+.patient-intake__group {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid currentColor;
+}
+
+.patient-intake__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.patient-intake__field {
+  min-inline-size: 0;
+}
+
+.patient-intake__control {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: max(2.75rem, 44px);
+  padding-inline: 0.75rem;
+  border: 1px solid currentColor;
+  color: inherit;
+  background: Canvas;
+  font: inherit;
+}
+
+.patient-intake__control:focus-visible,
+.patient-intake__submit:focus-visible,
+.patient-intake__error-summary a:focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+.patient-intake__control[aria-invalid="true"] {
+  border-inline-start: 0.45rem double currentColor;
+}
+
+@supports selector(input:user-invalid) {
+  .patient-intake__control:user-invalid {
+    border-inline-start: 0.45rem double currentColor;
+  }
+}
+
+.patient-intake__error-summary {
+  margin-block: 0 1.25rem;
+  padding: 1rem;
+  border: 2px solid currentColor;
+  border-inline-start: 0.6rem double currentColor;
+}
+
+.patient-intake__error {
+  font-weight: 700;
+}
+
+.patient-intake__submit {
+  min-block-size: max(2.75rem, 44px);
+  margin-block-start: 1.25rem;
+  font: inherit;
+}
+
+@container patient-intake (max-width: 42rem) {
+  .patient-intake__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (forced-colors: active) {
+  .patient-intake__control,
+  .patient-intake__error-summary {
+    border-color: CanvasText;
+  }
+
+  .patient-intake__control[aria-invalid="true"] {
+    border-inline-start-color: Highlight;
+    border-inline-start-style: double;
+  }
+}`;
+
+  return { html, css };
+}`,
+    criteria: [
+      "Uses a real POST form, fieldset/legend, explicit labels, autocomplete, required native controls, and no novalidate bypass",
+      "Links a concise error summary to invalid controls and associates safely escaped field errors through aria-invalid and aria-describedby",
+      "Returns scoped container-query CSS with redundant invalid cues, visible focus, touch-sized controls, and forced-colors support",
     ],
   },
   {

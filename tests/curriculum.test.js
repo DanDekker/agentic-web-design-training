@@ -296,10 +296,10 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     }
   });
 
-  test("verifies WHATWG HTML Living Standard architecture tasks (Speculation Rules, Declarative Shadow DOM, Invoker Commands, Picture LCP, ImportMap SRI)", async () => {
+  test("verifies HTML architecture tasks across native forms, Shadow DOM, invoker commands, media, and module maps", async () => {
     const tasksRes = await call("GET", "/api/curriculum/tasks?category=html-architecture");
     const { tasks: htmlTasks } = await tasksRes.json();
-    expect(htmlTasks.length).toBe(5);
+    expect(htmlTasks.length).toBe(6);
 
     for (const htmlTask of htmlTasks) {
       const verifyRes = await call("POST", "/api/curriculum/verify", {
@@ -488,7 +488,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(198);
+    expect(validation.totalTasks).toBe(199);
     expect(CURRICULUM_CATEGORIES.length).toBe(41);
     expect(Object.keys(CURRICULUM_TRACKS).length).toBe(21);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
