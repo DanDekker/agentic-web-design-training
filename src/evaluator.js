@@ -247,6 +247,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Urgent Visual and Reading Priority", all: [".incident-card--urgent", "grid-column: 1 / -1", "grid-row: 1", "reading-order: -1"], withinRules: [{ selector: ".incident-card--urgent", all: ["grid-row: 1", "reading-order: -1"] }] },
     { name: "Narrow Single-Column Flow Without Reordering Hacks", all: ["@media (max-width: 44rem)", "grid-template-columns: minmax(0, 1fr)", "grid-auto-flow: row"], none: ["\n  order:", "tabindex=", "tabindex ="] },
   ],
+  task_css_anchor_scope_repeated_popover_isolation: [
+    { name: "Component-Local Reuse of a Named Anchor", all: ["anchor-scope: --stock-trigger", "anchor-name: --stock-trigger", "position-anchor: --stock-trigger"], withinRules: [{ selector: ".stock-card", all: ["anchor-scope: --stock-trigger"] }, { selector: ".stock-card__trigger", all: ["anchor-name: --stock-trigger"] }, { selector: ".stock-card__help[popover]:popover-open", all: ["position-anchor: --stock-trigger"] }] },
+    { name: "Logical Popover Placement and Collision Fallback", all: ["position-area: block-end span-inline-start", "position-try-fallbacks: flip-block"], withinRules: [{ selector: ".stock-card__help[popover]:popover-open", all: ["position-area: block-end span-inline-start", "position-try-fallbacks: flip-block"] }] },
+    { name: "Progressive Enhancement Without Generated Names or Geometry Scripts", all: ["@supports (anchor-scope: --stock-trigger) and (position-anchor: --stock-trigger)", "max-inline-size: min(28rem, calc(100vw - 2rem))"], none: ["getBoundingClientRect", "anchor-scope: all", "--stock-trigger-1"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
@@ -1226,6 +1231,30 @@ export class Evaluator {
           code.includes('removeEventListener("cancel"') &&
           !code.includes('method="dialog"'),
         detail: "Uses direct close only after persistence and removes every registered listener on disposal",
+      });
+    } else if (id === "task_html_request_submitter_native_semantics") {
+      results.push({
+        name: "Owning-Realm requestSubmit and Submitter Validation",
+        passed:
+          code.includes("form.ownerDocument?.defaultView?.HTMLFormElement?.prototype?.requestSubmit") &&
+          code.includes("requestSubmit.call(form, submitter)") &&
+          code.includes("submitter.form !== form") &&
+          code.includes("isSubmitButton(submitter)"),
+        detail: "Checks ownership and submit control type, then calls the owning realm's native prototype method",
+      });
+      results.push({
+        name: "SubmitEvent Intent From the Activated Button",
+        passed:
+          code.includes("event.submitter") &&
+          code.includes("submitter.name") &&
+          code.includes("submitter.value") &&
+          code.includes("return null"),
+        detail: "Reads the submitter's name and value without reconstructing native form behavior",
+      });
+      results.push({
+        name: "Native Validation and Submission Overrides Remain Browser-Owned",
+        passed: !code.includes("form.submit(") && !code.includes("form.submit()") && !code.includes("preventDefault"),
+        detail: "Avoids bypassing validation or suppressing the submit event and leaves form* overrides to the browser",
       });
     } else if (id === "task_html_responsive_picture_fetchpriority_lcp") {
       results.push({
@@ -5184,6 +5213,56 @@ export class Evaluator {
         name: "Cancellable Discard Requests and Commit-Gated Save Close",
         passed: Boolean(res?.closeRequestCanBeCancelled && res?.directCloseRequiresSuccessfulCommit),
         detail: "Keeps dirty edits open when cancel is vetoed and uses direct close only after a successful save",
+      });
+    } else if (taskId === "task_html_request_submitter_native_semantics") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const requestNative = typeof requestNativeFormSubmission === "function" ? requestNativeFormSubmission : exports.requestNativeFormSubmission;
+          const getIntent = typeof getNativeSubmitIntent === "function" ? getNativeSubmitIntent : exports.getNativeSubmitIntent;
+          class FakeHTMLFormElement {
+            constructor() {
+              this.calls = [];
+              this.legacyCalls = 0;
+              this.ownerDocument = { defaultView: { HTMLFormElement: FakeHTMLFormElement } };
+              this.requestSubmit = "named control shadows the instance property";
+              this.submit = () => { this.legacyCalls += 1; };
+            }
+          }
+          FakeHTMLFormElement.prototype.requestSubmit = function (submitter) { this.calls.push(submitter); };
+
+          const form = new FakeHTMLFormElement();
+          const draft = { tagName: "BUTTON", type: "submit", form, name: "intent", value: "draft", formNoValidate: true, formAction: "/orders/draft", formMethod: "post" };
+          requestNative(form, draft);
+          const intent = getIntent({ currentTarget: form, submitter: draft });
+          const noIntent = getIntent({ currentTarget: form, submitter: null });
+          const formIsNotAButtonIntent = getIntent({ currentTarget: form, submitter: form });
+
+          let wrongFormRejected = false;
+          let nonSubmitRejected = false;
+          let missingApiRejected = false;
+          const noApiForm = { ownerDocument: { defaultView: { HTMLFormElement: class {} } } };
+          try { requestNative(form, { ...draft, form: new FakeHTMLFormElement() }); } catch { wrongFormRejected = true; }
+          try { requestNative(form, { ...draft, type: "button" }); } catch { nonSubmitRejected = true; }
+          try { requestNative(noApiForm, { ...draft, form: noApiForm }); } catch { missingApiRejected = true; }
+
+          return {
+            usesOwningRealmPrototype: form.calls.length === 1 && form.calls[0] === draft && form.requestSubmit === "named control shadows the instance property" && form.legacyCalls === 0,
+            preservesSubmitterIntentAndOverrides: intent?.name === "intent" && intent?.value === "draft" && draft.formAction === "/orders/draft" && draft.formMethod === "post" && draft.formNoValidate,
+            rejectsUnrelatedControlsAndMissingNativeMethod: wrongFormRejected && nonSubmitRejected && missingApiRejected && noIntent === null && formIsNotAButtonIntent === null,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Clobber-Resistant Native requestSubmit with the Chosen Button",
+        passed: Boolean(res?.usesOwningRealmPrototype && res?.preservesSubmitterIntentAndOverrides),
+        detail: "Calls the form's realm prototype with the original submitter, preserving button overrides despite named-property clobbering",
+      });
+      results.push({
+        name: "SubmitEvent.submitter Intent and Guarded Failure Paths",
+        passed: Boolean(res?.rejectsUnrelatedControlsAndMissingNativeMethod),
+        detail: "Reads name/value from the activated button, returns null without one, and rejects unsafe or unsupported programmatic paths",
       });
     } else if (taskId === "task_html_responsive_picture_fetchpriority_lcp") {
       const harness = `

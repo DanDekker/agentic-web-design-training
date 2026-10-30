@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 210 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 212 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -81,6 +81,8 @@ import seoFacetedStarter from "../exercises/seo/technical/faceted_navigation/sta
 import seoFacetedSolution from "../exercises/seo/technical/faceted_navigation/solution.ts" with { type: "text" };
 import protectedDialogStarter from "../exercises/html/dialog_close_policy/starter.ts" with { type: "text" };
 import protectedDialogSolution from "../exercises/html/dialog_close_policy/solution.ts" with { type: "text" };
+import nativeFormStarter from "../exercises/html/native_form_submitter/starter.ts" with { type: "text" };
+import nativeFormSolution from "../exercises/html/native_form_submitter/solution.ts" with { type: "text" };
 import prioritizedWorkStarter from "../exercises/platform/scheduling/chunked_priority_work/starter.ts" with { type: "text" };
 import prioritizedWorkSolution from "../exercises/platform/scheduling/chunked_priority_work/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
@@ -3947,6 +3949,48 @@ window.addEventListener("scroll", () => {
     ],
   },
   {
+    id: "task_css_anchor_scope_repeated_popover_isolation",
+    title: "Keep Repeated Warehouse Popovers Attached to Their Own Inventory Row",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "anchor-scope", "anchor-positioning", "popover", "components", "progressive-enhancement"],
+    instructions:
+      "A warehouse picking board repeats the same stock-card component hundreds of times. Each card has a Stock details button and a native popover. The buttons all use the same anchor-name; without scoping, every explicit position-anchor lookup can resolve to the last matching anchor in source order and stack the popovers on one row. Scope only the shared anchor name on each card with anchor-scope, position the open popover with logical position-area, and add a block-axis flip fallback. Keep the native popover usable when anchor positioning is unsupported by gating the enhancement with @supports. Do not generate a unique anchor name per row or add JavaScript geometry tracking.",
+    starterCode: `/* Repeated card names collide; keep the native popover baseline. */
+.stock-card__help[popover]:popover-open {
+  max-inline-size: min(28rem, calc(100vw - 2rem));
+  margin: 0;
+}`,
+    solutionCode: `/* Native popovers keep working when anchor positioning is unavailable. */
+.stock-card__help[popover]:popover-open {
+  max-inline-size: min(28rem, calc(100vw - 2rem));
+}
+
+@supports (anchor-scope: --stock-trigger) and (position-anchor: --stock-trigger) and (position-area: block-end span-inline-start) {
+  .stock-card {
+    anchor-scope: --stock-trigger;
+  }
+
+  .stock-card__trigger {
+    anchor-name: --stock-trigger;
+  }
+
+  .stock-card__help[popover]:popover-open {
+    position: fixed;
+    inset: auto;
+    position-anchor: --stock-trigger;
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block;
+    margin: 0;
+  }
+}`,
+    criteria: [
+      "Scopes the repeated dashed anchor name on each component root and gives every trigger the same anchor-name",
+      "Positions the open popover through position-anchor and logical position-area, with a block flip fallback",
+      "Feature-gates anchor positioning while leaving native popovers usable without anchor-scope support",
+    ],
+  },
+  {
     id: "task_css_anchor_positioning_has_popover",
     title: "Refactor JS Tooltip Collision Math to Native CSS Anchor Positioning (anchor-name, position-anchor, @position-try) & :has()",
     category: "css",
@@ -6235,6 +6279,22 @@ export function renderModernInteractiveShell(spec: InteractiveShellSpec): string
       "Renders an escaped native dialog with closedby=\"closerequest\" and a semantic labeled edit form",
       "Uses requestClose() for discard and cancels that close request when edits are dirty and discard is declined",
       "Calls close() only after persistence succeeds, keeps the dialog open on failure, and removes registered listeners on dispose",
+    ],
+  },
+  {
+    id: "task_html_request_submitter_native_semantics",
+    title: "Preserve Native Validation and Button Intent in Programmatic Form Submission",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "forms", "requestsubmit", "submitter", "constraint-validation", "dom-clobbering"],
+    instructions:
+      "A shipment approval form has required fields and separate Approve and Save draft submit buttons. The draft button uses formnovalidate plus formaction and formmethod overrides, while a keyboard shortcut currently calls form.submit(), bypassing interactive validation and the submit event; an input named requestSubmit can also mask the form's instance property. Implement requestNativeFormSubmission(form, submitter) that validates form ownership and submit-button type, then calls the owning document realm's HTMLFormElement.prototype.requestSubmit with the button. Also implement getNativeSubmitIntent(event) to read SubmitEvent.submitter name/value for analytics or routing, returning null for missing or unrelated submitters. Let the browser handle validation, button overrides, and successful-control serialization; do not prevent default, reconstruct the request, or fall back to form.submit().",
+    starterCode: nativeFormStarter.trimEnd(),
+    solutionCode: nativeFormSolution.trimEnd(),
+    criteria: [
+      "Rejects unrelated forms and non-submit controls, and invokes the owning realm's HTMLFormElement.prototype.requestSubmit with the chosen button",
+      "Reads intent from SubmitEvent.submitter name/value and returns null when no valid named submitter belongs to the submitted form",
+      "Leaves native constraint validation, form* submitter overrides, and successful-control serialization to the browser without direct form.submit() fallback",
     ],
   },
   {
