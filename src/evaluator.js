@@ -2255,6 +2255,54 @@ export class Evaluator {
         passed: code.includes("context.destroy?.()") && code.includes("function close()"),
         detail: "Destroys the active context when closing the session runner where the backend supports it",
       });
+    } else if (id === "task_digital_credentials_request_builder") {
+      results.push({
+        name: "Operation and Protocol Capability Gates",
+        passed: code.includes('operation !== "get"') && code.includes('operation !== "create"') && code.includes("userAgentAllowsProtocol(protocol)"),
+        detail: "Accepts only presentation or issuance and checks the browser's protocol allowlist",
+      });
+      results.push({
+        name: "Credential Management Request Shape",
+        passed: code.includes("digital:") && code.includes("requests:") && code.includes("protocol, data:"),
+        detail: "Builds the spec-shaped digital.requests option without binding to a credential format",
+      });
+      results.push({
+        name: "JSON Snapshot Before Chooser",
+        passed: code.includes("JSON.stringify(data)") && code.includes("JSON.parse(serialized)"),
+        detail: "Detaches the data payload and rejects values that cannot cross the JSON protocol boundary",
+      });
+    } else if (id === "task_digital_credentials_prompt_coordinator") {
+      results.push({
+        name: "Transient Activation and Immediate Invocation",
+        passed: code.includes("isUserActivated()") && code.includes("credentials[operation](plan.options)"),
+        detail: "Requires a user gesture and invokes the browser chooser synchronously in that turn",
+      });
+      results.push({
+        name: "Single-Flight Chooser Gate",
+        passed: code.includes("inFlightKey") && code.includes("return inFlight") && code.includes("another credential chooser is already open"),
+        detail: "Coalesces matching requests and refuses conflicting simultaneous chooser prompts",
+      });
+      results.push({
+        name: "Abort, Settle and Close Lifecycle",
+        passed: code.includes("plan.options.signal = signal") && code.includes("inFlight = null") && code.includes("closed = true"),
+        detail: "Passes AbortSignal through and releases the in-flight state on both settle paths",
+      });
+    } else if (id === "task_digital_credentials_server_verification") {
+      results.push({
+        name: "Same-Origin HTTPS Verification Boundary",
+        passed: code.includes('base.protocol !== "https:"') && code.includes("target.origin !== base.origin"),
+        detail: "Rejects insecure origins and cross-origin verifier endpoints before making a request",
+      });
+      results.push({
+        name: "Opaque POST With Redirect and Cache Controls",
+        passed: code.includes('method: "POST"') && code.includes('cache: "no-store"') && code.includes('redirect: "error"'),
+        detail: "Sends only protocol and response data to the verifier without caching or redirecting credentials",
+      });
+      results.push({
+        name: "Server-Only Verification Result",
+        passed: code.includes("result?.verified === true") && !code.includes("console.log(credential"),
+        detail: "Returns the verifier's explicit boolean and does not log or locally trust the credential payload",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7853,6 +7901,132 @@ export class Evaluator {
         name: "WebNN Context Loss Retry, Session Sharing & Stale Result Fence",
         passed: Boolean(res?.webnnRecoveryOk),
         detail: "Rebuilds once after loss, shares the replacement session among callers and discards the old result",
+      });
+    } else if (taskId === "task_digital_credentials_request_builder") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const allowed = [];
+            const api = { userAgentAllowsProtocol(protocol) { allowed.push(protocol); return protocol !== "blocked"; } };
+            const data = { nonce: "n-1", request: { fields: ["age_over_18"] } };
+            const getPlan = buildDigitalCredentialRequest("get", "openid4vp", data, api);
+            const createPlan = buildDigitalCredentialRequest("create", "openid4vci", { offer: "opaque" }, api);
+            data.request.fields.push("address");
+            const unsupported = buildDigitalCredentialRequest("get", "blocked", { nonce: 1 }, api);
+            const circular = {}; circular.self = circular;
+            let operationRejected = false;
+            let circularRejected = false;
+            try { buildDigitalCredentialRequest("store", "openid4vp", {}, api); } catch (error) { operationRejected = error.name === "TypeError"; }
+            try { buildDigitalCredentialRequest("get", "openid4vp", circular, api); } catch (error) { circularRejected = error.name === "TypeError"; }
+            return {
+              credentialBuilderOk: getPlan.operation === "get" && createPlan.operation === "create" &&
+                getPlan.options.digital.requests[0].protocol === "openid4vp" &&
+                getPlan.options.digital.requests[0].data.request.fields.length === 1 &&
+                getPlan.options.digital.requests[0].data !== data && unsupported === null &&
+                allowed.join(",") === "openid4vp,openid4vci,blocked,openid4vp" && operationRejected && circularRejected,
+            };
+          } catch { return { credentialBuilderOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Presentation, Issuance, Protocol Fallback & JSON Boundary",
+        passed: Boolean(res?.credentialBuilderOk),
+        detail: "Builds detached request payloads for get/create, falls back for unsupported protocols and rejects cycles",
+      });
+    } else if (taskId === "task_digital_credentials_prompt_coordinator") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            let resolveChooser;
+            const chooserPromise = new Promise((resolve) => { resolveChooser = resolve; });
+            let activation = true;
+            let calls = 0;
+            let calledInActivation = false;
+            let capturedOptions;
+            const credentials = {
+              get(options) { calls += 1; calledInActivation = activation; capturedOptions = options; return chooserPromise; },
+              create() { calls += 1; return Promise.resolve({ protocol: "issue" }); },
+            };
+            const digitalCredentialApi = { userAgentAllowsProtocol: () => true };
+            const coordinator = createDigitalCredentialPromptCoordinator({ credentials, digitalCredentialApi, isUserActivated: () => activation });
+            const controller = new AbortController();
+            const first = coordinator.request({ operation: "get", protocol: "openid4vp", data: { nonce: "same" }, signal: controller.signal });
+            const duplicate = coordinator.request({ operation: "get", protocol: "openid4vp", data: { nonce: "same" } });
+            let competingRejected = false;
+            try { coordinator.request({ operation: "create", protocol: "openid4vci", data: { offer: 1 } }); }
+            catch (error) { competingRejected = error.name === "InvalidStateError"; }
+            resolveChooser({ protocol: "openid4vp", data: { response: "opaque" } });
+            const result = await first;
+            await Promise.resolve();
+            const secondResult = await coordinator.request({ operation: "create", protocol: "openid4vci", data: { offer: 2 } });
+            activation = false;
+            let activationRejected = false;
+            try { coordinator.request({ operation: "get", protocol: "openid4vp", data: {} }); }
+            catch (error) { activationRejected = error.name === "NotAllowedError"; }
+            coordinator.close();
+            activation = true;
+            let closedRejected = false;
+            try { coordinator.request({ operation: "get", protocol: "openid4vp", data: {} }); }
+            catch (error) { closedRejected = error.name === "InvalidStateError"; }
+            return {
+              credentialPromptOk: first === duplicate && calls === 2 && calledInActivation &&
+                capturedOptions.signal === controller.signal && !("mediation" in capturedOptions) &&
+                result.protocol === "openid4vp" && secondResult.protocol === "issue" &&
+                competingRejected && activationRejected && closedRejected,
+            };
+          } catch { return { credentialPromptOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Activation-Turn Chooser, Duplicate Coalescing & Lifecycle",
+        passed: Boolean(res?.credentialPromptOk),
+        detail: "Opens one chooser in the gesture turn, shares duplicates and releases the gate after completion",
+      });
+    } else if (taskId === "task_digital_credentials_server_verification") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const calls = [];
+            const fetchImpl = async (url, options) => {
+              calls.push({ url, options });
+              return { ok: true, async json() { return { verified: true, subject: "must-not-escape" }; } };
+            };
+            const credential = { protocol: "openid4vp", data: { presentation: "opaque" } };
+            const verified = await verifyDigitalCredentialAtOrigin(credential, {
+              fetchImpl, origin: "https://verifier.example", endpoint: "/api/verify",
+            });
+            let crossOriginRejected = false;
+            let insecureRejected = false;
+            try { await verifyDigitalCredentialAtOrigin(credential, { fetchImpl, origin: "https://verifier.example", endpoint: "https://attacker.example/collect" }); }
+            catch (error) { crossOriginRejected = error.name === "TypeError"; }
+            try { await verifyDigitalCredentialAtOrigin(credential, { fetchImpl, origin: "http://verifier.example" }); }
+            catch (error) { insecureRejected = error.name === "TypeError"; }
+            const falseResult = await verifyDigitalCredentialAtOrigin(credential, {
+              fetchImpl: async () => ({ ok: true, async json() { return { verified: false }; } }),
+              origin: "https://verifier.example",
+            });
+            const call = calls[0];
+            const body = JSON.parse(call.options.body);
+            return {
+              credentialVerifyOk: verified === true && falseResult === false && calls.length === 1 &&
+                call.url === "https://verifier.example/api/verify" && call.options.method === "POST" &&
+                call.options.credentials === "same-origin" && call.options.cache === "no-store" &&
+                call.options.redirect === "error" && body.protocol === "openid4vp" &&
+                body.data.presentation === "opaque" && crossOriginRejected && insecureRejected,
+            };
+          } catch { return { credentialVerifyOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Same-Origin Verifier Boundary & Opaque Response Handling",
+        passed: Boolean(res?.credentialVerifyOk),
+        detail: "Posts the credential response securely and accepts only the verifier's explicit boolean result",
       });
     } else {
       // General syntax evaluation
