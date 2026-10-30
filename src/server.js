@@ -30,7 +30,7 @@ const server = Bun.serve({
   port: PORT,
   hostname: HOSTNAME,
   development: process.env.NODE_ENV !== "production",
-  fetch: createRequestHandler({ handleApi, serveStatic, hub }),
+  fetch: createRequestHandler({ handleApi, serveStatic }),
 });
 
 console.log(`gauntlet-web  →  ${server.url.href} (listening on ${server.hostname})`);
