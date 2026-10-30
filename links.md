@@ -39,6 +39,8 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Technology | URL |
 | --- | --- |
 | Bun | <https://github.com/oven-sh/bun> |
+| Bun workers and lifecycle | <https://bun.com/docs/runtime/workers> |
+| Node.js VM timeout behavior and security scope | <https://nodejs.org/api/vm.html> |
 | parse5 HTML parser API | <https://parse5.js.org/functions/parse5.parse.html> |
 | JavaScript (ECMA-262) | <https://github.com/tc39/ecma262> |
 | HTML Living Standard | <https://github.com/whatwg/html> |
