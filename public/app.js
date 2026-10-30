@@ -164,16 +164,33 @@ const editDrafts = new Map();
 const pendingTaskActions = new Set();
 const pendingToggles = new Map();
 const pendingDeletions = new Set();
+let pendingReorder = null;
+let reorderInFlight = false;
 
 function taskIsBusy(id) {
   return pendingTaskActions.has(id) || editDrafts.get(id)?.status === "saving";
 }
 
 function withPendingTaskChanges(tasks) {
-  return tasks.filter((task) => !pendingDeletions.has(task.id)).map((task) => {
+  const visible = tasks.filter((task) => !pendingDeletions.has(task.id)).map((task) => {
     const toggle = pendingToggles.get(task.id);
     return toggle ? { ...task, ...toggle } : task;
   });
+  return pendingReorder ? applyBoardOrder(visible, pendingReorder.boardId, pendingReorder.ids) : visible;
+}
+
+function applyBoardOrder(tasks, boardId, ids) {
+  const remaining = new Map(tasks.filter((task) => task.boardId === boardId).map((task) => [task.id, task]));
+  const ordered = [];
+  for (const id of ids) {
+    if (remaining.has(id)) {
+      ordered.push(remaining.get(id));
+      remaining.delete(id);
+    }
+  }
+  ordered.push(...remaining.values());
+  let index = 0;
+  return tasks.map((task) => task.boardId === boardId ? ordered[index++] : task);
 }
 
 const CHECKS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.6l4.4 4.4L19 7.4"/></svg>`;
@@ -383,7 +400,7 @@ function row(task, index) {
   if (task.done) li.classList.add("done");
   if (index === state.cursor) li.classList.add("cursor");
   li.dataset.id = task.id;
-  li.draggable = state.editing !== task.id && !taskIsBusy(task.id);
+  li.draggable = state.editing !== task.id && !taskIsBusy(task.id) && !reorderInFlight;
 
   // Circular completion checkbox
   const check = document.createElement("button");
@@ -482,7 +499,7 @@ function row(task, index) {
 
   // Drag and drop reordering
   li.addEventListener("dragstart", (event) => {
-    if (state.editing || taskIsBusy(task.id)) return event.preventDefault();
+    if (state.editing || taskIsBusy(task.id) || reorderInFlight) return event.preventDefault();
     state.dragId = task.id;
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", task.id);
@@ -502,6 +519,7 @@ function row(task, index) {
     event.preventDefault();
     li.classList.remove("drop-target");
     const dragged = event.dataTransfer.getData("text/plain") || state.dragId;
+    state.dragId = null;
     if (dragged && dragged !== task.id) moveBefore(dragged, task.id);
   });
 
@@ -697,24 +715,33 @@ function stashEditingDraft() {
 }
 
 async function moveBefore(draggedId, targetId) {
+  if (reorderInFlight || taskIsBusy(draggedId) || taskIsBusy(targetId)) return;
   const from = state.tasks.findIndex((t) => t.id === draggedId);
   const to = state.tasks.findIndex((t) => t.id === targetId);
   if (from === -1 || to === -1 || from === to) return;
+  const boardId = state.activeBoardId;
+  if (state.tasks[from].boardId !== boardId || state.tasks[to].boardId !== boardId) return;
+  const originalIds = state.tasks.filter((task) => task.boardId === boardId).map((task) => task.id);
+  reorderInFlight = true;
 
   const [task] = state.tasks.splice(from, 1);
   state.tasks.splice(from < to ? to - 1 : to, 0, task);
+  pendingReorder = { boardId, ids: state.tasks.filter((item) => item.boardId === boardId).map((item) => item.id) };
   render();
 
   try {
-    const { tasks } = await api("POST", "/api/tasks/reorder", {
-      boardId: state.activeBoardId,
-      ids: state.tasks.filter((t) => t.boardId === state.activeBoardId).map((t) => t.id),
-    });
-    if (Array.isArray(tasks)) state.tasks = tasks;
+    await api("POST", "/api/tasks/reorder", pendingReorder);
+    pendingReorder = null;
+    await loadInitialState();
   } catch (err) {
+    pendingReorder = null;
+    state.tasks = applyBoardOrder(state.tasks, boardId, originalIds);
+    await loadInitialState();
     toast(err.message);
+  } finally {
+    reorderInFlight = false;
+    renderAfterTaskMutation();
   }
-  render();
 }
 
 async function clearCompleted() {
