@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webgpu_dispatch_tiling") {
+      results.push({
+        name: "Safe Dispatch Dimensions",
+        passed: code.includes("Number.isSafeInteger") && code.includes("RangeError"),
+        detail: "Rejects invalid GPU dispatch dimensions and unsafe multiplication",
+      });
+      results.push({
+        name: "Contiguous Bounded Tiles",
+        passed: code.includes("baseIndex") && code.includes("maxItemsPerDispatch"),
+        detail: "Splits a large workload into adjacent batches under the GPU workgroup limit",
+      });
+      results.push({
+        name: "Padded Final Workgroup",
+        passed: code.includes("Math.ceil") && code.includes("workgroupCount"),
+        detail: "Rounds the final tile up to whole workgroups while retaining its exact item count",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -6756,6 +6772,38 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webgpu_dispatch_tiling") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const batches = planLinearGpuDispatches(131123, 64, 2);
+            let nextIndex = 0;
+            let totalItems = 0;
+            let bounded = true;
+            for (const batch of batches) {
+              bounded = bounded && batch.baseIndex === nextIndex && batch.workgroupCount <= 2 && batch.itemCount > 0;
+              nextIndex += batch.itemCount;
+              totalItems += batch.itemCount;
+            }
+            let rejected = false;
+            try { planLinearGpuDispatches(8, 0, 2); } catch (error) { rejected = error instanceof RangeError; }
+            return {
+              gpuDispatchOk:
+                batches.length === 1025 && batches[0].workgroupCount === 2 &&
+                batches.at(-1).baseIndex === 131072 && batches.at(-1).itemCount === 51 &&
+                totalItems === 131123 && nextIndex === 131123 && bounded && rejected &&
+                planLinearGpuDispatches(0, 64, 2).length === 0,
+            };
+          } catch (error) { return { gpuDispatchOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Oversized GPU Dispatch Tiling & Boundary Validation",
+        passed: Boolean(res?.gpuDispatchOk),
+        detail: "Plans 131,123 items across bounded, gap-free dispatches and checks the padded tail",
       });
     } else {
       // General syntax evaluation

@@ -49,6 +49,8 @@ import x402GateStarter from "../exercises/platform/agentic_commerce/x402_payment
 import x402GateSolution from "../exercises/platform/agentic_commerce/x402_payment_gate/solution.js" with { type: "text" };
 import ap2MandateStarter from "../exercises/platform/agentic_commerce/ap2_mandate_verification/starter.js" with { type: "text" };
 import ap2MandateSolution from "../exercises/platform/agentic_commerce/ap2_mandate_verification/solution.js" with { type: "text" };
+import gpuDispatchStarter from "../exercises/platform/webgpu/dispatch_tiling/starter.js" with { type: "text" };
+import gpuDispatchSolution from "../exercises/platform/webgpu/dispatch_tiling/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -113,6 +115,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "Browser Platform Primitives: Web Workers, Shared Memory & Streams",
     categories: ["web-workers", "web-streams"],
   },
+  "gpu-realtime-media": {
+    id: "gpu-realtime-media",
+    name: "GPU Compute, Peer-to-Peer Networking & Browser Media Pipelines",
+    categories: ["webgpu", "webrtc", "webcodecs"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -150,6 +157,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   "web-components": "design-systems-web-components",
   "web-workers": "browser-platform",
   "web-streams": "browser-platform",
+  webgpu: "gpu-realtime-media",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10091,6 +10099,23 @@ export class VirtualizedShadowListEngine {
       "Recomputes the Base64url SHA-256 checkout hash and rejects a mismatch",
       "Rejects an expired mandate",
       "Evaluates the open mandate's allowed-merchants constraint against the disclosed merchants",
+    ],
+  },
+  {
+    id: "task_webgpu_dispatch_tiling",
+    title: "Tile Oversized WebGPU Compute Workloads Within Dispatch Limits",
+    category: "webgpu",
+    difficulty: "advanced",
+    tags: ["webgpu", "compute", "wgsl", "dispatch-limits", "gpu"],
+    instructions:
+      "A compute shader must process an input larger than maxComputeWorkgroupsPerDimension allows in a single dispatch. Plan contiguous, bounded dispatches whose base indices cover every input element exactly once. Round up the final workgroup and leave the kernel enough information to guard padded invocations; reject invalid sizes and arithmetic overflow.",
+    starterCode: gpuDispatchStarter,
+    solutionCode: gpuDispatchSolution,
+    criteria: [
+      "Rejects unsafe, negative, or zero dispatch dimensions before allocating a plan",
+      "Splits large workloads into contiguous baseIndex batches within the workgroup limit",
+      "Rounds the final workgroup count up while keeping the final itemCount exact",
+      "Covers empty workloads without submitting an unnecessary GPU dispatch",
     ],
   },
 ];
