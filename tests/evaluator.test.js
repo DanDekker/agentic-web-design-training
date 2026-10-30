@@ -263,6 +263,8 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       "task_seo_semantic_microdata_landmarks_audit",
       "task_seo_software_app_faq_dataset_graph",
       "task_seo_indexability_signal_reconciler",
+      "task_seo_multilingual_sitemap_sharding",
+      "task_seo_search_console_opportunity_analyzer",
     ]) {
       const task = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === id);
       expect(task).toBeTruthy();

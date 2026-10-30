@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 201 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 203 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -69,6 +69,10 @@ import codecRouterStarter from "../exercises/platform/webcodecs/decoder_config_r
 import codecRouterSolution from "../exercises/platform/webcodecs/decoder_config_router/solution.js" with { type: "text" };
 import seoIndexabilityStarter from "../exercises/seo/technical/indexability_reconciliation/starter.ts" with { type: "text" };
 import seoIndexabilitySolution from "../exercises/seo/technical/indexability_reconciliation/solution.ts" with { type: "text" };
+import seoSitemapStarter from "../exercises/seo/technical/sitemap_compiler/starter.ts" with { type: "text" };
+import seoSitemapSolution from "../exercises/seo/technical/sitemap_compiler/solution.ts" with { type: "text" };
+import seoSearchConsoleStarter from "../exercises/seo/technical/search_console_triage/starter.ts" with { type: "text" };
+import seoSearchConsoleSolution from "../exercises/seo/technical/search_console_triage/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
@@ -7197,6 +7201,38 @@ export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec)
       "Separates robots.txt crawl blocking, redirects, 304 responses, HTTP errors, and fetched page-level noindex rules",
       "Combines applicable robots/googlebot meta values with general or Googlebot-scoped X-Robots-Tag headers, including non-HTML resources",
       "Reports sitemap and canonical inconsistencies as review findings without treating a canonical hint as a directive",
+    ],
+  },
+  {
+    id: "task_seo_multilingual_sitemap_sharding",
+    title: "Compile Reciprocal Multilingual Sitemaps Within Real File Limits",
+    category: "technical-seo",
+    difficulty: "advanced",
+    tags: ["seo", "technical-seo", "xml-sitemap", "hreflang", "internationalization", "large-sites"],
+    instructions:
+      "A global retailer publishes localized product pages across many markets. Build a deterministic sitemap package compiler that validates canonical URLs and complete, reciprocal hreflang clusters (including self-links), XML-escapes URL data, normalizes lastmod timestamps, and shards sitemap files to stay within both configurable limits and protocol maxima of 50,000 URLs and 50 MB uncompressed UTF-8 per file. Return a sitemap index with stable filenames and enforce its own protocol limits. A page may be in a different shard from its locale variants, so validate clusters before sharding.",
+    starterCode: seoSitemapStarter.trimEnd(),
+    solutionCode: seoSitemapSolution.trimEnd(),
+    criteria: [
+      "Validates absolute HTTPS canonical and alternate URLs, unique locale codes, self-links, complete clusters, and reciprocal hreflang targets before sharding",
+      "Escapes XML text and attributes, emits UTF-8 byte counts, normalizes lastmod values, and shards deterministically by both URL count and byte size",
+      "Enforces the 50,000 URL and 50 MB uncompressed file maxima and emits a valid deterministic sitemap index",
+    ],
+  },
+  {
+    id: "task_seo_search_console_opportunity_analyzer",
+    title: "Triage Search Console Page-Level CTR Opportunities by Cohort",
+    category: "technical-seo",
+    difficulty: "advanced",
+    tags: ["seo", "technical-seo", "search-console", "ctr-analysis", "analytics", "content-operations"],
+    instructions:
+      "A publisher exports Search Console page-dimension rows across markets and devices. Build a deterministic triage analyzer that normalizes and aggregates duplicate query/page/country/device rows, sums clicks and impressions, and computes impression-weighted average position. Compare CTR only with non-overlapping baselines for the same country, device, and position band; require configurable impression and CTR-gap thresholds before flagging an opportunity. Also identify query cohorts served by multiple URLs as manual review candidates without claiming that the report proves cannibalization. Reject malformed metrics and overlapping baseline bands.",
+    starterCode: seoSearchConsoleStarter.trimEnd(),
+    solutionCode: seoSearchConsoleSolution.trimEnd(),
+    criteria: [
+      "Normalizes query, page URL, country, and device dimensions and aggregates clicks, impressions, and impression-weighted average position",
+      "Uses non-overlapping country/device/position-specific CTR baselines and configurable minimum-impression and CTR-gap thresholds",
+      "Reports multi-page query cohorts for human review without asserting cannibalization and rejects malformed or ambiguous input",
     ],
   },
 

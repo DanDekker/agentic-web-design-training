@@ -1372,6 +1372,62 @@ export class Evaluator {
           code.includes('"NO_RESTRICTIVE_DIRECTIVE"'),
         detail: "Reports contradictory URL signals without treating canonicalization as a guaranteed directive",
       });
+    } else if (id === "task_seo_multilingual_sitemap_sharding") {
+      results.push({
+        name: "Reciprocal Locale Cluster Validation",
+        passed:
+          code.includes("validateClusters") &&
+          code.includes("self hreflang") &&
+          code.includes("non-reciprocal hreflang") &&
+          code.includes("complete or foreign hreflang target"),
+        detail: "Validates every locale's self-link, full cluster membership, language mapping, and reciprocal targets",
+      });
+      results.push({
+        name: "XML Escaping and UTF-8 Byte-Aware Sharding",
+        passed:
+          code.includes("xmlEscape") &&
+          code.includes("TextEncoder") &&
+          code.includes("MAX_BYTES_PER_FILE") &&
+          code.includes("maxUrlsPerFile"),
+        detail: "Counts actual UTF-8 XML bytes and respects configurable limits capped at sitemap protocol maxima",
+      });
+      results.push({
+        name: "Deterministic Sitemap Index and Timestamp Normalization",
+        passed:
+          code.includes("sitemap-${String(index).padStart(4, \"0\")}.xml") &&
+          code.includes("sitemapindex") &&
+          code.includes("toISOString()") &&
+          code.includes("MAX_URLS_PER_FILE"),
+        detail: "Uses stable shard names, normalized lastmod timestamps, and a separately bounded sitemap index",
+      });
+    } else if (id === "task_seo_search_console_opportunity_analyzer") {
+      results.push({
+        name: "Page-Level Duplicate Aggregation and Weighted Position",
+        passed:
+          code.includes("normalizeQuery") &&
+          code.includes("nextImpressions") &&
+          code.includes("row.impressions / nextImpressions") &&
+          code.includes("aggregated clicks exceed the safe integer range"),
+        detail: "Coalesces normalized query/page rows and derives average position from impression-weighted observations",
+      });
+      results.push({
+        name: "Country, Device, and Position-Band CTR Baselines",
+        passed:
+          code.includes("normalizeBaselines") &&
+          code.includes("findBaseline") &&
+          code.includes("Overlapping CTR baseline bands") &&
+          code.includes("minImpressions") &&
+          code.includes("minCtrGap"),
+        detail: "Uses validated, non-overlapping cohort baselines and evidence thresholds instead of a universal CTR target",
+      });
+      results.push({
+        name: "Multi-Page Query Review Without an Automatic Penalty Claim",
+        passed:
+          code.includes("multiPageQueryReviews") &&
+          code.includes('"MULTIPLE_PAGES_FOR_QUERY_COHORT"') &&
+          code.includes("pages: group.map"),
+        detail: "Surfaces multiple URLs per query/country/device cohort as a manual review candidate",
+      });
     } else if (id === "task_ecom_integer_cents_dinero_cart_engine") {
       results.push({
         name: "Integer Minor-Unit (Dinero) & Multi-Currency Exponent Guard",
@@ -5298,6 +5354,126 @@ export class Evaluator {
         name: "Redirect and Sitemap Conflict Reporting",
         passed: Boolean(res?.redirectPrecedence),
         detail: "Classifies an HTTP redirect before page metadata and flags the sitemap entry for cleanup",
+      });
+    } else if (taskId === "task_seo_multilingual_sitemap_sharding") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const compile = typeof compileLocalizedSitemapPackage === "function"
+            ? compileLocalizedSitemapPackage
+            : exports.compileLocalizedSitemapPackage;
+          const pages = [
+            {
+              clusterId: "coat-42",
+              canonicalUrl: "https://shop.example.test/products/coat?color=navy&size=M",
+              lastModified: "2026-10-29T12:30:00-06:00",
+              alternates: [
+                { language: "en-US", url: "https://shop.example.test/products/coat?color=navy&size=M" },
+                { language: "fr-CA", url: "https://shop.example.test/fr-ca/produits/manteau?color=navy&size=M" },
+              ],
+            },
+            {
+              clusterId: "coat-42",
+              canonicalUrl: "https://shop.example.test/fr-ca/produits/manteau?color=navy&size=M",
+              alternates: [
+                { language: "fr-CA", url: "https://shop.example.test/fr-ca/produits/manteau?color=navy&size=M" },
+                { language: "en-US", url: "https://shop.example.test/products/coat?color=navy&size=M" },
+              ],
+            },
+            {
+              clusterId: "manual-7",
+              canonicalUrl: "https://shop.example.test/en/manuals/care",
+              alternates: [{ language: "en", url: "https://shop.example.test/en/manuals/care" }],
+            },
+          ];
+          const input = { sitemapBaseUrl: "https://shop.example.test/sitemaps", pages, maxUrlsPerFile: 2, maxBytesPerFile: 2200 };
+          const output = compile(input);
+          const repeated = compile(input);
+          let badClusterRejected = false;
+          try {
+            compile({
+              sitemapBaseUrl: "https://shop.example.test/sitemaps",
+              pages: [
+                { clusterId: "bad", canonicalUrl: "https://shop.example.test/a", alternates: [
+                  { language: "en", url: "https://shop.example.test/a" },
+                  { language: "fr", url: "https://shop.example.test/fr/a" },
+                ] },
+                { clusterId: "bad", canonicalUrl: "https://shop.example.test/fr/a", alternates: [
+                  { language: "fr", url: "https://shop.example.test/fr/a" },
+                ] },
+              ],
+            });
+          } catch { badClusterRejected = true; }
+          return {
+            shardsByUrlCount: output.files.length === 2 && output.files[0].entryCount === 2 && output.files[1].entryCount === 1,
+            validUtf8ByteLimits: output.files.every((file) => file.byteLength === new TextEncoder().encode(file.xml).byteLength && file.byteLength <= 2200),
+            escapedLocalizedAlternates: output.files[0].xml.includes("color=navy&amp;size=M") && output.files[0].xml.includes("xmlns:xhtml=\\\"http://www.w3.org/1999/xhtml\\\"") && output.files[0].xml.includes("hreflang=\\\"fr-ca\\\""),
+            normalizedLastmod: output.files[0].xml.includes("2026-10-29T18:30:00.000Z"),
+            stableIndexAndShards: output.indexXml === repeated.indexXml && output.files.map((file) => file.xml).join("|") === repeated.files.map((file) => file.xml).join("|") && output.indexXml.includes("sitemap-0002.xml"),
+            rejectsNonReciprocalCluster: badClusterRejected,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Multilingual Sitemap Sharding, Escaping, and Reciprocal hreflang",
+        passed: Boolean(res?.shardsByUrlCount && res?.validUtf8ByteLimits && res?.escapedLocalizedAlternates && res?.normalizedLastmod && res?.rejectsNonReciprocalCluster),
+        detail: "Builds bounded UTF-8 shards with complete locale alternates, escaped query URLs, and normalized timestamps",
+      });
+      results.push({
+        name: "Deterministic Sitemap Index Output",
+        passed: Boolean(res?.stableIndexAndShards),
+        detail: "Repeating compilation produces the same ordered shard XML and index locations",
+      });
+    } else if (taskId === "task_seo_search_console_opportunity_analyzer") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const analyze = typeof analyzeSearchConsolePages === "function"
+            ? analyzeSearchConsolePages
+            : exports.analyzeSearchConsolePages;
+          const rows = [
+            { query: "Best Wool Coat", pageUrl: "https://shop.example.test/coats/navy#details", country: "usa", device: "mobile", clicks: 5, impressions: 100, averagePosition: 3 },
+            { query: " best   wool coat ", pageUrl: "https://shop.example.test/coats/navy", country: "USA", device: "MOBILE", clicks: 2, impressions: 40, averagePosition: 5 },
+            { query: "best wool coat", pageUrl: "https://shop.example.test/guides/wool-coats", country: "USA", device: "mobile", clicks: 3, impressions: 120, averagePosition: 4 },
+            { query: "wool coat care", pageUrl: "https://shop.example.test/care", country: "CAN", device: "desktop", clicks: 8, impressions: 100, averagePosition: 2 },
+          ];
+          const baselines = [
+            { country: "USA", device: "mobile", minPosition: 1, maxPosition: 5, ctr: 0.15 },
+            { country: "USA", device: "mobile", minPosition: 6, maxPosition: 10, ctr: 0.08 },
+            { country: "CAN", device: "desktop", minPosition: 1, maxPosition: 5, ctr: 0.07 },
+          ];
+          const report = analyze({ rows, baselines, minImpressions: 100, minCtrGap: 0.05 });
+          const navy = report.pages.find((page) => page.pageUrl === "https://shop.example.test/coats/navy");
+          const care = report.pages.find((page) => page.country === "CAN");
+          let malformedMetricsRejected = false;
+          let overlappingBandsRejected = false;
+          try { analyze({ rows: [{ ...rows[0], clicks: -1 }], baselines }); } catch { malformedMetricsRejected = true; }
+          try {
+            analyze({ rows: [], baselines: [
+              { country: "USA", device: "mobile", minPosition: 1, maxPosition: 5, ctr: 0.1 },
+              { country: "usa", device: "MOBILE", minPosition: 5, maxPosition: 8, ctr: 0.08 },
+            ] });
+          } catch { overlappingBandsRejected = true; }
+          return {
+            normalizedDuplicateAggregation: navy?.query === "best wool coat" && navy.clicks === 7 && navy.impressions === 140 && Math.abs(navy.averagePosition - (500 / 140)) < 0.000001 && Math.abs(navy.ctr - 0.05) < 0.000001,
+            cohortQualifiedOpportunities: navy?.isCtrOpportunity === true && report.pages.find((page) => page.pageUrl === "https://shop.example.test/guides/wool-coats")?.isCtrOpportunity === true,
+            marketAndDeviceSpecificBaseline: care?.benchmarkCtr === 0.07 && care?.isCtrOpportunity === false,
+            multiPageManualReview: report.multiPageQueryReviews.length === 1 && report.multiPageQueryReviews[0].reason === "MULTIPLE_PAGES_FOR_QUERY_COHORT" && report.multiPageQueryReviews[0].pages.length === 2,
+            inputGuardrails: malformedMetricsRejected && overlappingBandsRejected,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Search Console Page Metrics, Position Weighting, and Cohort CTR Triage",
+        passed: Boolean(res?.normalizedDuplicateAggregation && res?.cohortQualifiedOpportunities && res?.marketAndDeviceSpecificBaseline && res?.inputGuardrails),
+        detail: "Aggregates page-query rows and scores CTR gaps only against matching country, device, and position-band baselines",
+      });
+      results.push({
+        name: "Multiple URLs as a Search Review Candidate",
+        passed: Boolean(res?.multiPageManualReview),
+        detail: "Identifies query cohorts with multiple pages for human investigation without assuming a ranking penalty",
       });
     } else if (taskId === "task_ecom_integer_cents_dinero_cart_engine") {
       const harness = `
