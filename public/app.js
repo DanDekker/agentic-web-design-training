@@ -640,16 +640,20 @@ async function addTask(title, priority = 0) {
   el.form?.setAttribute("aria-busy", "true");
   try {
     const board = currentBoard();
+    const boardId = board ? board.id : state.activeBoardId;
     const task = await api("POST", "/api/tasks", {
       title,
-      boardId: board ? board.id : state.activeBoardId,
+      boardId,
       priority: Number(priority),
     });
     if (el.input?.value.trim() === title) el.input.value = "";
     upsert(state.tasks, task);
-    if (state.filter === "done") setFilter("all");
-    state.cursor = visibleTasks().length - 1;
-    render();
+    if (state.activeBoardId === boardId) {
+      if (state.filter === "done") setFilter("all");
+      state.cursor = visibleTasks().length - 1;
+    }
+    renderAfterTaskMutation();
+    await loadInitialState();
   } catch (err) {
     toast(err.message);
   } finally {
