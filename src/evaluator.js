@@ -1046,6 +1046,20 @@ export class Evaluator {
         passed: code.includes("TRPCError") && code.includes("createCaller"),
         detail: "Throws typed TRPCError codes and exposes createCaller(ctx) for end-to-end RPC dispatch",
       });
+    } else if (id === "task_express5_tenant_claims") {
+      results.push({
+        name: "Nested Express Router and Claim Route",
+        passed: code.includes("mergeParams") && code.includes("true") && code.includes("/v1/organizations/:orgId") && code.includes("/claims/:claimId"),
+        detail: "Mounts a merged-parameter child router under an organization path",
+      }, {
+        name: "Authentication, Membership and Scoped Lookup",
+        passed: code.includes(".authenticate(") && code.includes(".canReadClaims(") && code.includes(".findClaim("),
+        detail: "Uses authentication, membership and a tenant-scoped repository service",
+      }, {
+        name: "Unauthorized and Not-Found Responses",
+        passed: code.includes("401") && code.includes("404"),
+        detail: "Distinguishes missing authentication while hiding inaccessible or missing claims",
+      });
     } else if (id === "task_express5_problem_details_error_pipeline") {
       results.push({
         name: "Express 5 Returned Async Route & Typed ApiProblem",
@@ -4983,6 +4997,64 @@ export class Evaluator {
         passed: Boolean(res?.unauth401 && res?.authedOk),
         detail: "Executes Fetch Request/Response middleware, extracts :orgId params, and propagates typed context",
       });
+    } else if (taskId === "task_express5_tenant_claims") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const register = typeof registerTenantClaimRoutes === "function" ? registerTenantClaimRoutes : exports.registerTenantClaimRoutes;
+          let routerOptions, mount, route;
+          const router = { get(path, ...handlers) { route = { path, handlers }; } };
+          const app = { use(path, mounted) { mount = { path, mounted }; } };
+          const express = { Router(options) { routerOptions = options; return router; } };
+          const calls = [];
+          const failure = new Error("service unavailable");
+          const services = {
+            async authenticate(req) {
+              calls.push("auth");
+              if (req.get("authorization") === "broken") throw failure;
+              return req.get("authorization") === "valid" ? { id: "agent1" } : null;
+            },
+            async canReadClaims(user, org) { calls.push("member:" + user + ":" + org); return user === "agent1" && org === "org1"; },
+            async findClaim(org, id) {
+              calls.push("claim:" + org + ":" + id);
+              if (id === "broken") throw failure;
+              return org === "org1" && id === "claim1" ? { id, status: "review" } : null;
+            },
+          };
+          register(app, express, services);
+          const run = async (auth, orgId, claimId) => {
+            calls.length = 0;
+            const req = { params: { orgId, claimId }, get() { return auth; } };
+            const res = { locals: {}, code: 0, body: undefined, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
+            let next = false;
+            await route.handlers[0](req, res, () => { next = true; });
+            if (next) await route.handlers[1](req, res, () => {});
+            return { code: res.code, body: res.body, calls: [...calls] };
+          };
+          const unauth = await run("missing", "org1", "claim1");
+          const denied = await run("valid", "org2", "claim1");
+          const invalid = await run("valid", "org1", "x".repeat(65));
+          const missing = await run("valid", "org1", "absent");
+          const found = await run("valid", "org1", "claim1");
+          let authFailure = false, repoFailure = false;
+          try { await run("broken", "org1", "claim1"); } catch (e) { authFailure = e === failure; }
+          try { await run("valid", "org1", "broken"); } catch (e) { repoFailure = e === failure; }
+          return {
+            router: routerOptions?.mergeParams === true && mount?.path === "/v1/organizations/:orgId" && mount.mounted === router && route?.path === "/claims/:claimId" && route.handlers.length === 2,
+            auth: unauth.code === 401 && unauth.calls.join(",") === "auth",
+            hidden: denied.code === 404 && invalid.code === 404 && missing.code === 404 && JSON.stringify(denied.body) === JSON.stringify(missing.body) && JSON.stringify(invalid.body) === JSON.stringify(missing.body) && !denied.calls.some(c => c.startsWith("claim:")) && !invalid.calls.some(c => c.startsWith("member:") || c.startsWith("claim:")),
+            scoped: found.code === 200 && found.body.claim.id === "claim1" && found.calls.join(",") === "auth,member:agent1:org1,claim:org1:claim1",
+            failure: authFailure && repoFailure,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      for (const [name, passed, detail] of [
+        ["Nested Router Registration", res?.router, "Preserves parent parameters on the mounted claims router"],
+        ["Authentication Before Claims", res?.auth, "Stops unauthenticated requests before authorization or storage"],
+        ["Tenant Isolation and Indistinguishable 404s", res?.hidden && res?.scoped, "Checks membership before a tenant-scoped query and hides inaccessible records"],
+        ["Service Failure Propagation", res?.failure, "Allows unexpected asynchronous failures to reach Express error handling"],
+      ]) results.push({ name, passed: Boolean(passed), detail });
     } else if (taskId === "task_express5_problem_details_error_pipeline") {
       const harness = `
         ${sanitizedCode};
