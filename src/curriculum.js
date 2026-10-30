@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 196 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 197 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -5138,6 +5138,61 @@ clinic-dose-field::part(control) {
       "Provides a fluid, minimum-height textarea fallback with inherited typography and user resizing",
       "Enables field-sizing: content only through @supports so unsupported browsers retain a working control",
       "Caps growth at a viewport-aware maximum and permits internal scrolling after the cap",
+    ],
+  },
+  {
+    id: "task_css_intrinsic_disclosure_transition",
+    title: "Animate a Help-Center Disclosure to Its Intrinsic Content Size",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "details-summary", "intrinsic-sizing", "transitions", "progressive-enhancement"],
+    instructions:
+      "A help center has native details/summary answers of very different lengths. A max-height animation with a guessed 999px cap clips long policies and leaves short answers moving slowly through empty space. Keep native disclosure behavior as the baseline, then use a supports query for interpolate-size: allow-keywords and details::details-content before transitioning block-size from zero to auto. Add a small overflow clip margin for focus decoration, and disable the transition for people who request reduced motion. CSS Sizing Level 4 remains a draft, so browsers without the feature must still get a complete, usable disclosure.",
+    starterCode: `/* Guessing a large maximum clips policy text and creates uneven timing. */
+.help-faq details { max-height: 999px; overflow: hidden; transition: max-height 700ms; }
+.help-faq details[open] { max-height: 999px; }
+.help-faq summary:focus { outline: none; }`,
+    solutionCode: `.help-faq details {
+  border-block-start: 1px solid CanvasText;
+}
+
+.help-faq summary {
+  min-block-size: 2.75rem;
+  padding-block: 0.85rem;
+  cursor: pointer;
+}
+
+.help-faq summary:focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+@supports (interpolate-size: allow-keywords) and selector(details::details-content) {
+  .help-faq {
+    interpolate-size: allow-keywords;
+  }
+
+  .help-faq details::details-content {
+    block-size: 0;
+    overflow: clip;
+    overflow-clip-margin: 0.35rem;
+    transition: block-size 180ms ease;
+  }
+
+  .help-faq details[open]::details-content {
+    block-size: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .help-faq details::details-content {
+      transition: none;
+    }
+  }
+}`,
+    criteria: [
+      "Preserves native details and summary interaction with a visible keyboard focus indicator",
+      "Feature-queries both interpolate-size and the details content pseudo-element before animating zero to auto",
+      "Avoids guessed max-height caps, protects nearby focus decoration, and removes motion when requested",
     ],
   },
 

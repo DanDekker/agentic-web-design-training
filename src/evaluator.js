@@ -227,6 +227,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Feature-Gated Intrinsic Control Sizing", all: ["@supports (field-sizing: content)", "field-sizing: content", "field-sizing: fixed"] },
     { name: "Bounded Growth with Native Overflow", all: ["max-block-size: min(38dvh, 18rem)", "overflow-y: auto"], before: [["min-block-size: 3.5rem", "@supports (field-sizing: content)"]] },
   ],
+  task_css_intrinsic_disclosure_transition: [
+    { name: "Native Details Remains the Interaction Baseline", all: ["details", "summary", "details[open]::details-content", ":focus-visible"] },
+    { name: "Feature-Gated Auto-Size Interpolation", all: ["@supports (interpolate-size: allow-keywords)", "selector(details::details-content)", "interpolate-size: allow-keywords", "block-size: 0", "block-size: auto", "transition: block-size"] },
+    { name: "Reduced Motion and No Guessed Height", all: ["prefers-reduced-motion: reduce", "transition: none", "overflow-clip-margin"], none: ["max-height: 999px", "max-block-size: 1000px"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
