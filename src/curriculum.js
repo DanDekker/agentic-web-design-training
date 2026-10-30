@@ -57,6 +57,8 @@ import gpuReadbackStarter from "../exercises/platform/webgpu/buffer_readback/sta
 import gpuReadbackSolution from "../exercises/platform/webgpu/buffer_readback/solution.js" with { type: "text" };
 import rtcNegotiationStarter from "../exercises/platform/webrtc/perfect_negotiation/starter.js" with { type: "text" };
 import rtcNegotiationSolution from "../exercises/platform/webrtc/perfect_negotiation/solution.js" with { type: "text" };
+import rtcIceStarter from "../exercises/platform/webrtc/ice_candidate_inbox/starter.js" with { type: "text" };
+import rtcIceSolution from "../exercises/platform/webrtc/ice_candidate_inbox/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10174,6 +10176,23 @@ export class VirtualizedShadowListEngine {
       "Has an impolite peer ignore a colliding remote offer without mutating its connection",
       "Rolls back a polite peer's local offer before applying the remote offer",
       "Generates and returns an answer for an accepted remote offer",
+    ],
+  },
+  {
+    id: "task_webrtc_ice_candidate_inbox",
+    title: "Buffer Trickle ICE and Fence Stale Candidates Across Restarts",
+    category: "webrtc",
+    difficulty: "advanced",
+    tags: ["webrtc", "ice", "trickle", "ice-restart", "candidate-buffer"],
+    instructions:
+      "Signaling often delivers ICE candidates before the matching remote description, and a late candidate from the previous ICE restart can poison a new connection. Buffer early candidates, drain them in order only after applying the remote description, deduplicate per ICE username fragment, and pass the empty-string/null end-of-candidates markers through when they belong to the active generation.",
+    starterCode: rtcIceStarter,
+    solutionCode: rtcIceSolution,
+    criteria: [
+      "Queues candidates that arrive before the remote description and drains them after applying it",
+      "Deduplicates candidate records independently for each ICE username fragment generation",
+      "Drops candidates tagged with stale ICE credentials after a restart",
+      "Preserves valid empty-string and null end-of-candidates markers",
     ],
   },
 ];
