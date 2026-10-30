@@ -112,6 +112,15 @@ describe("1st-Party Proprietary Authentication", () => {
     expect((await new AuthStore(join(dir, "auth.json")).load()).listUsers().filter((user) => user.username === "sameuser")).toHaveLength(1);
   });
 
+  test("account and OAuth client changes notify live state listeners", async () => {
+    const events = [];
+    handle = createHandler(taskStore, { broadcast: (event) => events.push(event) }, authStore, oauthServer);
+    expect((await call("POST", "/api/auth/login", { username: "agent", password: "agent-demo-2026" })).status).toBe(200);
+    expect((await call("POST", "/oauth/clients", { name: "New client" })).status).toBe(201);
+    expect((await call("POST", "/api/seo/audit", { html: "<html></html>" })).status).toBe(200);
+    expect(events.map((event) => event.type)).toEqual(["state", "state"]);
+  });
+
   test("a failed account write is not visible or persisted by a later registration", async () => {
     const file = join(dir, "auth.json");
     const saved = join(dir, "saved-auth.json");
