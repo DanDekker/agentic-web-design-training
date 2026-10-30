@@ -220,6 +220,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     for (const id of [
       "task_express5_problem_details_error_pipeline",
       "task_express5_tenant_claims",
+      "task_express5_payment_webhook",
       "task_migrate_express_to_hono_edge_ts",
       "task_migrate_react_hooks_to_svelte5_vue3_signals",
       "task_migrate_redux_thunks_to_tanstack_query_ts",
@@ -244,6 +245,21 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       expect(result.passed).toBe(false);
       expect(result.assertionResults.find((a) => a.name === "Tenant Isolation and Indistinguishable 404s").passed).toBe(false);
     }
+  });
+
+  test("rejects altered webhook bytes and acknowledgement before durable enqueue", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    const solution = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === "task_express5_payment_webhook").solutionCode;
+    const altered = await evaluator.evaluate("task_express5_payment_webhook", solution.replace(
+      "services.verify(req.body, signature)", "services.verify(new Uint8Array([42]), signature)",
+    ));
+    expect(altered.passed).toBe(false);
+    expect(altered.assertionResults.find((a) => a.name === "Original Signed Bytes and Invalid Input").passed).toBe(false);
+    const early = await evaluator.evaluate("task_express5_payment_webhook", solution.replace(
+      "await services.recordAndEnqueue(event);", "return res.sendStatus(204);",
+    ));
+    expect(early.passed).toBe(false);
+    expect(early.assertionResults.find((a) => a.name === "Durable Duplicate-Safe Acknowledgement").passed).toBe(false);
   });
 
   test("evaluates multi-runtime & package manager ecosystem tasks (npm/pnpm/Yarn/Bun/Deno/JSR) in sandbox", async () => {
@@ -391,7 +407,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(219);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(220);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);

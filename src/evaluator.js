@@ -1046,6 +1046,20 @@ export class Evaluator {
         passed: code.includes("TRPCError") && code.includes("createCaller"),
         detail: "Throws typed TRPCError codes and exposes createCaller(ctx) for end-to-end RPC dispatch",
       });
+    } else if (id === "task_express5_payment_webhook") {
+      results.push({
+        name: "Raw Webhook Route Before JSON Parser",
+        passed: code.includes("/webhooks/payments") && code.includes("express.raw(") && code.includes("express.json(") && code.indexOf("app.post(") >= 0 && code.indexOf("app.post(") < code.indexOf("app.use("),
+        detail: "Registers the raw webhook route before general JSON parsing",
+      }, {
+        name: "Bounded Parsers and Signature Verification",
+        passed: code.includes("65536") && code.includes("inflate: false") && code.includes("stripe-signature") && code.includes(".verify("),
+        detail: "Bounds request bodies, disables inflation and verifies the original signed bytes",
+      }, {
+        name: "Durable Queue Before Acknowledgement",
+        passed: code.includes(".recordAndEnqueue(") && code.includes("payment_intent.succeeded") && code.includes("204"),
+        detail: "Records supported verified events before returning success",
+      });
     } else if (id === "task_express5_tenant_claims") {
       results.push({
         name: "Nested Express Router and Claim Route",
@@ -4997,6 +5011,80 @@ export class Evaluator {
         passed: Boolean(res?.unauth401 && res?.authedOk),
         detail: "Executes Fetch Request/Response middleware, extracts :orgId params, and propagates typed context",
       });
+    } else if (taskId === "task_express5_payment_webhook") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          const register = typeof registerPaymentWebhook === "function" ? registerPaymentWebhook : exports.registerPaymentWebhook;
+          const stack = [];
+          let handler;
+          const app = {
+            post(path, parser, fn) { stack.push({ kind: "post", path, parser }); handler = fn; },
+            use(parser) { stack.push({ kind: "use", parser }); },
+          };
+          const express = {
+            raw(options) { return { kind: "raw", options }; },
+            json(options) { return { kind: "json", options }; },
+          };
+          const bytes = new Uint8Array([0, 255, 91]);
+          const failure = new Error("unexpected service failure");
+          const verified = [];
+          const outbox = [];
+          const ids = new Set();
+          let release;
+          const services = {
+            async verify(raw, signature) {
+              verified.push({ same: raw === bytes, signature });
+              if (signature === "verify-failure") throw failure;
+              if (signature === "invalid") return null;
+              return {
+                id: signature === "malformed" ? "../bad" : signature === "slow" ? "evt_slow" : signature === "storage-failure" ? "evt_fail" : "evt_1",
+                type: signature === "other" ? "customer.created" : "payment_intent.succeeded", data: { amount: 100 },
+              };
+            },
+            async recordAndEnqueue(event) {
+              if (event.id === "evt_fail") throw failure;
+              if (event.id === "evt_slow") await new Promise(resolve => { release = resolve; });
+              if (!ids.has(event.id)) { ids.add(event.id); outbox.push(event.id); }
+            },
+          };
+          register(app, express, services);
+          const response = () => ({ code: 0, body: undefined, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; }, sendStatus(code) { this.code = code; return this; } });
+          const request = (signature, body = bytes) => ({ body, get(name) { return name.toLowerCase() === "stripe-signature" ? signature : undefined; } });
+          const run = async (signature, body = bytes) => { const res = response(); await handler(request(signature, body), res); return res; };
+          const missing = await run(undefined);
+          const parsed = await run("valid", { parsed: true });
+          const invalid = await run("invalid");
+          const malformed = await run("malformed");
+          const skipped = await run("other");
+          const ignoredBeforeQueue = outbox.length === 0;
+          const duplicate = await Promise.all([run("valid"), run("valid")]);
+          const slowResponse = response();
+          const pending = handler(request("slow"), slowResponse);
+          // Allow verification and transaction entry to run, then check acknowledgement timing.
+          for (let i = 0; i < 10 && !release; i++) await Promise.resolve();
+          const waited = slowResponse.code === 0 && typeof release === "function";
+          if (release) release();
+          await pending;
+          let verifyFailure = false, storageFailure = false;
+          try { await run("verify-failure"); } catch (e) { verifyFailure = e === failure; }
+          try { await run("storage-failure"); } catch (e) { storageFailure = e === failure; }
+          const raw = stack[0]?.parser, json = stack[1]?.parser;
+          return {
+            order: stack.length === 2 && stack[0].kind === "post" && stack[0].path === "/webhooks/payments" && raw?.kind === "raw" && raw.options.type === "application/json" && raw.options.limit === 65536 && raw.options.inflate === false && stack[1].kind === "use" && json?.kind === "json" && json.options.limit === 65536 && json.options.inflate === false,
+            verification: missing.code === 400 && parsed.code === 400 && invalid.code === 400 && malformed.code === 400 && JSON.stringify(missing.body) === JSON.stringify(invalid.body) && verified.every(entry => entry.same) && verified.some(entry => entry.signature === "valid"),
+            queue: ignoredBeforeQueue && skipped.code === 204 && duplicate.every(res => res.code === 204) && outbox.filter(id => id === "evt_1").length === 1 && waited && slowResponse.code === 204 && outbox.includes("evt_slow"),
+            failure: verifyFailure && storageFailure,
+          };
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      for (const [name, passed, detail] of [
+        ["Raw Parser Ordering and Bounds", res?.order, "Registers the bounded uncompressed raw route before JSON parsing"],
+        ["Original Signed Bytes and Invalid Input", res?.verification, "Verifies untouched bytes and rejects malformed or unsigned deliveries"],
+        ["Durable Duplicate-Safe Acknowledgement", res?.queue, "Waits for atomic enqueue, coalesces duplicate deliveries and ignores unsupported types"],
+        ["Webhook Service Failure Propagation", res?.failure, "Propagates unexpected verifier and storage errors so failed deliveries can retry"],
+      ]) results.push({ name, passed: Boolean(passed), detail });
     } else if (taskId === "task_express5_tenant_claims") {
       const harness = `
         ${sanitizedCode};

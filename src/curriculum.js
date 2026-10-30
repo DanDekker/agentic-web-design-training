@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 219 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 220 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -17,6 +17,8 @@ import express5ProblemStarter from "../exercises/frameworks/express5_problem_det
 import express5ProblemSolution from "../exercises/frameworks/express5_problem_details/solution.ts" with { type: "text" };
 import expressTenantStarter from "../exercises/frameworks/express5_tenant_claims/starter.ts" with { type: "text" };
 import expressTenantSolution from "../exercises/frameworks/express5_tenant_claims/solution.ts" with { type: "text" };
+import expressWebhookStarter from "../exercises/frameworks/express5_payment_webhook/starter.ts" with { type: "text" };
+import expressWebhookSolution from "../exercises/frameworks/express5_payment_webhook/solution.ts" with { type: "text" };
 import reactSvelteVueStarter from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/starter.ts" with { type: "text" };
 import reactSvelteVueSolution from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/solution.ts" with { type: "text" };
 import reduxTanstackStarter from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/starter.ts" with { type: "text" };
@@ -5680,6 +5682,23 @@ clinic-dose-field::part(control) {
   },
 
   /* ── 9. TypeScript Framework Migrations (Express 4->5, Express->Hono, React->Svelte/Vue, Redux->TanStack, Pages->App Router) ── */
+  {
+    id: "task_express5_payment_webhook",
+    title: "Express 5 Payments: Verify Raw Webhooks and Queue Duplicate Deliveries Safely",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "express-5", "webhooks", "payments", "idempotency", "middleware"],
+    instructions:
+      "A payments team parses webhook JSON before checking its signature and acknowledges before recording work. Using the supplied dependency-injected Express-style interfaces, register POST /webhooks/payments with application/json raw parsing limited to 65,536 bytes and inflate disabled, before the general JSON parser (also bounded and with inflate disabled). Reject missing signatures, non-byte bodies, invalid verification results, and malformed event IDs with a generic 400. Pass the untouched bytes and stripe-signature header to the trusted provider-SDK adapter, which verifies the signature and timestamp and returns null for invalid input; unexpected failures must propagate. For verified payment_intent.succeeded events, await the injected recordAndEnqueue transaction before returning 204; other verified event types may be acknowledged without enqueueing. That service must atomically persist a unique event ID and outbox entry, including concurrent duplicate deliveries. Its real database and the signature adapter are integration responsibilities; workers must make downstream side effects idempotent, and delivery order is not guaranteed.",
+    starterCode: expressWebhookStarter.trimEnd(),
+    solutionCode: expressWebhookSolution.trimEnd(),
+    criteria: [
+      "Registers bounded raw parsing before general JSON parsing and rejects compressed bodies",
+      "Verifies the original bytes and signature before trusting or queueing an event",
+      "Awaits a durable atomic event-ID and outbox transaction before acknowledging supported events",
+      "Acknowledges duplicates safely and propagates unexpected verification or storage failures",
+    ],
+  },
   {
     id: "task_express5_tenant_claims",
     title: "Express 5 Claims Portal: Nested Routers and Tenant-Safe Authorization",
