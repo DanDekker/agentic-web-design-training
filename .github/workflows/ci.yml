@@ -53,6 +53,11 @@ jobs:
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:4317/api/health >/dev/null; then
               curl --fail --silent http://127.0.0.1:4317/ >/dev/null
+              curl --fail --silent --show-error \
+                -H 'content-type: application/json' \
+                --data '{"html":"<meta name=robots content=noindex>"}' \
+                http://127.0.0.1:4317/api/seo/audit |
+                python3 -c 'import json, sys; assert json.load(sys.stdin)["robotsMeta"]["googleSearch"]["noindex"] is True'
               exit 0
             fi
             sleep 1
