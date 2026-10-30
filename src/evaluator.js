@@ -2186,6 +2186,22 @@ export class Evaluator {
         passed: code.includes("resource.borrows !== 0") && code.includes("dropResource(resource.value)"),
         detail: "Blocks disposal while an async subtask owns a borrow and finalizes after the last loan",
       });
+    } else if (id === "task_webassembly_jspi_boundary") {
+      results.push({
+        name: "Experimental JSPI Feature Detection",
+        passed: code.includes("wasmApi.Suspending") && code.includes("wasmApi.promising") && code.includes("NotSupportedError"),
+        detail: "Checks both proposal entry points and gives callers a clear unsupported-runtime error",
+      });
+      results.push({
+        name: "Suspending Imports and Promising Exports",
+        passed: code.includes("new wasmApi.Suspending(value)") && code.includes("wasmApi.promising(value)"),
+        detail: "Wraps Promise-capable imports and async guest exports at their respective boundaries",
+      });
+      results.push({
+        name: "Non-Function Values & Input Immutability",
+        passed: code.includes("Object.entries(imports)") && code.includes("Object.entries(namespace)") && code.includes("Object.entries(exports)"),
+        detail: "Builds fresh namespaces while preserving memories, globals and other non-function bindings",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7564,6 +7580,40 @@ export class Evaluator {
         name: "Async Component Borrow Resolution, Transfer & Drop Safety",
         passed: Boolean(res?.componentResourcesOk),
         detail: "Returns loans after task completion or cancellation and blocks stale handles and premature disposal",
+      });
+    } else if (taskId === "task_webassembly_jspi_boundary") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            class FakeSuspending { constructor(callback) { this.callback = callback; } }
+            const api = {
+              Suspending: FakeSuspending,
+              promising(fn) { return (...args) => Promise.resolve(fn(...args)); },
+            };
+            const memory = { marker: "preserved" };
+            const importedCall = async (value) => value + 1;
+            const wasmCall = (value) => value * 2;
+            const sourceImports = { env: { waitForValue: importedCall, memory } };
+            const sourceExports = { run: wasmCall, memory };
+            const wrapped = createJspiBindings(sourceImports, sourceExports, api);
+            let unsupportedRejected = false;
+            try { createJspiBindings({}, {}, {}); } catch (error) { unsupportedRejected = error.name === "NotSupportedError"; }
+            return {
+              jspiBoundaryOk: wrapped.imports.env.waitForValue instanceof FakeSuspending &&
+                await wrapped.imports.env.waitForValue.callback(4) === 5 &&
+                await wrapped.exports.run(6) === 12 && wrapped.imports.env.memory === memory &&
+                wrapped.exports.memory === memory && sourceImports.env.waitForValue === importedCall &&
+                sourceExports.run === wasmCall && wrapped.imports !== sourceImports && unsupportedRejected,
+            };
+          } catch { return { jspiBoundaryOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "JSPI Import Suspension, Export Promises & Unsupported Runtime",
+        passed: Boolean(res?.jspiBoundaryOk),
+        detail: "Uses injected JSPI shims to wrap functions, keep memory values intact and reject absent proposal APIs",
       });
     } else {
       // General syntax evaluation
