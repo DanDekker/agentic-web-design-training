@@ -117,12 +117,17 @@ not assumed to work uniformly across browsers.
 | Containment Level 2 (`content-visibility`) | <https://www.w3.org/TR/css-contain-2/> |
 | Transitions Level 2 (`@starting-style`, discrete transitions) | <https://www.w3.org/TR/css-transitions-2/> |
 | View Transitions Level 1 | <https://www.w3.org/TR/css-view-transitions-1/> |
+| Color Adjustment Level 1 (color-scheme and forced colors) | <https://www.w3.org/TR/css-color-adjust-1/> |
 | HTML Living Standard: custom elements and custom states | <https://html.spec.whatwg.org/multipage/custom-elements.html> |
 
 **Evolving CSSWG drafts used in advanced exercises**
 
 | Topic | W3C draft |
 | --- | --- |
+| Box Sizing Level 3 (intrinsic sizing) | <https://www.w3.org/TR/css-sizing-3/> |
+| Display Level 3 (formatting contexts and flow-root) | <https://www.w3.org/TR/css-display-3/> |
+| Positioned Layout Level 3 (sticky/fixed containing blocks and stacking contexts) | <https://www.w3.org/TR/css-position-3/> |
+| Basic User Interface Level 4 (accent-color) | <https://drafts.csswg.org/css-ui-4/> |
 | CSS Conditional Rules Level 5 (scroll-state container queries) | <https://www.w3.org/TR/css-conditional-5/> |
 | CSS Shadow Module Level 1 (`:host()`, `::slotted()`, `:has-slotted`, `::part()`, `exportparts`) | <https://drafts.csswg.org/css-shadow-parts/> |
 | Cascade Level 6 (`@scope` and scope proximity) | <https://www.w3.org/TR/css-cascade-6/> |
@@ -131,6 +136,12 @@ not assumed to work uniformly across browsers.
 | View Transitions Level 2 (`view-transition-class`) | <https://www.w3.org/TR/css-view-transitions-2/> |
 
 Check a draft's status and browser support before using a proposal in production.
+
+**Markdown renderer reference**
+
+| Topic | Primary reference |
+| --- | --- |
+| GitHub Flavored Markdown (tables, task lists, code blocks, images, and autolinks) | <https://github.github.com/gfm/> |
 
 **Emerging browser capabilities**
 
