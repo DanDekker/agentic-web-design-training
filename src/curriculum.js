@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 217 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 218 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -13,6 +13,8 @@ import trpcZodStarter from "../exercises/frameworks/ts_trpc_zod_end_to_end_rpc/s
 import trpcZodSolution from "../exercises/frameworks/ts_trpc_zod_end_to_end_rpc/solution.ts" with { type: "text" };
 import expressHonoStarter from "../exercises/frameworks/migrate_express_to_hono_edge_ts/starter.ts" with { type: "text" };
 import expressHonoSolution from "../exercises/frameworks/migrate_express_to_hono_edge_ts/solution.ts" with { type: "text" };
+import express5ProblemStarter from "../exercises/frameworks/express5_problem_details/starter.ts" with { type: "text" };
+import express5ProblemSolution from "../exercises/frameworks/express5_problem_details/solution.ts" with { type: "text" };
 import reactSvelteVueStarter from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/starter.ts" with { type: "text" };
 import reactSvelteVueSolution from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/solution.ts" with { type: "text" };
 import reduxTanstackStarter from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/starter.ts" with { type: "text" };
@@ -5675,7 +5677,24 @@ clinic-dose-field::part(control) {
     ],
   },
 
-  /* ── 9. Cross-Framework TypeScript Migrations (Express->Hono/Fastify, React->Svelte 5/Vue 3, Redux->TanStack Query, Pages->App Router) ── */
+  /* ── 9. TypeScript Framework Migrations (Express 4->5, Express->Hono, React->Svelte/Vue, Redux->TanStack, Pages->App Router) ── */
+  {
+    id: "task_express5_problem_details_error_pipeline",
+    title: "Express 5 API Migration: Async Rejections, RFC 9457 Problem Details & Safe Error Pipeline",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "express-5", "nodejs", "problem-details", "error-handling", "api-migration"],
+    instructions:
+      "A claims-administration SaaS API is upgrading from Express 4 to 5. Its catchAsync wrappers are inconsistent, unmatched routes return generic HTML, and a four-argument handler leaks err.message while crashing when headers were already sent. Build a typed Express 5 claims route whose returned async rejection reaches error middleware, a bounded ApiProblem restricted to safe 4xx details and approved type URIs, a normal three-argument 404 middleware, and an ordered RFC 9457 application/problem+json pipeline. Preserve only validated x-request-id values, log unexpected errors privately, return a generic 500 body without stack or message leakage, and delegate errors with next(err) after headers are sent. Keep the solution dependency-free with structural Express types; call the pipeline after routers and do not add an Express 4 catch wrapper.",
+    starterCode: express5ProblemStarter.trimEnd(),
+    solutionCode: express5ProblemSolution.trimEnd(),
+    criteria: [
+      "Registers an awaited async Express 5 claims route that throws bounded ApiProblem values without a catchAsync wrapper",
+      "Installs a normal 3-argument 404 middleware before a 4-argument Express error handler using application/problem+json",
+      "Validates public problem types and request IDs, keeps unknown 500 details generic, and logs the original error privately",
+      "Delegates the original error with next(err) when headersSent is true",
+    ],
+  },
   {
     id: "task_migrate_express_to_hono_edge_ts",
     title: "Migrate Legacy Express.js Callback Middleware App to Web-Standard TypeScript Hono / Fastify Edge Router",
