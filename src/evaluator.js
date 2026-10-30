@@ -2598,6 +2598,22 @@ export class Evaluator {
         passed: code.includes('mode: "single-threaded"') && code.includes("shared-memory-construction-failed"),
         detail: "Falls back cleanly when isolation or shared memory cannot be enabled at runtime",
       });
+    } else if (id === "task_webassembly_plugin_capabilities") {
+      results.push({
+        name: "Compiled Module Import Inspection",
+        passed: code.includes("Module.imports(module)") && code.includes("requestedImports"),
+        detail: "Builds its guest import plan from the actual compiled module requirements",
+      });
+      results.push({
+        name: "Exact Own-Property Capability Grants",
+        passed: code.includes("Object.hasOwn(namespace, descriptor.name)") && code.includes("NotAllowedError"),
+        detail: "Rejects undeclared or inherited host capabilities before linking the plugin",
+      });
+      results.push({
+        name: "Restricted Null-Prototype Import Object",
+        passed: code.includes("Object.create(null)") && code.includes("wasmApi.instantiate(module, importObject)"),
+        detail: "Passes only requested grants and leaves the broader host capability map untouched",
+      });
     } else if (id === "task_webnn_tensor_inference_lifecycle") {
       results.push({
         name: "Least-Privilege Tensor Permissions",
@@ -8389,6 +8405,57 @@ export class Evaluator {
         name: "Isolation, Worker Budget, Memory Construction & Fallback",
         passed: Boolean(res?.wasmThreadGateOk),
         detail: "Creates a bounded shared-memory plan only after isolation and capability checks, with reliable fallback cases",
+      });
+    } else if (taskId === "task_webassembly_plugin_capabilities") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const module = { id: "third-party-report" };
+            const specialNamespace = Object.create(null);
+            specialNamespace.__proto__ = "explicit-value";
+            const capabilityMap = {
+              host: { price: (value) => value * 2, memory: { marker: "guest-buffer" }, diagnostics: () => "private" },
+              network: { fetch: () => "private" },
+              special: specialNamespace,
+            };
+            const importMetadata = [
+              { module: "host", name: "price", kind: "function" },
+              { module: "host", name: "memory", kind: "memory" },
+              { module: "special", name: "__proto__", kind: "global" },
+            ];
+            let instantiateCount = 0;
+            let receivedImports;
+            const api = {
+              Module: { imports(receivedModule) { return receivedModule === module ? importMetadata : []; } },
+              async instantiate(receivedModule, imports) {
+                instantiateCount++;
+                receivedImports = imports;
+                return { module: receivedModule, imports };
+              },
+            };
+            const result = await instantiateWasmPlugin(module, capabilityMap, api);
+            let missingDenied = false;
+            try {
+              await instantiateWasmPlugin(module, { host: capabilityMap.host }, api);
+            } catch (error) { missingDenied = error.name === "NotAllowedError"; }
+            return {
+              wasmPluginCapabilitiesOk: result.module === module && instantiateCount === 1 &&
+                receivedImports.host.price(4) === 8 && receivedImports.host.memory === capabilityMap.host.memory &&
+                receivedImports.special.__proto__ === "explicit-value" &&
+                Object.getPrototypeOf(receivedImports) === null && Object.getPrototypeOf(receivedImports.host) === null &&
+                Object.keys(receivedImports.host).sort().join(",") === "memory,price" &&
+                !Object.hasOwn(receivedImports, "network") && !Object.hasOwn(receivedImports.host, "diagnostics") &&
+                Object.hasOwn(capabilityMap.host, "diagnostics") && missingDenied,
+            };
+          } catch { return { wasmPluginCapabilitiesOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Exact Plugin Grants, Prototype-Safe Imports & Pre-Link Denial",
+        passed: Boolean(res?.wasmPluginCapabilitiesOk),
+        detail: "Instantiates with only requested own-property grants, safely preserves special keys and refuses missing authority",
       });
     } else if (taskId === "task_webnn_tensor_inference_lifecycle") {
       const harness = `
