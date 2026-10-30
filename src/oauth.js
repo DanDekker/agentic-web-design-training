@@ -3,6 +3,10 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ValidationError } from "./store.js";
 
+export const OAUTH_SCOPES = Object.freeze(["read:tasks", "write:tasks", "read:user", "tasks:refactor", "offline_access"]);
+const SCOPE_TOKEN = /^[\x21\x23-\x5B\x5D-\x7E]+$/;
+const S256_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+
 function randomToken(bytes = 24) {
   return randomBytes(bytes).toString("hex");
 }
@@ -25,6 +29,18 @@ function isValidRedirectUri(value) {
   } catch {
     return false;
   }
+}
+
+function validateScope(scope, client) {
+  const value = scope === undefined || scope === null || scope === "" ? "read:tasks" : scope;
+  if (typeof value !== "string" || !Array.isArray(client.allowedScopes)) {
+    throw new ValidationError("Invalid scope.");
+  }
+  const requested = value.split(" ");
+  if (!requested.every((item) => SCOPE_TOKEN.test(item) && OAUTH_SCOPES.includes(item) && client.allowedScopes.includes(item))) {
+    throw new ValidationError("Requested scope is not allowed for this client.");
+  }
+  return [...new Set(requested)].join(" ");
 }
 
 export class OAuthServer {
@@ -120,6 +136,10 @@ export class OAuthServer {
     if (!registeredRedirectUris.every(isValidRedirectUri)) {
       throw new ValidationError("Redirect URIs must be absolute HTTP(S) URLs without credentials or fragments.");
     }
+    if (!Array.isArray(allowedScopes) || allowedScopes.length === 0 ||
+        !allowedScopes.every((scope) => typeof scope === "string" && OAUTH_SCOPES.includes(scope))) {
+      throw new ValidationError("allowedScopes must contain supported scopes.");
+    }
     const clientId = `gauntlet-web_${randomToken(8)}`;
     const clientSecret = `sec_${randomToken(24)}`;
 
@@ -130,7 +150,7 @@ export class OAuthServer {
       name: cleanName,
       description: String(description || "").trim(),
       redirectUris: [...registeredRedirectUris],
-      allowedScopes,
+      allowedScopes: [...new Set(allowedScopes)],
       isFirstParty: false,
       createdAt: new Date().toISOString(),
     };
@@ -149,8 +169,19 @@ export class OAuthServer {
     return client;
   }
 
+  validateAuthorizationRequest({ clientId, redirectUri, scope, codeChallenge, codeChallengeMethod = "S256" }) {
+    const client = this.validateRedirectUri(clientId, redirectUri);
+    const grantedScope = validateScope(scope, client);
+    if (codeChallengeMethod !== "S256" ||
+        (codeChallenge !== undefined && codeChallenge !== null && codeChallenge !== "" &&
+         (typeof codeChallenge !== "string" || !S256_CHALLENGE.test(codeChallenge)))) {
+      throw new ValidationError("PKCE requires a valid S256 code challenge.");
+    }
+    return { client, scope: grantedScope };
+  }
+
   createAuthorizationCode({ clientId, userId, redirectUri, scope, codeChallenge, codeChallengeMethod = "S256" }) {
-    this.validateRedirectUri(clientId, redirectUri);
+    const authorization = this.validateAuthorizationRequest({ clientId, redirectUri, scope, codeChallenge, codeChallengeMethod });
 
     const code = `authcode_${randomToken(20)}`;
     const expiresAt = Date.now() + 1000 * 60 * 10; // 10 minutes
@@ -160,7 +191,7 @@ export class OAuthServer {
       clientId,
       userId,
       redirectUri,
-      scope: scope || "read:tasks",
+      scope: authorization.scope,
       codeChallenge,
       codeChallengeMethod,
       expiresAt,
@@ -234,6 +265,7 @@ export class OAuthServer {
     const client = this.getClient(clientId);
     if (!client) throw new ValidationError("Invalid client_id.");
     if (client.clientSecret !== clientSecret) throw new ValidationError("Invalid client_secret.");
+    const grantedScope = validateScope(scope, client);
 
     const accessToken = `lat_cc_${randomToken(32)}`;
     const expiresIn = 3600 * 12; // 12 hours
@@ -241,7 +273,7 @@ export class OAuthServer {
       token: accessToken,
       clientId,
       userId: "usr_agent",
-      scope: scope || "read:tasks",
+      scope: grantedScope,
       expiresAt: Date.now() + expiresIn * 1000,
       createdAt: new Date().toISOString(),
     };

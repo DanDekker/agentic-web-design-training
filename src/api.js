@@ -1,4 +1,5 @@
 import { ValidationError } from "./store.js";
+import { OAUTH_SCOPES } from "./oauth.js";
 import {
   REFACTORING_CURRICULUM_TASKS,
   CURRICULUM_CATEGORIES,
@@ -170,8 +171,8 @@ const benchmarkSuite = new BenchmarkSuite();
           introspection_endpoint: `${origin}/oauth/introspect`,
           response_types_supported: ["code"],
           grant_types_supported: ["authorization_code", "client_credentials", "refresh_token"],
-          code_challenge_methods_supported: ["S256", "plain"],
-          scopes_supported: ["read:tasks", "write:tasks", "read:user", "tasks:refactor", "offline_access"],
+          code_challenge_methods_supported: ["S256"],
+          scopes_supported: OAUTH_SCOPES,
         });
       }
 
@@ -188,12 +189,14 @@ const benchmarkSuite = new BenchmarkSuite();
       if (pathname === "/oauth/authorize" && req.method === "GET") {
         const clientId = searchParams.get("client_id");
         const redirectUri = searchParams.get("redirect_uri");
-        const scope = searchParams.get("scope") || "read:tasks";
+        const requestedScope = searchParams.get("scope") || "read:tasks";
         const state = searchParams.get("state") || "";
         const codeChallenge = searchParams.get("code_challenge") || "";
         const codeChallengeMethod = searchParams.get("code_challenge_method") || "S256";
 
-        const client = oauthServer.validateRedirectUri(clientId, redirectUri);
+        const { client, scope } = oauthServer.validateAuthorizationRequest({
+          clientId, redirectUri, scope: requestedScope, codeChallenge, codeChallengeMethod,
+        });
 
         // If request wants JSON (API/agent client)
         if (req.headers.get("accept")?.includes("application/json")) {
@@ -276,7 +279,10 @@ const benchmarkSuite = new BenchmarkSuite();
         const state = body.state || "";
 
         // Validate before either granting a code or redirecting a denied request.
-        oauthServer.validateRedirectUri(body.client_id, redirectUri);
+        oauthServer.validateAuthorizationRequest({
+          clientId: body.client_id, redirectUri, scope: body.scope,
+          codeChallenge: body.code_challenge, codeChallengeMethod: body.code_challenge_method,
+        });
 
         if (!approved) {
           const target = new URL(redirectUri);
