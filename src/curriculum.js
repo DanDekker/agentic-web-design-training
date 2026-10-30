@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 188 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 189 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4887,6 +4887,51 @@ clinic-dose-field::part(control) {
       "Uses logical scroll-padding and scroll-margin so Markdown fragments remain visible below the sticky header",
       "Highlights heading targets and makes the skip link visible on focus-visible",
       "Provides smooth fragment navigation only when motion is allowed and resets it under prefers-reduced-motion",
+    ],
+  },
+
+  {
+    id: "task_css_responsive_embeds_stable_geometry",
+    title: "Make Remote Video Embeds Responsive Without Layout Shifts or Lost Focus",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "media-embeds", "aspect-ratio", "iframe", "layout-stability"],
+    instructions:
+      "A learning portal and a patient education site both embed remote video players. The provider iframe has fixed dimensions, so it overflows on phones and pushes nearby instructions down after loading. Build a responsive wrapper that reserves a 16:9 space before the frame arrives, supports a portrait variant for mobile demonstrations, and lets iframe or video fill the wrapper. Keep the wrapper focus ring visible when keyboard users enter the embedded player; do not crop native player controls with overflow clipping.",
+    starterCode: `/* The provider iframe overflows phones and shifts content while loading. */
+.course-embed iframe {
+  width: 560px;
+  height: 315px;
+}`,
+    solutionCode: `/* This wrapper reserves media geometry before a remote frame loads. */
+.course-embed {
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: Canvas;
+}
+
+.course-embed--portrait {
+  aspect-ratio: 9 / 16;
+}
+
+.course-embed > :where(iframe, video) {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+}
+
+.course-embed:focus-within {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}`,
+    criteria: [
+      "Reserves intrinsic embed geometry with aspect-ratio on a fluid wrapper, including a portrait modifier",
+      "Makes iframe and video fill the wrapper with logical sizing rather than fixed pixel dimensions",
+      "Preserves keyboard focus around the embedded player and does not clip native controls",
     ],
   },
 
