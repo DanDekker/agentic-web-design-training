@@ -232,6 +232,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Feature-Gated Auto-Size Interpolation", all: ["@supports (interpolate-size: allow-keywords)", "selector(details::details-content)", "interpolate-size: allow-keywords", "block-size: 0", "block-size: auto", "transition: block-size"], withinRules: [{ selector: ".help-faq", all: ["interpolate-size: allow-keywords"] }, { selector: ".help-faq details::details-content", all: ["block-size: 0", "overflow: clip", "transition: block-size"] }, { selector: ".help-faq details[open]::details-content", all: ["block-size: auto"] }] },
     { name: "Reduced Motion and No Guessed Height", all: ["prefers-reduced-motion: reduce", "transition: none", "overflow-clip-margin"], none: ["max-height: 999px", "max-block-size: 1000px"], withinRules: [{ selector: ".help-faq details::details-content", all: ["overflow-clip-margin: 0.35rem"] }] },
   ],
+  task_css_native_dialog_safe_review: [
+    { name: "Viewport-Bounded Modal and Internal Scroll Ownership", all: ["max-block-size: min(44rem, calc(100vh - 2rem))", "100dvh", "env(safe-area-inset-top)", "overflow: auto", "overscroll-behavior: contain"], withinRules: [{ selector: ".claim-review__dialog", all: ["inline-size: min(calc(100% - 2rem), 48rem)", "overflow: auto", "overscroll-behavior: contain"] }] },
+    { name: "Top-Layer Backdrop and Mobile Bottom Sheet", all: ["::backdrop", "@supports selector(dialog:modal)", ".claim-review__dialog:modal", "inset: auto 0 0"], none: ["z-index:", "999999"] },
+    { name: "Pinned Actions and High-Contrast Boundaries", all: ["position: sticky", "inset-block-end: 0", ":focus-visible", "forced-colors: active", "CanvasText", "Highlight"], withinRules: [{ selector: ".claim-review__dialog .claim-review__actions", all: ["position: sticky", "inset-block-end: 0"] }] },
+  ],
 });
 
 function cssCheckPassed(code, check) {

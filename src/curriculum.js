@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 197 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 198 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -5193,6 +5193,85 @@ clinic-dose-field::part(control) {
       "Preserves native details and summary interaction with a visible keyboard focus indicator",
       "Feature-queries both interpolate-size and the details content pseudo-element before animating zero to auto",
       "Avoids guessed max-height caps, protects nearby focus decoration, and removes motion when requested",
+    ],
+  },
+  {
+    id: "task_css_native_dialog_safe_review",
+    title: "Style a Native Claims Review Dialog for Small Screens and High Contrast",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "html-dialog", "top-layer", "safe-area", "forced-colors", "accessibility"],
+    instructions:
+      "An insurance claims review still uses a hand-built fixed overlay with z-index: 999999, a hard-coded 640px panel, and a close button that scrolls offscreen on phones. Style the supplied native <dialog class=\"claim-review__dialog\"> for modal use: constrain it to the dynamic viewport and device safe areas, keep long content scrollable without chaining the page, pin the action row while it scrolls, and present it as a bottom sheet on narrow screens. Use the browser top layer instead of competing z-index values, style ::backdrop, and preserve focus and forced-colors cues.",
+    starterCode: `/* Div-based overlay escapes the viewport and hides its actions. */
+.claim-review__overlay { position: fixed; inset: 0; z-index: 999999; }
+.claim-review__panel { width: 640px; height: 80vh; overflow: hidden; }
+.claim-review__close:focus { outline: none; }`,
+    solutionCode: `.claim-review__dialog {
+  box-sizing: border-box;
+  inline-size: min(calc(100% - 2rem), 48rem);
+  max-inline-size: calc(100% - 2rem);
+  max-block-size: min(44rem, calc(100vh - 2rem));
+  max-block-size: min(44rem, calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 1rem;
+  color: CanvasText;
+  background: Canvas;
+}
+
+.claim-review__dialog::backdrop {
+  background: rgb(10 18 28 / 0.68);
+}
+
+.claim-review__dialog :focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 3px;
+}
+
+.claim-review__dialog .claim-review__actions {
+  position: sticky;
+  inset-block-end: 0;
+  padding: 1rem;
+  border-block-start: 1px solid currentColor;
+  background: Canvas;
+}
+
+@supports selector(dialog:modal) {
+  @media (max-width: 42rem) {
+    .claim-review__dialog:modal {
+      position: fixed;
+      inset: auto 0 0;
+      inline-size: 100%;
+      max-inline-size: none;
+      max-block-size: min(90dvh, calc(100dvh - env(safe-area-inset-top)));
+      margin: 0;
+      padding-block-end: max(1rem, env(safe-area-inset-bottom));
+      border-end-end-radius: 0;
+      border-end-start-radius: 0;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .claim-review__dialog::backdrop {
+    background: Canvas;
+  }
+
+  .claim-review__dialog {
+    border: 2px solid CanvasText;
+  }
+
+  .claim-review__dialog .claim-review__actions {
+    border-block-start: 2px solid CanvasText;
+  }
+}`,
+    criteria: [
+      "Uses a fluid, dynamically viewport-bounded dialog with safe-area padding and contained internal scrolling",
+      "Relies on native modal top-layer behavior, styles ::backdrop, and adds a narrow-screen :modal bottom sheet without a z-index workaround",
+      "Keeps actions visible while scrolling and provides keyboard focus and forced-colors boundaries",
     ],
   },
 
