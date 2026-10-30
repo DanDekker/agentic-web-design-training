@@ -89,6 +89,8 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Stripe webhook signatures and duplicate deliveries | <https://docs.stripe.com/webhooks> |
 | Express 5 migration guide | <https://expressjs.com/en/guide/migrating-5/> |
 | Problem Details for HTTP APIs (RFC 9457) | <https://www.rfc-editor.org/rfc/rfc9457.html> |
+| Conditional requests, entity tags, and If-Match (RFC 9110) | <https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.1> |
+| 428 Precondition Required (RFC 6585) | <https://www.rfc-editor.org/rfc/rfc6585.html#section-3> |
 
 ### Accessible interaction patterns
 
