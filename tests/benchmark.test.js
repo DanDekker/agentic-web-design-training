@@ -124,6 +124,16 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(markdown).toContain("PASSED");
   }, 30000);
 
+  test("cancels a running benchmark and permits later runs", async () => {
+    const controller = new AbortController();
+    const run = suite.runFullBenchmark({ signal: controller.signal });
+    await Bun.sleep(50);
+    controller.abort();
+    await expect(run).rejects.toHaveProperty("name", "AbortError");
+    const next = await suite.runFullBenchmark({ category: "web-cybersec" });
+    expect(next.summary.passedTasks).toBe(next.summary.totalTasks);
+  }, 15000);
+
   test("Markdown report keeps task text inside table cells", () => {
     const category = "css|layout";
     const title = "CSS | `grid` *literal*\n<script>alert(1)</script> [docs](https://example.test)";
