@@ -234,7 +234,7 @@ const CSS_TASK_CHECKS = Object.freeze({
   ],
   task_css_native_dialog_safe_review: [
     { name: "Viewport-Bounded Modal and Internal Scroll Ownership", all: ["max-block-size: min(44rem, calc(100vh - 2rem))", "100dvh", "env(safe-area-inset-top)", "overflow: auto", "overscroll-behavior: contain"], withinRules: [{ selector: ".claim-review__dialog", all: ["inline-size: min(calc(100% - 2rem), 48rem)", "overflow: auto", "overscroll-behavior: contain"] }] },
-    { name: "Top-Layer Backdrop and Mobile Bottom Sheet", all: ["::backdrop", "@supports selector(dialog:modal)", ".claim-review__dialog:modal", "inset: auto 0 0"], none: ["z-index:", "999999"] },
+    { name: "Top-Layer Backdrop and Mobile Bottom Sheet", all: ["::backdrop", "@supports selector(dialog:modal)", ".claim-review__dialog:modal", "inset-inline: 0", "inset-block-end: 0"], none: ["z-index:", "999999"] },
     { name: "Pinned Actions and High-Contrast Boundaries", all: ["position: sticky", "inset-block-end: 0", ":focus-visible", "forced-colors: active", "CanvasText", "Highlight"], withinRules: [{ selector: ".claim-review__dialog .claim-review__actions", all: ["position: sticky", "inset-block-end: 0"] }] },
   ],
 });
@@ -1260,6 +1260,37 @@ export class Evaluator {
         name: "ESM <link rel=\"modulepreload\"> Waterfall Flattening",
         passed: code.includes('rel="modulepreload"') && code.includes('crossorigin="anonymous"'),
         detail: "Generates modulepreload link hints with SRI integrity and anonymous crossorigin",
+      });
+    } else if (id === "task_html_patient_intake_accessible_error_styling") {
+      results.push({
+        name: "Native Form Semantics and Constraint Validation",
+        passed:
+          code.includes('method="post"') &&
+          code.includes("<fieldset") &&
+          code.includes("<legend>") &&
+          code.includes('autocomplete: "name"') &&
+          code.includes("required") &&
+          !code.includes("novalidate"),
+        detail: "Uses native submission, grouped labeled fields, autocomplete, and built-in required validation",
+      });
+      results.push({
+        name: "Linked Error Summary and Escaped Field Feedback",
+        passed:
+          code.includes('role="alert"') &&
+          code.includes('aria-invalid="true"') &&
+          code.includes("aria-describedby") &&
+          code.includes('href="#') &&
+          code.includes("escapePatientText"),
+        detail: "Connects summary links and field descriptions while escaping untrusted validation text",
+      });
+      results.push({
+        name: "Container-Aware Accessible Styles",
+        passed:
+          code.includes("@container patient-intake") &&
+          code.includes(":focus-visible") &&
+          code.includes("forced-colors: active") &&
+          code.includes("border-inline-start: 0.45rem double"),
+        detail: "Styles the component at its embedded width with visible focus and non-color error cues",
       });
     } else if (id === "task_seo_software_app_faq_dataset_graph") {
       results.push({
@@ -5036,6 +5067,39 @@ export class Evaluator {
         name: "Import Map Precedence, Scoped Resolution & SRI Modulepreload",
         passed: Boolean(res?.orderingValid && res?.sriMappedOk),
         detail: "Places <script type=\"importmap\"> before modulepreload/module tags and maps sha384- SRI hashes",
+      });
+    } else if (taskId === "task_html_patient_intake_accessible_error_styling") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const render = typeof renderPatientIntakeForm === "function"
+            ? renderPatientIntakeForm
+            : exports.renderPatientIntakeForm;
+          const out = render({
+            errors: [
+              { field: "fullName", message: '<img src=x onerror="alert(1)">' },
+              { field: "dateOfBirth", message: "Use the date on your identification." },
+            ],
+          });
+          const html = out.html;
+          return {
+            nativeForm: html.includes('method="post"') && html.includes("<fieldset") && html.includes("<legend>") && html.includes("required") && !html.includes("novalidate"),
+            linkedErrors: html.includes('role="alert"') && html.includes('href="#patient-full-name"') && html.includes('aria-describedby="patient-full-name-hint patient-full-name-error"') && html.includes('aria-invalid="true"'),
+            escapedFeedback: html.includes('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;') && !html.includes('<img src=x onerror="alert(1)">'),
+            responsiveStyles: out.css.includes("container: patient-intake / inline-size") && out.css.includes("@container patient-intake (max-width: 42rem)") && out.css.includes(":focus-visible") && out.css.includes("forced-colors: active"),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Patient Intake HTML Semantics, Error Relationships & Escaping",
+        passed: Boolean(res?.nativeForm && res?.linkedErrors && res?.escapedFeedback),
+        detail: "Renders native check-in fields and links escaped server errors from the summary into each field",
+      });
+      results.push({
+        name: "Embedded Form CSS and Preference Handling",
+        passed: Boolean(res?.responsiveStyles),
+        detail: "Returns container-query styles with keyboard-focus and forced-colors support",
       });
     } else if (taskId === "task_seo_software_app_faq_dataset_graph") {
       const harness = `
