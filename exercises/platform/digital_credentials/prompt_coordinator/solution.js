@@ -7,6 +7,27 @@ function createDigitalCredentialPromptCoordinator({
   let inFlightKey = null;
   let closed = false;
 
+  function buildRequestPlan(operation, protocol, data) {
+    if (operation !== "get" && operation !== "create") {
+      throw new TypeError("operation must be get or create");
+    }
+    if (typeof protocol !== "string" || protocol.trim() === "" || !data || typeof data !== "object" || Array.isArray(data)) {
+      throw new TypeError("a protocol and JSON request object are required");
+    }
+    if (!digitalCredentialApi || typeof digitalCredentialApi.userAgentAllowsProtocol !== "function" ||
+        !digitalCredentialApi.userAgentAllowsProtocol(protocol)) return null;
+
+    let serialized;
+    try { serialized = JSON.stringify(data); }
+    catch { throw new TypeError("data must be JSON serializable"); }
+    if (typeof serialized !== "string") throw new TypeError("data must be JSON serializable");
+
+    return {
+      operation,
+      options: { digital: { requests: [{ protocol, data: JSON.parse(serialized) }] } },
+    };
+  }
+
   function namedError(name, message) {
     const error = new Error(message);
     error.name = name;
@@ -16,7 +37,7 @@ function createDigitalCredentialPromptCoordinator({
   function request({ operation, protocol, data, signal }) {
     if (closed) throw namedError("InvalidStateError", "coordinator is closed");
 
-    const plan = buildDigitalCredentialRequest(operation, protocol, data, digitalCredentialApi);
+    const plan = buildRequestPlan(operation, protocol, data);
     if (!plan) return Promise.resolve(null);
     if (typeof isUserActivated !== "function" || !isUserActivated()) {
       throw namedError("NotAllowedError", "request must start from a user activation");
