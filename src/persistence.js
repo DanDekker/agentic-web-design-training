@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFile, rename } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 /** Read a JSON store, preserving malformed bytes before allowing a fresh store. */
 export async function readJsonStore(file, label) {
@@ -20,5 +21,18 @@ export async function readJsonStore(file, label) {
     await rename(file, backup);
     console.warn(`[${label}] unreadable data file moved to ${backup}`);
     return { found: false };
+  }
+}
+
+/** Replace a JSON file atomically, removing the temporary file after a failed write. */
+export async function writeJsonFile(file, contents) {
+  await mkdir(dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, contents, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    await rename(temporary, file);
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
   }
 }

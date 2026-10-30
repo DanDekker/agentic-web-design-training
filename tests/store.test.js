@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TaskStore, TITLE_MAX, ValidationError } from "../src/store.js";
+import { writeJsonFile } from "../src/persistence.js";
+import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
 
 let dir;
 let file;
@@ -116,6 +118,77 @@ describe("TaskStore", () => {
 
     const raw = JSON.parse(await readFile(file, "utf8"));
     expect(raw.version).toBe(1);
+  });
+
+  test("serializes concurrent writes and never exposes a failed change", async () => {
+    let failNext = false;
+    let release;
+    let started;
+    const blocked = new Promise((resolve) => { release = resolve; });
+    const writing = new Promise((resolve) => { started = resolve; });
+    const writer = async (path, contents) => {
+      if (failNext) {
+        failNext = false;
+        started();
+        await blocked;
+        throw new Error("Simulated disk failure");
+      }
+      await writeJsonFile(path, contents);
+    };
+    const store = await new TaskStore(file, { write: writer }).load();
+    failNext = true;
+    const failed = store.add("Must not appear");
+    await writing;
+    expect(store.list()).toEqual([]);
+    const saved = store.add("Saved after failure");
+    release();
+    const [first, second] = await Promise.allSettled([failed, saved]);
+    expect(first.status).toBe("rejected");
+    expect(second.status).toBe("fulfilled");
+    expect(store.list().map((task) => task.title)).toEqual(["Saved after failure"]);
+    expect((await new TaskStore(file).load()).list().map((task) => task.title)).toEqual(["Saved after failure"]);
+  });
+
+  test("concurrent creates cannot commit the same task ID twice", async () => {
+    const store = await new TaskStore(file).load();
+    const results = await Promise.allSettled([
+      store.add({ id: "same-id", title: "First" }),
+      store.add({ id: "same-id", title: "Second" }),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    expect((await new TaskStore(file).load()).list().map((task) => task.id)).toEqual(["same-id"]);
+  });
+
+  test("a failed file replacement leaves committed state intact and removes its temporary file", async () => {
+    const store = await new TaskStore(file).load();
+    const task = await store.add("Original");
+    const savedFile = join(dir, "saved.json");
+    await rename(file, savedFile);
+    await mkdir(file);
+    await expect(store.update(task.id, { title: "Not saved" })).rejects.toThrow();
+    expect(store.get(task.id).title).toBe("Original");
+    expect((await readdir(dir)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    await rm(file, { recursive: true });
+    await rename(savedFile, file);
+    await store.add("Later");
+    expect((await new TaskStore(file).load()).get(task.id).title).toBe("Original");
+  });
+
+  test("concurrent curriculum seeds write one batch and preserve existing progress", async () => {
+    let writes = 0;
+    const store = await new TaskStore(file, { write: async (path, contents) => {
+      writes++;
+      await writeJsonFile(path, contents);
+    } }).load();
+    const [first, second] = await Promise.all([store.seedCurriculumTasks(), store.seedCurriculumTasks()]);
+    expect(first).toHaveLength(REFACTORING_CURRICULUM_TASKS.length);
+    expect(second).toEqual([]);
+    expect(writes).toBe(2); // Initial empty store, then one curriculum batch.
+    await store.update(first[0].id, { done: true });
+    expect(await store.seedCurriculumTasks()).toEqual([]);
+    expect(store.get(first[0].id).done).toBe(true);
+    expect((await new TaskStore(file).load()).get(first[0].id).done).toBe(true);
   });
 
   test("reorders, keeping tasks the client did not mention", async () => {
