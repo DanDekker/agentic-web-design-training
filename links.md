@@ -44,6 +44,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | HTML Standard: dialog and interactive elements | <https://html.spec.whatwg.org/multipage/interactive-elements.html> |
 | HTML Standard: forms, labels, and input controls | <https://html.spec.whatwg.org/multipage/forms.html> |
 | HTML Standard: forms and constraint validation | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html> |
+| HTML Standard: native form submission and `requestSubmit()` | <https://html.spec.whatwg.org/multipage/forms.html#dom-form-requestsubmit-dev> |
 | HTML Standard: templates and Declarative Shadow DOM | <https://html.spec.whatwg.org/multipage/scripting.html#the-template-element> |
 | WICG Prioritized Task Scheduling API (`postTask()`, `yield()`, `TaskController`) | <https://wicg.github.io/scheduling-apis/> |
 | CSS WG Drafts | <https://github.com/w3c/csswg-drafts> |
@@ -130,6 +131,7 @@ not assumed to work uniformly across browsers.
 | Containment Level 2 (`content-visibility`) | <https://www.w3.org/TR/css-contain-2/> |
 | Transitions Level 2 (`@starting-style`, discrete transitions) | <https://www.w3.org/TR/css-transitions-2/> |
 | View Transitions Level 1 | <https://www.w3.org/TR/css-view-transitions-1/> |
+| CSS Anchor Positioning Level 1 (`anchor-scope`, `position-area`, `position-try`) | <https://www.w3.org/TR/css-anchor-position-1/> |
 | Color Adjustment Level 1 (color-scheme and forced colors) | <https://www.w3.org/TR/css-color-adjust-1/> |
 | CSS Pseudo-Elements Level 4 (`::backdrop`) | <https://www.w3.org/TR/css-pseudo-4/> |
 | HTML Living Standard: custom elements and custom states | <https://html.spec.whatwg.org/multipage/custom-elements.html> |
