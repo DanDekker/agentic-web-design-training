@@ -77,6 +77,8 @@ import wasmMemoryStarter from "../exercises/platform/webassembly/memory_view/sta
 import wasmMemorySolution from "../exercises/platform/webassembly/memory_view/solution.js" with { type: "text" };
 import wasmResourcesStarter from "../exercises/platform/webassembly/component_resources/starter.js" with { type: "text" };
 import wasmResourcesSolution from "../exercises/platform/webassembly/component_resources/solution.js" with { type: "text" };
+import wasmJspiStarter from "../exercises/platform/webassembly/jspi_bindings/starter.js" with { type: "text" };
+import wasmJspiSolution from "../exercises/platform/webassembly/jspi_bindings/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10378,6 +10380,23 @@ export class VirtualizedShadowListEngine {
       "Tracks each borrowed handle under its asynchronous task and rejects stale or mismatched handles",
       "Releases all outstanding loans when a task resolves or is cancelled",
       "Prevents drop or transfer while borrowed and calls the resource finalizer exactly once",
+    ],
+  },
+  {
+    id: "task_webassembly_jspi_boundary",
+    title: "Bridge JavaScript Promises Across Experimental WebAssembly JSPI Boundaries",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "jspi", "promises", "interop", "feature-detection"],
+    instructions:
+      "An experimental WebAssembly JSPI runtime can suspend guest execution while an imported JavaScript function awaits a Promise, and expose an asynchronous Wasm export as a Promise to JavaScript. Build a non-mutating import/export adapter that wraps only functions with WebAssembly.Suspending and WebAssembly.promising, preserves imported memories and other non-function values, and fails clearly when the proposal API is unavailable. Inject the WebAssembly API so the adapter can be tested without requiring JSPI support in the host runtime.",
+    starterCode: wasmJspiStarter,
+    solutionCode: wasmJspiSolution,
+    criteria: [
+      "Feature-tests both WebAssembly.Suspending and WebAssembly.promising and reports unsupported runtimes",
+      "Wraps imported JavaScript functions in new WebAssembly.Suspending instances",
+      "Wraps exported Wasm functions through WebAssembly.promising while preserving non-function exports",
+      "Copies nested import namespaces and leaves caller-provided objects unmodified",
     ],
   },
 ];
