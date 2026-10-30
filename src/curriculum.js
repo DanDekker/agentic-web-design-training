@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 208 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 209 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -79,6 +79,8 @@ import seoRenderStarter from "../exercises/seo/technical/render_parity/starter.t
 import seoRenderSolution from "../exercises/seo/technical/render_parity/solution.ts" with { type: "text" };
 import protectedDialogStarter from "../exercises/html/dialog_close_policy/starter.ts" with { type: "text" };
 import protectedDialogSolution from "../exercises/html/dialog_close_policy/solution.ts" with { type: "text" };
+import prioritizedWorkStarter from "../exercises/platform/scheduling/chunked_priority_work/starter.ts" with { type: "text" };
+import prioritizedWorkSolution from "../exercises/platform/scheduling/chunked_priority_work/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
@@ -434,6 +436,22 @@ function processTelemetryStream(chunks) {
       "Uses typed Uint8Arrays instead of raw string concatenation",
       "Eliminates intermediate split array allocations",
       "Maintains ring/sliding buffer with copyWithin or subarray offsets",
+    ],
+  },
+  {
+    id: "task_performance_prioritized_chunk_scheduler",
+    title: "Slice Large UI Work with Prioritized, Yielding Browser Tasks",
+    category: "performance",
+    difficulty: "advanced",
+    tags: ["performance", "scheduler-posttask", "scheduler-yield", "taskcontroller", "abortsignal", "responsiveness"],
+    instructions:
+      "A claims dashboard processes tens of thousands of records to build search indexes after the first render. The synchronous loop blocks input, while requestIdleCallback can starve when the user keeps interacting. Build a generic chunk runner that schedules bounded batches with scheduler.postTask(), yields between batches with scheduler.yield(), and supports cancellation through AbortSignal or TaskSignal. Preserve TaskController reprioritization by omitting a fixed priority when the supplied TaskSignal carries a mutable priority. Feature-detect the scheduler and use a timer-yield fallback that reports that browser-managed priority is unavailable. A single processItem call must itself stay short; batching cannot preempt one long item.",
+    starterCode: prioritizedWorkStarter.trimEnd(),
+    solutionCode: prioritizedWorkSolution.trimEnd(),
+    criteria: [
+      "Validates batch size, priority, cancellation signal, and scheduler capability before processing records",
+      "Uses prioritized postTask and yield continuations when available, preserving dynamic TaskSignal priority and abort behavior",
+      "Falls back to yielding timer tasks without claiming native priority and reports completed items, chunks, yields, and cancellation",
     ],
   },
   {
