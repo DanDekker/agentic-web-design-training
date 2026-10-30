@@ -236,7 +236,7 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | [`.github/workflows/`](.github/workflows/) | CI checks and tagged container publishing |
 | [`Dockerfile`](Dockerfile) | Bun runtime image for local use and releases |
 
-The server stores local state in `data/`, which is ignored by Git. Set `PORT` to change the HTTP port or `GUANTLET_WEB_DATA_DIR` to move the data directory.
+The server stores local state in `data/`, which is ignored by Git, and listens on `127.0.0.1` by default. Set `PORT` to change the HTTP port, `GUANTLET_WEB_DATA_DIR` to move the data directory, or `GUANTLET_WEB_HOST` to choose another listening address. The container listens on `0.0.0.0` inside the container; the example below publishes it only on the host's loopback interface.
 
 ## CI and container releases
 

@@ -14,6 +14,7 @@ const DATA_FILE = process.env.GUANTLET_WEB_DATA ?? join(DATA_DIR, "tasks.json");
 const AUTH_FILE = process.env.GUANTLET_WEB_AUTH_DATA ?? join(DATA_DIR, "auth.json");
 const OAUTH_FILE = process.env.GUANTLET_WEB_OAUTH_DATA ?? join(DATA_DIR, "oauth.json");
 const PORT = Number(process.env.PORT ?? 3000);
+const HOSTNAME = process.env.GUANTLET_WEB_HOST ?? "127.0.0.1";
 
 const store = await new TaskStore(DATA_FILE).load();
 if (store.listTasks().length === 0) {
@@ -29,6 +30,7 @@ const serveStatic = createStatic(PUBLIC_DIR);
 
 const server = Bun.serve({
   port: PORT,
+  hostname: HOSTNAME,
   development: process.env.NODE_ENV !== "production",
   async fetch(req) {
     const { pathname } = new URL(req.url);
@@ -49,5 +51,5 @@ const server = Bun.serve({
   },
 });
 
-console.log(`gauntlet-web  →  http://localhost:${server.port}`);
+console.log(`gauntlet-web  →  ${server.url.href} (listening on ${server.hostname})`);
 console.log(`data  →  ${DATA_FILE}`);
