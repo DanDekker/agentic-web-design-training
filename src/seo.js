@@ -100,6 +100,38 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
   };
 }
 
+function schemaContext(value, inherited) {
+  if (value === null) return false;
+  if (Array.isArray(value)) return value.reduce((current, item) => schemaContext(item, current), inherited);
+  if (typeof value === "string") return /^https?:\/\/schema\.org\/?$/i.test(value);
+  if (value && typeof value === "object" && Object.hasOwn(value, "@vocab")) {
+    return typeof value["@vocab"] === "string" && /^https?:\/\/schema\.org\/?$/i.test(value["@vocab"]);
+  }
+  return inherited;
+}
+
+// This detects common Schema.org contexts and typed nodes without fetching remote
+// contexts or claiming to perform full JSON-LD expansion or rich-result validation.
+function countSchemaTypes(value) {
+  const queue = [{ value, schema: false }];
+  let count = 0;
+  while (queue.length) {
+    const current = queue.pop();
+    if (Array.isArray(current.value)) {
+      for (const item of current.value) queue.push({ value: item, schema: current.schema });
+    } else if (current.value && typeof current.value === "object") {
+      const node = current.value;
+      const schema = Object.hasOwn(node, "@context") ? schemaContext(node["@context"], current.schema) : current.schema;
+      const types = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
+      if (schema && types.some((type) => typeof type === "string" && /^(?:[A-Za-z][A-Za-z0-9]*|schema:[A-Za-z][A-Za-z0-9]*|https?:\/\/schema\.org\/[A-Za-z][A-Za-z0-9]*)$/i.test(type))) count++;
+      for (const [key, child] of Object.entries(node)) {
+        if (key !== "@context" && child && typeof child === "object") queue.push({ value: child, schema });
+      }
+    }
+  }
+  return count;
+}
+
 export function auditHtmlSeoAndStructuredData(html) {
   const source = String(html || "");
   const checks = [];
@@ -142,31 +174,30 @@ export function auditHtmlSeoAndStructuredData(html) {
     detail: `title=${hasTitle}, description=${hasDescription}, canonical=${canonicalHref ?? "omitted"}, og:title=${hasOgTitle}`,
   });
 
-  // 4. Schema.org JSON-LD validity, either a graph or one typed entity.
+  // 4. JSON syntax and common Schema.org context/type detection.
   const jsonLdBlocks = [];
   const ldRegex = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   let ldMatch;
-  let jsonLdValid = false;
+  let totalBlocks = 0;
+  let invalidBlocks = 0;
   let entityCount = 0;
 
   while ((ldMatch = ldRegex.exec(source)) !== null) {
+    totalBlocks++;
     try {
       const parsed = JSON.parse(ldMatch[1].trim());
       jsonLdBlocks.push(parsed);
-      const nodes = Array.isArray(parsed["@graph"]) ? parsed["@graph"] : [parsed];
-      if (parsed["@context"] === "https://schema.org" && nodes.length > 0 && nodes.every((node) => Boolean(node["@type"]))) {
-        jsonLdValid = true;
-        entityCount += nodes.length;
-      }
+      if (!parsed || typeof parsed !== "object") invalidBlocks++;
+      else entityCount += countSchemaTypes(parsed);
     } catch {
-      jsonLdValid = false;
+      invalidBlocks++;
     }
   }
 
   checks.push({
     id: "schema_org_json_ld",
-    passed: jsonLdValid && entityCount > 0,
-    detail: `blocks=${jsonLdBlocks.length}, entities=${entityCount}`,
+    passed: totalBlocks > 0 && invalidBlocks === 0 && entityCount > 0,
+    detail: `blocks=${totalBlocks}, invalid=${invalidBlocks}, schemaTypes=${entityCount}`,
   });
 
   const passedCount = checks.filter((c) => c.passed).length;
