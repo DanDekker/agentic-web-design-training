@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 214 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 215 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -85,6 +85,8 @@ import nativeFormStarter from "../exercises/html/native_form_submitter/starter.t
 import nativeFormSolution from "../exercises/html/native_form_submitter/solution.ts" with { type: "text" };
 import namedDetailsStarter from "../exercises/html/named_details_group/starter.ts" with { type: "text" };
 import namedDetailsSolution from "../exercises/html/named_details_group/solution.ts" with { type: "text" };
+import bidiSupportStarter from "../exercises/html/bidi_directionality_support_form/starter.ts" with { type: "text" };
+import bidiSupportSolution from "../exercises/html/bidi_directionality_support_form/solution.ts" with { type: "text" };
 import prioritizedWorkStarter from "../exercises/platform/scheduling/chunked_priority_work/starter.ts" with { type: "text" };
 import prioritizedWorkSolution from "../exercises/platform/scheduling/chunked_priority_work/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
@@ -6431,6 +6433,22 @@ export function renderModernInteractiveShell(spec: InteractiveShellSpec): string
       "Renders repeated native <details name> elements whose first child is a semantic <summary>",
       "Namespaces the exclusive group per component and rejects duplicate IDs or conflicting initial open states",
       "Escapes user text and leaves mutual exclusion to the browser without scripted toggle handlers",
+    ],
+  },
+  {
+    id: "task_html_bidi_safe_support_form",
+    title: "Preserve User Direction in a Bilingual Claims Intake Form",
+    category: "html-architecture",
+    difficulty: "advanced",
+    tags: ["html", "css", "internationalization", "bidirectional-text", "dirname", "forms", "accessibility"],
+    instructions:
+      "An insurance claims portal accepts names, case references, and long incident notes in Arabic, Hebrew, and English. Its LTR-only form displays punctuation in the wrong place, and a script guesses direction by scanning characters, adds hidden direction fields, and injects Unicode bidi controls. Build a server-rendered form plus scoped CSS: accept a whitelisted interface direction from the locale, mark genuinely unknown free-text controls with dir=\"auto\" and their own dirname attributes so native form submission includes directionality, and wrap mixed-direction reference text in <bdi dir=\"auto\">. Escape all user text, use logical sizing/spacing, and use :dir(rtl) only for the directional arrow; its match follows HTML directionality rather than a CSS direction declaration alone. Do not recreate dirname as hidden inputs or maintain direction with JavaScript. HTML's auto-direction heuristic is deliberately simple, so use it for truly unknown text rather than replacing known locale direction.",
+    starterCode: bidiSupportStarter.trimEnd(),
+    solutionCode: bidiSupportSolution.trimEnd(),
+    criteria: [
+      "Keeps the interface direction on an ltr/rtl whitelist and gives unknown text controls dir=\"auto\" plus unique dirname submission fields",
+      "Isolates mixed-direction reference text with <bdi dir=\"auto\"> and escapes untrusted content in both attributes and text nodes",
+      "Uses logical CSS, container-aware layout, and :dir(rtl) for directional decoration while leaving native form serialization intact",
     ],
   },
   {
