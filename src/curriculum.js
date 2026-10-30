@@ -6731,21 +6731,21 @@ export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: s
 
   const renderedFields = fields.map((field) => {
     const issue = issues.find((candidate) => candidate.field === field.name);
-    const hintId = `${field.id}-hint`;
-    const errorId = `${field.id}-error`;
-    const describedBy = issue ? `${hintId} ${errorId}` : hintId;
+    const hintId = \`\${field.id}-hint\`;
+    const errorId = \`\${field.id}-error\`;
+    const describedBy = issue ? \`\${hintId} \${errorId}\` : hintId;
     const invalid = issue ? ' aria-invalid="true"' : "";
     const errorMarkup = issue
-      ? `<p class="patient-intake__error" id="${errorId}">${escapePatientText(issue.message)}</p>`
+      ? \`<p class="patient-intake__error" id="\${errorId}">\${escapePatientText(issue.message)}</p>\`
       : "";
 
     return [
-      `<div class="patient-intake__field">`,
-      `  <label for="${field.id}">${field.label}</label>`,
-      `  <p class="patient-intake__hint" id="${hintId}">${field.hint}</p>`,
-      `  <input class="patient-intake__control" id="${field.id}" name="${field.name}" type="${field.type}" autocomplete="${field.autocomplete}" required aria-describedby="${describedBy}"${invalid}>`,
-      `  ${errorMarkup}`,
-      `</div>`,
+      \`<div class="patient-intake__field">\`,
+      \`  <label for="\${field.id}">\${field.label}</label>\`,
+      \`  <p class="patient-intake__hint" id="\${hintId}">\${field.hint}</p>\`,
+      \`  <input class="patient-intake__control" id="\${field.id}" name="\${field.name}" type="\${field.type}" autocomplete="\${field.autocomplete}" required aria-describedby="\${describedBy}"\${invalid}>\`,
+      \`  \${errorMarkup}\`,
+      \`</div>\`,
     ].join("\\n");
   });
 
@@ -6758,7 +6758,7 @@ export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: s
         '  <h2 id="patient-intake-error-title">Review these details</h2>',
         "  <ul>",
         ...summaryFields.map(({ field, issue }) =>
-          `    <li><a href="#${field.id}">${field.label}: ${escapePatientText(issue!.message)}</a></li>`,
+          \`    <li><a href="#\${field.id}">\${field.label}: \${escapePatientText(issue!.message)}</a></li>\`,
         ),
         "  </ul>",
         "</section>",
@@ -6769,16 +6769,16 @@ export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: s
     '<form class="patient-intake" action="/appointments/check-in" method="post">',
     '  <fieldset class="patient-intake__group">',
     "    <legend>Patient details</legend>",
-    `    ${errorSummary}`,
+    \`    \${errorSummary}\`,
     '    <div class="patient-intake__fields">',
-    ...renderedFields.map((markup) => `      ${markup}`),
+    ...renderedFields.map((markup) => \`      \${markup}\`),
     "    </div>",
     '    <button class="patient-intake__submit" type="submit">Continue check-in</button>',
     "  </fieldset>",
     "</form>",
   ].join("\\n");
 
-  const css = `
+  const css = \`
 .patient-intake {
   container: patient-intake / inline-size;
   min-inline-size: 0;
@@ -6866,7 +6866,7 @@ export function renderPatientIntakeForm(spec: PatientIntakeSpec = {}): { html: s
     border-inline-start-color: Highlight;
     border-inline-start-style: double;
   }
-}`;
+}\`;
 
   return { html, css };
 }`,
@@ -6924,7 +6924,7 @@ export function renderStatusCardSSR(props: StatusCardProps): {
   const severityLabel = severity === "critical" ? "Action required" : severity === "warning" ? "Attention" : "Information";
   const severityMark = severity === "info" ? "i" : severity === "warning" ? "!" : "×";
 
-  const shadowCss = `
+  const shadowCss = \`
 :host {
   display: block;
   color: var(--gw-status-ink, CanvasText);
@@ -7017,9 +7017,9 @@ slot[name="badge"]::slotted([slot="badge"]) {
   .status-card__action:focus-visible {
     outline-color: Highlight;
   }
-}`;
+}\`;
 
-  const consumerCss = `
+  const consumerCss = \`
 gauntlet-web-status-card {
   --gw-status-ink: CanvasText;
   --gw-status-surface: Canvas;
@@ -7043,26 +7043,26 @@ gauntlet-web-status-card::part(action) {
     border-color: CanvasText;
     box-shadow: none;
   }
-}`;
+}\`;
 
   const html = [
-    `<gauntlet-web-status-card id="${id}" data-severity="${severity}" density="${density}">`,
+    \`<gauntlet-web-status-card id="\${id}" data-severity="\${severity}" density="\${density}">\`,
     '  <template shadowrootmode="open" shadowrootdelegatesfocus>',
-    `    <style>${shadowCss}</style>`,
-    `    <article class="status-card" part="surface" role="status" aria-labelledby="${id}-heading" aria-describedby="${id}-description">`,
-    `      <span class="status-card__icon" part="severity" aria-hidden="true">${severityMark}</span>`,
+    \`    <style>\${shadowCss}</style>\`,
+    \`    <article class="status-card" part="surface" role="status" aria-labelledby="\${id}-heading" aria-describedby="\${id}-description">\`,
+    \`      <span class="status-card__icon" part="severity" aria-hidden="true">\${severityMark}</span>\`,
     '      <div class="status-card__body">',
-    `        <span part="badge"><slot name="badge"><span>Service update</span></slot></span>`,
-    `        <h2 class="status-card__heading" part="heading" id="${id}-heading"><slot name="heading">Service status</slot></h2>`,
-    `        <p class="status-card__description" part="description" id="${id}-description"><slot>${escapeStatusText(props.message)}</slot></p>`,
-    `        <p><slot name="severity"><span>${severityLabel}</span></slot></p>`,
-    `        <button class="status-card__action" part="action" type="button"><slot name="actions">${escapeStatusText(props.actionLabel)}</slot></button>`,
+    \`        <span part="badge"><slot name="badge"><span>Service update</span></slot></span>\`,
+    \`        <h2 class="status-card__heading" part="heading" id="\${id}-heading"><slot name="heading">Service status</slot></h2>\`,
+    \`        <p class="status-card__description" part="description" id="\${id}-description"><slot>\${escapeStatusText(props.message)}</slot></p>\`,
+    \`        <p><slot name="severity"><span>\${severityLabel}</span></slot></p>\`,
+    \`        <button class="status-card__action" part="action" type="button"><slot name="actions">\${escapeStatusText(props.actionLabel)}</slot></button>\`,
     "      </div>",
     "    </article>",
     "  </template>",
-    `  <span slot="badge">${escapeStatusText(props.badge)}</span>`,
-    `  <span slot="heading">${escapeStatusText(props.heading)}</span>`,
-    `  <span slot="severity">${severityLabel}</span>`,
+    \`  <span slot="badge">\${escapeStatusText(props.badge)}</span>\`,
+    \`  <span slot="heading">\${escapeStatusText(props.heading)}</span>\`,
+    \`  <span slot="severity">\${severityLabel}</span>\`,
     "</gauntlet-web-status-card>",
   ].join("\\n");
 
