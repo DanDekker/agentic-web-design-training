@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 205 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 206 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -3810,6 +3810,65 @@ window.addEventListener("scroll", () => {
       "Drives progress and viewport entry animations off the main thread using animation-timeline: scroll() and view() with animation-range",
       "Configures View Transition pseudo-elements (::view-transition-old / ::view-transition-new) and view-transition-name",
       "Honors @media (prefers-reduced-motion: reduce) by disabling motion animations for vestibular accessibility",
+    ],
+  },
+  {
+    id: "task_css_timeline_scope_component_isolation",
+    title: "Scope Named Scroll Timelines Inside Repeated Media Components",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "scroll-driven-animations", "timeline-scope", "web-components", "progressive-enhancement"],
+    instructions:
+      "An editorial page renders many reusable media cards. Each card has its own nested transcript scroller and a progress marker beside it. Every transcript defines the same named view timeline, so a marker can accidentally bind to a different card's timeline elsewhere in the flat tree. Scope the dashed timeline name on each component root with timeline-scope, define the named view timeline on the transcript, and bind only its sibling marker to that timeline. Keep layout and transcript reading usable without the draft feature; the animated marker is an enhancement, not the only progress information. Respect reduced-motion preferences.",
+    starterCode: `/* Each transcript needs to drive its own sibling progress marker. */
+.media-card__transcript {
+  max-block-size: 24rem;
+  overflow: auto;
+}
+
+.media-card__progress-fill {
+  inline-size: 100%;
+  transform: scaleX(0);
+}`,
+    solutionCode: `/* Repeated component roots isolate same-named descendant timelines. */
+.media-card {
+  timeline-scope: --transcript-progress;
+}
+
+.media-card__transcript {
+  max-block-size: 24rem;
+  overflow: auto;
+  view-timeline-name: --transcript-progress;
+  view-timeline-axis: block;
+}
+
+.media-card__progress-fill {
+  inline-size: 100%;
+  block-size: 0.25rem;
+  transform: scaleX(0);
+  transform-origin: inline-start;
+}
+
+@keyframes transcript-progress {
+  to { transform: scaleX(1); }
+}
+
+@supports (timeline-scope: --transcript-progress) and (animation-timeline: --transcript-progress) {
+  .media-card__progress-fill {
+    animation: transcript-progress linear both;
+    animation-timeline: --transcript-progress;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-card__progress-fill {
+    animation: none;
+  }
+}`,
+    criteria: [
+      "Scopes a dashed timeline name on each repeated component root and defines the same named view timeline on its nested scroller",
+      "Binds the sibling progress marker to the named timeline only inside a feature query, avoiding cross-component name collisions",
+      "Keeps transcript layout available without the draft feature and removes progress animation for reduced-motion users",
     ],
   },
   {
