@@ -111,6 +111,46 @@ describe("Client dialogs and keyboard navigation", () => {
 });
 
 describe("Refactor inspector", () => {
+  test("code tabs expose their panels and support keyboard navigation", async () => {
+    const app = await createClient({ snapshot: { tasks: [challenge("tabs")] } });
+    await app.click(app.get("list").querySelector(".refactor-inspect-btn"));
+    const starter = app.get("code-tab-starter");
+    const solution = app.get("code-tab-solution");
+    const verify = app.get("code-tab-verify");
+    expect(starter.getAttribute("aria-controls")).toBe("tab-starter");
+    expect(starter.getAttribute("aria-selected")).toBe("true");
+    expect(app.get("tab-solution").hidden).toBe(true);
+    starter.focus();
+    expect((await app.key("ArrowRight", {}, starter)).defaultPrevented).toBe(true);
+    expect(app.document.activeElement).toBe(solution);
+    expect(solution.getAttribute("aria-selected")).toBe("true");
+    expect(solution.getAttribute("tabindex")).toBe("0");
+    expect(starter.getAttribute("tabindex")).toBe("-1");
+    expect(app.get("tab-starter").hidden).toBe(true);
+    expect(app.get("tab-solution").hidden).toBe(false);
+    await app.key("End", {}, solution);
+    expect(app.document.activeElement).toBe(verify);
+    expect(app.get("tab-verify").hidden).toBe(false);
+    expect(app.get("refactor-submit-code").getAttribute("aria-label")).toBe("Your solution");
+    await app.key("ArrowRight", {}, verify);
+    expect(app.document.activeElement).toBe(starter);
+  });
+
+  test("announces verification results without relying on color", async () => {
+    const app = await createClient({
+      snapshot: { tasks: [challenge("checks")] },
+      route: ({ path }) => path === "/api/curriculum/evaluate" ? json({
+        passed: false, score: 50, telemetry: { durationMs: 1, assertions: { passed: 1, total: 2 } },
+        diff: { lineDelta: 0 }, assertionResults: [],
+      }) : undefined,
+    });
+    await app.click(app.get("list").querySelector(".refactor-inspect-btn"));
+    await app.click("code-tab-verify");
+    await app.click("btn-run-verify");
+    expect(app.get("verify-result").hidden).toBe(false);
+    expect(app.get("verify-announcement").textContent).toBe("Checks incomplete: 1 of 2 assertions passed.");
+  });
+
   test("the visible diff tracks edits, loading a solution, and deleting all code", async () => {
     const task = challenge("challenge-one");
     const app = await createClient({ snapshot: { tasks: [task] } });

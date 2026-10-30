@@ -1046,12 +1046,8 @@
     }
   }
 
-  .tab-pane {
+  .tab-pane[hidden] {
     display: none;
-
-    &.active {
-      display: block;
-    }
   }
 
   pre {

@@ -47,6 +47,7 @@ const el = {
   btnRunVerify: document.querySelector("#btn-run-verify"),
   btnLoadSolution: document.querySelector("#btn-load-solution"),
   verifyResult: document.querySelector("#verify-result"),
+  verifyAnnouncement: document.querySelector("#verify-announcement"),
 
   // Auth modal
   authModal: document.querySelector("#auth-modal"),
@@ -663,6 +664,7 @@ function openRefactorModal(task) {
   if (el.codeSolution) el.codeSolution.textContent = data.solutionCode || "";
   if (el.refactorSubmitCode) el.refactorSubmitCode.value = data.starterCode || "";
   if (el.verifyResult) el.verifyResult.hidden = true;
+  if (el.verifyAnnouncement) el.verifyAnnouncement.textContent = "";
   if (el.btnRunVerify) el.btnRunVerify.disabled = false;
 
   switchRefactorTab("starter");
@@ -681,9 +683,22 @@ function resetRefactorModal() {
   if (el.btnRunVerify) el.btnRunVerify.disabled = false;
 }
 
-function switchRefactorTab(tabName) {
-  document.querySelectorAll(".code-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tabName));
-  document.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabName}`));
+function switchRefactorTab(tabName, { focus = false } = {}) {
+  const tabs = Array.from(document.querySelectorAll(".code-tab"));
+  const selected = tabs.find((tab) => tab.dataset.tab === tabName);
+  if (!selected) return;
+  for (const tab of tabs) {
+    const active = tab === selected;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.setAttribute("tabindex", active ? "0" : "-1");
+  }
+  document.querySelectorAll(".tab-pane").forEach((pane) => {
+    const active = pane.id === `tab-${tabName}`;
+    pane.classList.toggle("active", active);
+    pane.hidden = !active;
+  });
+  if (focus) selected.focus();
 
   if (tabName === "diff" && state.currentRefactorTask) {
     renderDiff();
@@ -709,12 +724,16 @@ async function runRefactorVerification() {
   const run = ++verificationRun;
   const code = el.refactorSubmitCode.value;
   if (el.btnRunVerify) el.btnRunVerify.disabled = true;
+  if (el.verifyAnnouncement) el.verifyAnnouncement.textContent = "Running checks.";
   try {
     const result = await api("POST", "/api/curriculum/evaluate", {
       taskId: task.id,
       code,
     });
     if (run !== verificationRun || !el.refactorModal?.open) return;
+    if (el.verifyAnnouncement) {
+      el.verifyAnnouncement.textContent = `${result.passed ? "Checks passed" : "Checks incomplete"}: ${result.telemetry.assertions.passed} of ${result.telemetry.assertions.total} assertions passed.`;
+    }
 
     if (el.verifyResult) {
       el.verifyResult.hidden = false;
@@ -763,7 +782,10 @@ async function runRefactorVerification() {
       if (await toggleTask(currentTask)) toast("Challenge verified and marked complete!");
     }
   } catch (err) {
-    if (run === verificationRun) toast(err.message);
+    if (run === verificationRun) {
+      if (el.verifyAnnouncement) el.verifyAnnouncement.textContent = `Checks failed: ${err.message}`;
+      toast(err.message);
+    }
   } finally {
     if (run === verificationRun && el.btnRunVerify) el.btnRunVerify.disabled = false;
   }
@@ -1610,8 +1632,20 @@ el.btnCloseRefactor?.addEventListener("click", closeRefactorModal);
 el.refactorModal?.addEventListener("close", () => {
   if (!el.refactorModal.open) resetRefactorModal();
 });
-document.querySelectorAll(".code-tab").forEach((btn) => {
+const codeTabs = Array.from(document.querySelectorAll(".code-tab"));
+codeTabs.forEach((btn, index) => {
   btn.addEventListener("click", () => switchRefactorTab(btn.dataset.tab));
+  btn.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+    let next;
+    if (event.key === "ArrowRight") next = (index + 1) % codeTabs.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + codeTabs.length) % codeTabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = codeTabs.length - 1;
+    else return;
+    event.preventDefault();
+    switchRefactorTab(codeTabs[next].dataset.tab, { focus: true });
+  });
 });
 el.btnRunVerify?.addEventListener("click", runRefactorVerification);
 el.refactorSubmitCode?.addEventListener("input", renderDiff);

@@ -283,33 +283,34 @@
             <ul id="refactor-criteria-list" class="criteria-list"></ul>
           </div>
 
-          <div class="code-tabs">
-            <button type="button" class="code-tab active" data-tab="starter">Legacy Starter Code</button>
-            <button type="button" class="code-tab" data-tab="solution">Target Idiomatic Solution</button>
-            <button type="button" class="code-tab" data-tab="diff">Live Code Diff</button>
-            <button type="button" class="code-tab" data-tab="verify">Agent Verification & Telemetry</button>
+          <div class="code-tabs" role="tablist" aria-label="Exercise code and checks">
+            <button type="button" class="code-tab active" id="code-tab-starter" role="tab" aria-selected="true" aria-controls="tab-starter" tabindex="0" data-tab="starter">Starter</button>
+            <button type="button" class="code-tab" id="code-tab-solution" role="tab" aria-selected="false" aria-controls="tab-solution" tabindex="-1" data-tab="solution">Solution</button>
+            <button type="button" class="code-tab" id="code-tab-diff" role="tab" aria-selected="false" aria-controls="tab-diff" tabindex="-1" data-tab="diff">Diff</button>
+            <button type="button" class="code-tab" id="code-tab-verify" role="tab" aria-selected="false" aria-controls="tab-verify" tabindex="-1" data-tab="verify">Run checks</button>
           </div>
 
-          <div id="tab-starter" class="tab-pane active">
+          <div id="tab-starter" class="tab-pane active" role="tabpanel" aria-labelledby="code-tab-starter" tabindex="0">
             <pre><code id="code-starter"></code></pre>
           </div>
 
-          <div id="tab-solution" class="tab-pane">
+          <div id="tab-solution" class="tab-pane" role="tabpanel" aria-labelledby="code-tab-solution" tabindex="0" hidden>
             <pre><code id="code-solution"></code></pre>
           </div>
 
-          <div id="tab-diff" class="tab-pane">
+          <div id="tab-diff" class="tab-pane" role="tabpanel" aria-labelledby="code-tab-diff" tabindex="0" hidden>
             <!-- Web Component: Shadow DOM Diff Viewer -->
             <gauntlet-web-diff-viewer id="gauntlet-web-diff-component"></gauntlet-web-diff-viewer>
           </div>
 
-          <div id="tab-verify" class="tab-pane">
-            <p class="verify-intro">Submit refactored JavaScript code to run automated agentic evaluator tests:</p>
-            <textarea id="refactor-submit-code" rows="7" placeholder="// Paste or type your refactored code here..."></textarea>
+          <div id="tab-verify" class="tab-pane" role="tabpanel" aria-labelledby="code-tab-verify" tabindex="0" hidden>
+            <p class="verify-intro" id="verify-intro">Submit your solution to run the exercise checks.</p>
+            <textarea id="refactor-submit-code" rows="7" aria-label="Your solution" aria-describedby="verify-intro" placeholder="Paste or type your solution here..."></textarea>
             <div style="display:flex;gap:0.75rem;margin-top:0.75rem;">
-              <button type="button" class="btn-primary" id="btn-run-verify">Run Refactor Tests</button>
+              <button type="button" class="btn-primary" id="btn-run-verify">Run checks</button>
               <button type="button" class="btn-secondary" id="btn-load-solution">Load Solution</button>
             </div>
+            <p id="verify-announcement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
             <div id="verify-result" class="verify-feedback" hidden></div>
           </div>
         </div>
