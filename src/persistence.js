@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 /** Read a JSON store, preserving malformed bytes before allowing a fresh store. */
 export async function readJsonStore(file, label) {
@@ -27,7 +27,7 @@ export async function readJsonStore(file, label) {
 /** Replace a JSON file atomically, removing the temporary file after a failed write. */
 export async function writeJsonFile(file, contents) {
   await mkdir(dirname(file), { recursive: true });
-  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  const temporary = join(dirname(file), `.gauntlet-${process.pid}-${randomUUID()}.tmp`);
   try {
     await writeFile(temporary, contents, { encoding: "utf8", mode: 0o600, flag: "wx" });
     await rename(temporary, file);
