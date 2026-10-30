@@ -374,6 +374,79 @@ describe("Live state and rendering", () => {
     expect(app.get("list").querySelector(".task-title").textContent).toBe("Saved after refresh");
   });
 
+  test("failed inline edits remain available for retry without losing focus", async () => {
+    let finish;
+    let attempts = 0;
+    const app = await createClient({ route: ({ method, path }) => {
+      if (method === "PATCH" && path === "/api/tasks/task-one" && ++attempts === 1) {
+        return new Promise((resolve) => { finish = resolve; });
+      }
+    } });
+    await app.key("j");
+    await app.key("Enter");
+    const editor = app.get("list").querySelector(".task-edit");
+    editor.value = "Keep my edited title";
+    await app.key("Enter", {}, editor);
+    expect(editor.readOnly).toBe(true);
+    expect(editor.value).toBe("Keep my edited title");
+    finish(json({ error: "Disk unavailable" }, 503));
+    await settle();
+    expect(app.get("list").querySelector(".task-edit")).toBe(editor);
+    expect(app.document.activeElement).toBe(editor);
+    expect(editor.readOnly).toBe(false);
+    expect(editor.value).toBe("Keep my edited title");
+    expect(app.get("toast").textContent).toContain("Your draft is available to retry");
+    await app.key("Enter", {}, editor);
+    expect(attempts).toBe(2);
+    expect(app.get("list").querySelector(".task-title").textContent).toBe("Keep my edited title");
+  });
+
+  test("a failed edit can be resumed after switching boards during a save", async () => {
+    let finish;
+    let attempts = 0;
+    const app = await createClient({ route: ({ method, path }) => {
+      if (method === "PATCH" && path === "/api/tasks/task-one" && ++attempts === 1) {
+        return new Promise((resolve) => { finish = resolve; });
+      }
+    } });
+    await app.key("j");
+    await app.key("Enter");
+    const editor = app.get("list").querySelector(".task-edit");
+    editor.value = "Draft across boards";
+    const saving = editor.emit("blur");
+    await settle();
+    await app.click(app.get("board-tabs").children[1]);
+    finish(json({ error: "Save failed" }, 503));
+    await saving;
+    await app.click(app.get("board-tabs").children[0]);
+    const resume = app.get("list").querySelector(".task-draft-btn");
+    expect(resume.textContent).toContain("Unsaved edit");
+    await app.click(resume);
+    const restored = app.get("list").querySelector(".task-edit");
+    expect(restored.value).toBe("Draft across boards");
+    await app.key("Enter", {}, restored);
+    expect(app.get("list").querySelector(".task-title").textContent).toBe("Draft across boards");
+    expect(app.get("list").querySelector(".task-draft-btn")).toBeNull();
+  });
+
+  test("a late edit response cannot recreate a task deleted by another client", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "PATCH" && path === "/api/tasks/task-one"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    await app.key("j");
+    await app.key("Enter");
+    const editor = app.get("list").querySelector(".task-edit");
+    editor.value = "Saved elsewhere";
+    await app.key("Enter", {}, editor);
+    app.snapshot.tasks = [];
+    await app.refresh();
+    finish(json({ id: "task-one", boardId: "board_today", title: "Saved elsewhere", done: false }));
+    await settle();
+    expect(app.get("list").children).toHaveLength(0);
+  });
+
   test("a create response arriving after SSE does not duplicate a task", async () => {
     let finish;
     const pending = new Promise((resolve) => { finish = resolve; });

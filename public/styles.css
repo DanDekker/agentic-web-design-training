@@ -688,7 +688,8 @@
     border-radius: 4px;
   }
 
-  .refactor-inspect-btn {
+  .refactor-inspect-btn,
+  .task-draft-btn {
     appearance: none;
     display: inline-flex;
     align-items: center;

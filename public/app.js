@@ -159,6 +159,9 @@ const state = {
   authMode: "login", // 'login' | 'register'
 };
 
+// Drafts survive a failed save or a view change until explicitly saved or canceled.
+const editDrafts = new Map();
+
 const CHECKS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.6l4.4 4.4L19 7.4"/></svg>`;
 const CROSS = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
 
@@ -304,7 +307,7 @@ function renderBoardsNav() {
 
 function focusedTaskControl() {
   const rows = Array.from(el.list?.children || []);
-  const selectors = [".check", ".remove", ".refactor-inspect-btn", ".task-edit"];
+  const selectors = [".check", ".remove", ".refactor-inspect-btn", ".task-draft-btn", ".task-edit"];
   for (const [index, row] of rows.entries()) {
     const selector = selectors.find((candidate) => row.querySelector(candidate) === document.activeElement);
     if (selector) return { id: row.dataset.id, index, selector };
@@ -399,6 +402,24 @@ function row(task, index) {
   const meta = document.createElement("div");
   meta.className = "task-meta";
 
+  const draft = editDrafts.get(task.id);
+  if (draft && state.editing !== task.id) {
+    if (draft.status === "saving") {
+      const status = document.createElement("span");
+      status.className = "tag-pill";
+      status.textContent = "Saving edit…";
+      meta.append(status);
+    } else {
+      const resume = document.createElement("button");
+      resume.type = "button";
+      resume.className = "task-draft-btn";
+      resume.textContent = "Unsaved edit — resume";
+      resume.setAttribute("aria-label", `Resume unsaved edit for “${task.title}”`);
+      resume.addEventListener("click", () => startEdit(task));
+      meta.append(resume);
+    }
+  }
+
   if (task.priority > 0) {
     const dot = document.createElement("span");
     dot.className = `priority-dot p${task.priority}`;
@@ -472,26 +493,49 @@ function row(task, index) {
 }
 
 function editField(task) {
+  const draft = editDrafts.get(task.id);
   const input = document.createElement("input");
   input.className = "task-edit";
-  input.value = task.title;
+  input.value = draft.value;
   input.maxLength = 300;
   input.setAttribute("aria-label", "Edit task");
+  input.addEventListener("input", () => { draft.value = input.value; });
 
   let settled = false;
   const commit = async () => {
     if (settled || state.editing !== task.id) return;
     settled = true;
+    draft.value = input.value;
     const next = input.value.replace(/\s+/g, " ").trim();
     state.editing = null;
 
-    if (!next || next === task.title) return render();
-    try {
-      upsert(state.tasks, await api("PATCH", `/api/tasks/${task.id}`, { title: next }));
-    } catch (err) {
-      toast(err.message);
+    if (!next || next === task.title) {
+      editDrafts.delete(task.id);
+      return render();
     }
-    render();
+    draft.status = "saving";
+    input.readOnly = true;
+    try {
+      const saved = await api("PATCH", `/api/tasks/${task.id}`, { title: next });
+      const current = state.tasks.find((item) => item.id === task.id);
+      if (current) Object.assign(current, saved);
+      editDrafts.delete(task.id);
+    } catch (err) {
+      draft.status = "unsaved";
+      toast(`Could not save edit: ${err.message}. Your draft is available to retry.`);
+      if (!state.editing && input.isConnected && document.activeElement === input) {
+        state.editing = task.id;
+        input.readOnly = false;
+        settled = false;
+        return;
+      }
+    }
+    if (state.editing) {
+      renderBoardsNav();
+      renderUserPill();
+    } else {
+      render();
+    }
   };
 
   input.addEventListener("keydown", (event) => {
@@ -500,16 +544,20 @@ function editField(task) {
       commit();
     } else if (event.key === "Escape") {
       event.preventDefault();
+      if (draft.status === "saving") return;
       settled = true;
       state.editing = null;
+      editDrafts.delete(task.id);
       render();
     }
   });
   input.addEventListener("blur", commit);
 
   queueMicrotask(() => {
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
+    if (state.editing === task.id && input.isConnected && !dialogs.some((dialog) => dialog.open)) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }
   });
 
   return input;
@@ -584,8 +632,24 @@ async function deleteTask(task) {
 }
 
 function startEdit(task) {
+  if (editDrafts.get(task.id)?.status === "saving") return toast("This edit is still being saved.");
+  stashEditingDraft();
+  const draft = editDrafts.get(task.id) || { value: task.title, status: "unsaved" };
+  editDrafts.set(task.id, draft);
   state.editing = task.id;
   render();
+}
+
+function stashEditingDraft() {
+  if (!state.editing) return;
+  const id = state.editing;
+  const draft = editDrafts.get(id);
+  const input = taskControl(id, ".task-edit");
+  if (draft && input) draft.value = input.value;
+  const task = state.tasks.find((item) => item.id === id);
+  if (draft && task && draft.value.replace(/\s+/g, " ").trim() !== task.title) draft.status = "unsaved";
+  else editDrafts.delete(id);
+  state.editing = null;
 }
 
 async function moveBefore(draggedId, targetId) {
@@ -626,16 +690,16 @@ async function clearCompleted() {
 }
 
 function setFilter(filter) {
+  stashEditingDraft();
   state.filter = filter;
   state.cursor = -1;
-  state.editing = null;
   render();
 }
 
 function switchBoard(boardId) {
+  stashEditingDraft();
   state.activeBoardId = boardId;
   state.cursor = -1;
-  state.editing = null;
   render();
 }
 
