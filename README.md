@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **130 exercises in 35 categories and 14 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **139 exercises in 38 categories and 17 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -107,7 +107,7 @@ The repository currently includes **130 exercises in 35 categories and 14 tracks
 | Web platform | HTML, structured data, cookies, storage, HTTP traffic |
 | UI engineering | Design tokens, interaction patterns, web components |
 | Developer tooling | TypeScript frameworks, migrations, package management |
-| Browser platform | Web Workers, shared memory, streams, WebGPU compute |
+| Browser platform | Web Workers, streams, WebGPU compute, WebTransport, WebAssembly, WebNN |
 | Real-time media | WebRTC signaling and data channels, WebCodecs encoding and decoding |
 | Agentic web | WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols |
 
@@ -144,6 +144,15 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | WebCodecs | [Bound the encoder queue and release every frame](exercises/platform/webcodecs/bounded_encode_queue/starter.js) |
 | WebCodecs | [Map source-clock timestamps to monotonic microseconds](exercises/platform/webcodecs/timestamp_mapper/starter.js) |
 | WebCodecs | [Flush before changing decoder configuration](exercises/platform/webcodecs/decoder_config_router/starter.js) |
+| WebTransport | [Bound datagrams by expiry, size and backpressure](exercises/platform/webtransport/datagram_sender/starter.js) |
+| WebTransport | [Reassemble length-prefixed stream messages](exercises/platform/webtransport/framed_stream/starter.js) |
+| WebTransport | [Reject duplicate and stale datagrams across sequence wrap](exercises/platform/webtransport/datagram_replay_window/starter.js) |
+| WebAssembly | [Refresh memory views after growth and validate pointers](exercises/platform/webassembly/memory_view/starter.js) |
+| WebAssembly Component Model | [Enforce owned and borrowed resource lifetimes](exercises/platform/webassembly/component_resources/starter.js) |
+| WebAssembly JSPI proposal | [Bridge promises across experimental boundaries](exercises/platform/webassembly/jspi_bindings/starter.js) |
+| WebNN | [Run a graph with permissioned tensors and cleanup](exercises/platform/webnn/tensor_inference/starter.js) |
+| WebNN | [Serialize concurrent runs over shared tensors](exercises/platform/webnn/shared_tensor_queue/starter.js) |
+| WebNN | [Recover inference sessions after context loss](exercises/platform/webnn/context_loss_runner/starter.js) |
 
 ### Agentic web exercises
 
