@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 216 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 217 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -136,6 +136,8 @@ import webnnQueueSolution from "../exercises/platform/webnn/shared_tensor_queue/
 import webnnLossStarter from "../exercises/platform/webnn/context_loss_runner/starter.js" with { type: "text" };
 import webnnLossSolution from "../exercises/platform/webnn/context_loss_runner/solution.js" with { type: "text" };
 import { cssIndustryExercises } from "../exercises/css/industry_implementations.js";
+import policySearchStarter from "../exercises/css/custom_highlight_policy_search/starter.ts" with { type: "text" };
+import policySearchSolution from "../exercises/css/custom_highlight_policy_search/solution.ts" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -5208,6 +5210,22 @@ clinic-dose-field::part(control) {
       "Uses logical scroll-padding and scroll-margin so Markdown fragments remain visible below the sticky header",
       "Highlights heading targets and makes the skip link visible on focus-visible",
       "Provides smooth fragment navigation only when motion is allowed and resets it under prefers-reduced-motion",
+    ],
+  },
+  {
+    id: "task_css_custom_highlight_policy_search",
+    title: "Highlight Policy Search Results Without Rewriting the Article DOM",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "custom-highlight-api", "highlight-pseudo-element", "ranges", "policy-search", "accessibility", "progressive-enhancement", "internationalization"],
+    instructions:
+      "An insurance policy portal needs to find every occurrence of a clause across a long article with emphasis, links, and inline citations. The current code replaces innerHTML with <mark> wrappers, which corrupts nested markup and treats search punctuation as regular-expression syntax. Render a semantic <search> control with a polite match-count status; build literal, case-insensitive Unicode matches across inline text nodes, but do not cross paragraph, block, or <br> boundaries. Map offsets back to DOM Range objects, keep range endpoints on grapheme boundaries when Intl.Segmenter is available (and at least on code-point boundaries otherwise), and register a uniquely named Highlight in the owning document's CSS.highlights registry. Style it with ::highlight() using only supported highlight properties and system colors in forced-colors mode. Feature-detect CSS.highlights, the owning realm's Highlight constructor, and selector support; unsupported browsers should still receive a useful match count without changing article markup. Exclude hidden, inert, aria-hidden, editable, form-control, and data-search-exclude content. Cap query length at 256 characters and styled ranges at 500, expose refresh() after the article changes, and remove only this component's registered highlight plus its input listener in dispose(). This Custom Highlight API is an evolving CSSWG feature, so keep the feature gate and the original article as the baseline. The highlight never replaces the need for readable content or the live result count.",
+    starterCode: policySearchStarter.trimEnd(),
+    solutionCode: policySearchSolution.trimEnd(),
+    criteria: [
+      "Uses escaped literal Unicode matching and maps ranges across inline nodes without searching through block boundaries or rewriting HTML",
+      "Feature-detects the Highlight registry, constructor, and selector, then registers one validated component-scoped name with a live match count fallback",
+      "Styles only supported highlight colors, supports forced-colors, respects grapheme boundaries, bounds work, refreshes changed content, and disposes its listener and registry entry",
     ],
   },
 
