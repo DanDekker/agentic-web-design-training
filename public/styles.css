@@ -523,6 +523,12 @@
       &:hover {
         transform: scale(1.04);
       }
+
+      &:disabled {
+        opacity: 0.55;
+        cursor: wait;
+        transform: none;
+      }
       &:active {
         transform: scale(0.94);
       }
