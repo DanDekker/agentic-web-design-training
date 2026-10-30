@@ -1,4 +1,4 @@
-/* guantlet-web — Agentic Curriculum & Monochrome Task Management Suite.
+/* gauntlet-web — Agentic Curriculum & Monochrome Task Management Suite.
    Vanilla JS, zero dependencies, Bun backend. */
 
 const el = {
@@ -614,7 +614,7 @@ function toggleTheme() {
   const next = root.dataset.theme === "dark" ? "light" : "dark";
   root.dataset.theme = next;
   try {
-    localStorage.setItem("guantlet-web.theme", next);
+    localStorage.setItem("gauntlet-web.theme", next);
   } catch {}
 }
 
@@ -690,7 +690,7 @@ function switchRefactorTab(tabName) {
 }
 
 function renderDiff() {
-  const viewer = document.querySelector("#guantlet-web-diff-component");
+  const viewer = document.querySelector("#gauntlet-web-diff-component");
   if (!viewer || !state.currentRefactorTask) return;
 
   const starter = state.currentRefactorTask.refactorData.starterCode || "";
@@ -791,7 +791,7 @@ function setAuthMode(mode) {
   state.authMode = mode;
   el.tabLogin?.classList.toggle("active", mode === "login");
   el.tabRegister?.classList.toggle("active", mode === "register");
-  if (el.authTitle) el.authTitle.textContent = mode === "login" ? "Sign In to guantlet-web" : "Create guantlet-web Account";
+  if (el.authTitle) el.authTitle.textContent = mode === "login" ? "Sign In to gauntlet-web" : "Create gauntlet-web Account";
   if (el.btnAuthSubmit) el.btnAuthSubmit.textContent = mode === "login" ? "Sign In" : "Register Account";
   if (el.authDisplayGroup) el.authDisplayGroup.hidden = mode === "login";
   el.authPassword?.setAttribute("autocomplete", mode === "login" ? "current-password" : "new-password");
@@ -1189,7 +1189,7 @@ async function simulateShopEndToEndFlow() {
 
     // 2. Create customer account & merge guest cart + normalize address book
     const onboarded = await api("POST", "/api/commerce/shop/account", {
-      email: "architect@guantlet-web.test",
+      email: "architect@gauntlet-web.test",
       displayName: "Lead Architect",
       guestCartId: "cart_guest_ui",
       shippingAddress: {
@@ -1272,7 +1272,7 @@ function closeTrafficModal() {
 async function runTrafficCookieAuditUI() {
   try {
     const audit = await api("POST", "/api/traffic/cookies/audit", {
-      name: "__Host-guantlet-web_session",
+      name: "__Host-gauntlet-web_session",
       value: "sess_dbsc_bound_2026",
       path: "/",
       secure: true,
@@ -1280,7 +1280,7 @@ async function runTrafficCookieAuditUI() {
       sameSite: "None",
       partitioned: true,
       maxAgeSec: 99999999,
-      signingSecret: "guantlet-web_keyring_secret_2026",
+      signingSecret: "gauntlet-web_keyring_secret_2026",
       kid: "k_2026_01",
     });
     if (el.trafficStatCookieScore) el.trafficStatCookieScore.textContent = `${audit.score}%`;
@@ -1464,7 +1464,7 @@ function exportJSON() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `guantlet-web-tasks-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `gauntlet-web-tasks-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
   toast("Exported state as JSON.");

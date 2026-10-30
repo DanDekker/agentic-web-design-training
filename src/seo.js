@@ -46,28 +46,28 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
       {
         "@type": "Organization",
         "@id": orgId,
-        name: "guantlet-web Agentic Systems",
+        name: "gauntlet-web Agentic Systems",
         url: cleanOrigin,
       },
       {
         "@type": "WebSite",
         "@id": websiteId,
         url: cleanOrigin,
-        name: `guantlet-web — ${REFACTORING_CURRICULUM_TASKS.length}-Exercise Curriculum & Monochrome Suite`,
+        name: `gauntlet-web — ${REFACTORING_CURRICULUM_TASKS.length}-Exercise Curriculum & Monochrome Suite`,
         publisher: { "@id": orgId },
       },
       {
         "@type": "WebPage",
         "@id": webpageId,
         url: `${cleanOrigin}/`,
-        name: "guantlet-web — Agentic Curriculum & Monochrome Task Suite",
+        name: "gauntlet-web — Agentic Curriculum & Monochrome Task Suite",
         isPartOf: { "@id": websiteId },
         mainEntity: { "@id": appId },
       },
       {
         "@type": "SoftwareApplication",
         "@id": appId,
-        name: `guantlet-web ${REFACTORING_CURRICULUM_TASKS.length}-Exercise Curriculum Suite`,
+        name: `gauntlet-web ${REFACTORING_CURRICULUM_TASKS.length}-Exercise Curriculum Suite`,
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web, macOS, Linux, Windows",
         offers: {

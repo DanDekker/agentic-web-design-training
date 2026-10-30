@@ -100,7 +100,7 @@ export class BenchmarkSuite {
   formatMarkdown(benchmark) {
     const { summary, results } = benchmark;
     const lines = [
-      `# guantlet-web Benchmark Report`,
+      `# gauntlet-web Benchmark Report`,
       ``,
       `*Generated at: ${benchmark.timestamp}*`,
       ``,

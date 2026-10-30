@@ -107,7 +107,7 @@ const benchmarkSuite = new BenchmarkSuite();
         return json(
           { user, token },
           201,
-          { "set-cookie": `guantlet-web_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` },
+          { "set-cookie": `gauntlet-web_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` },
         );
       }
 
@@ -120,7 +120,7 @@ const benchmarkSuite = new BenchmarkSuite();
         return json(
           { user, token },
           200,
-          { "set-cookie": `guantlet-web_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` },
+          { "set-cookie": `gauntlet-web_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800` },
         );
       }
 
@@ -129,14 +129,14 @@ const benchmarkSuite = new BenchmarkSuite();
         let token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
         if (!token) {
           const cookieHeader = req.headers.get("cookie") || "";
-          const match = cookieHeader.match(/(?:^|;\s*)guantlet-web_session=([a-f0-9]+)/);
+          const match = cookieHeader.match(/(?:^|;\s*)gauntlet-web_session=([a-f0-9]+)/);
           if (match) token = match[1];
         }
         if (token) authStore.revokeSession(token);
         return json(
           { ok: true },
           200,
-          { "set-cookie": `guantlet-web_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` },
+          { "set-cookie": `gauntlet-web_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0` },
         );
       }
 
@@ -204,7 +204,7 @@ const benchmarkSuite = new BenchmarkSuite();
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Authorize ${client.name} — guantlet-web OAuth</title>
+  <title>Authorize ${client.name} — gauntlet-web OAuth</title>
   <link rel="stylesheet" href="/styles.css">
   <style>
     body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1.5rem; }
@@ -222,7 +222,7 @@ const benchmarkSuite = new BenchmarkSuite();
   <div class="consent-card">
     <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.5rem;">
       <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M6.2 12.6l3.7 3.7L17.8 8.3" stroke="currentColor" fill="none"/></svg></div>
-      <span style="font-weight:600;letter-spacing:0.1em;text-transform:uppercase;font-size:0.8rem;">guantlet-web OAuth 2.0</span>
+      <span style="font-weight:600;letter-spacing:0.1em;text-transform:uppercase;font-size:0.8rem;">gauntlet-web OAuth 2.0</span>
     </div>
     <h2 style="margin:0 0 0.5rem;font-family:var(--font-display);font-weight:400;font-size:1.8rem;">Authorize Application</h2>
     <p style="color:var(--muted);font-size:0.9rem;margin:0 0 1.2rem;">

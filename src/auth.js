@@ -173,9 +173,9 @@ export class AuthStore {
       }
     }
 
-    // 2. Cookie: guantlet-web_session=<token>
+    // 2. Cookie: gauntlet-web_session=<token>
     const cookieHeader = req.headers.get("cookie") || "";
-    const match = cookieHeader.match(/(?:^|;\s*)guantlet-web_session=([a-f0-9]+)/);
+    const match = cookieHeader.match(/(?:^|;\s*)gauntlet-web_session=([a-f0-9]+)/);
     if (match) {
       const token = match[1];
       const session = this.getSession(token);

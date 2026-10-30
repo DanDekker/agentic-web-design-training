@@ -426,8 +426,8 @@ export class WebShopStore {
     const defaultVariants = [
       {
         sku: "GUANTLET_WEB-KB-OBS-TKL",
-        productId: "prod_guantlet-web_keyboard",
-        title: "guantlet-web Monochrome Mechanical Keyboard (Obsidian · TKL)",
+        productId: "prod_gauntlet-web_keyboard",
+        title: "gauntlet-web Monochrome Mechanical Keyboard (Obsidian · TKL)",
         attributes: { color: "obsidian", layout: "TKL" },
         unitPriceMinor: 18900,
         availableStock: 12,
@@ -436,8 +436,8 @@ export class WebShopStore {
       },
       {
         sku: "GUANTLET_WEB-KB-SLV-FULL",
-        productId: "prod_guantlet-web_keyboard",
-        title: "guantlet-web Monochrome Mechanical Keyboard (Silver · Full)",
+        productId: "prod_gauntlet-web_keyboard",
+        title: "gauntlet-web Monochrome Mechanical Keyboard (Silver · Full)",
         attributes: { color: "silver", layout: "FULL" },
         unitPriceMinor: 19900,
         availableStock: 6,
@@ -446,8 +446,8 @@ export class WebShopStore {
       },
       {
         sku: "GUANTLET_WEB-DOCK-TB5",
-        productId: "prod_guantlet-web_dock",
-        title: "guantlet-web Thunderbolt 5 Workstation Dock",
+        productId: "prod_gauntlet-web_dock",
+        title: "gauntlet-web Thunderbolt 5 Workstation Dock",
         attributes: { finish: "anodized-black", ports: "16-port" },
         unitPriceMinor: 29900,
         availableStock: 8,
@@ -457,7 +457,7 @@ export class WebShopStore {
       {
         sku: "POLAR-PRO-SEAT-1Y",
         productId: "prod_polar_license",
-        title: "guantlet-web Agentic Pro License (Polar.sh MoR · 1 Year)",
+        title: "gauntlet-web Agentic Pro License (Polar.sh MoR · 1 Year)",
         attributes: { tier: "pro", seats: "2-machines" },
         unitPriceMinor: 9900,
         availableStock: 999,

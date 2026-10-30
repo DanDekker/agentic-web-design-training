@@ -15,7 +15,7 @@ let suite;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://guantlet-web.test${path}`, {
+    new Request(`http://gauntlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -23,7 +23,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "guantlet-web-bench-"));
+  dir = await mkdtemp(join(tmpdir(), "gauntlet-web-bench-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -114,7 +114,7 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/markdown");
     const markdown = await res.text();
-    expect(markdown).toContain("# guantlet-web Benchmark Report");
+    expect(markdown).toContain("# gauntlet-web Benchmark Report");
     expect(markdown).toContain("## Category Breakdown");
     expect(markdown).toContain("| Task Title | Category | Difficulty |");
     expect(markdown).toContain("PASSED");

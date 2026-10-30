@@ -13,7 +13,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://guantlet-web.test${path}`, {
+    new Request(`http://gauntlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -21,7 +21,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "guantlet-web-design-"));
+  dir = await mkdtemp(join(tmpdir(), "gauntlet-web-design-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -39,9 +39,9 @@ describe("First-Party Proprietary Design System, W3C DTCG 2025.10 & OKLCH/APCA E
     const data = await res.json();
     expect(data.track).toBe("design-systems-web-components");
     expect(data.categories).toEqual(["proprietary-design-systems", "ui-ux-interaction", "web-components"]);
-    expect(data.designDirections.some((d) => d.id === "guantlet-web-monochrome-editorial")).toBe(true);
+    expect(data.designDirections.some((d) => d.id === "gauntlet-web-monochrome-editorial")).toBe(true);
     expect(data.designDirections.some((d) => d.id === "w3c-dtcg-2025-10")).toBe(true);
-    expect(data.customElementsRegistry.some((c) => c.tag === "guantlet-web-design-swatch")).toBe(true);
+    expect(data.customElementsRegistry.some((c) => c.tag === "gauntlet-web-design-swatch")).toBe(true);
   });
 
   test("compiles W3C DTCG 2025.10 tokens with $type inheritance and rejects circular aliases via POST /api/design/tokens/compile", async () => {

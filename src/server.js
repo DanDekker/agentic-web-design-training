@@ -49,5 +49,5 @@ const server = Bun.serve({
   },
 });
 
-console.log(`guantlet-web  →  http://localhost:${server.port}`);
+console.log(`gauntlet-web  →  http://localhost:${server.port}`);
 console.log(`data  →  ${DATA_FILE}`);

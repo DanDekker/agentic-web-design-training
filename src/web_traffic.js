@@ -83,7 +83,7 @@ export const WEB_COOKIES_DATA_TRAFFIC_CATALOG = Object.freeze({
  * Audits and serializes an RFC 6265bis / CHIPS / DBSC Set-Cookie configuration.
  */
 export function auditAndSerializeWebCookie({
-  name = "__Host-guantlet-web_session",
+  name = "__Host-gauntlet-web_session",
   value = "sess_live_token",
   path = "/",
   domain = "",
@@ -195,7 +195,7 @@ export function simulateHttpTrafficPipeline({
   url = "/api/curriculum/tasks",
   requestHeaders = {},
   cacheEntry = {
-    etag: '"guantlet-web_v2_106tasks"',
+    etag: '"gauntlet-web_v2_106tasks"',
     storedAtSec: 1000,
     maxAgeSec: 60,
     staleWhileRevalidateSec: 120,

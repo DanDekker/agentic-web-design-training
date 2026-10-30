@@ -26,7 +26,7 @@ function sha256Base64Url(str) {
 
 const call = (method, path, body, headers = {}) =>
   handle(
-    new Request(`http://guantlet-web.test${path}`, {
+    new Request(`http://gauntlet-web.test${path}`, {
       method,
       headers: {
         ...(body ? { "content-type": "application/json" } : {}),
@@ -37,7 +37,7 @@ const call = (method, path, body, headers = {}) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "guantlet-web-auth-oauth-"));
+  dir = await mkdtemp(join(tmpdir(), "gauntlet-web-auth-oauth-"));
   taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   authStore = await new AuthStore(join(dir, "auth.json")).load();
   oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -64,7 +64,7 @@ describe("1st-Party Proprietary Authentication", () => {
     const data = await res.json();
     expect(data.user.username).toBe("agent");
     expect(typeof data.token).toBe("string");
-    expect(res.headers.get("set-cookie")).toContain("guantlet-web_session=");
+    expect(res.headers.get("set-cookie")).toContain("gauntlet-web_session=");
 
     // Authenticate with Bearer token
     const meRes = await call("GET", "/api/auth/me", null, {

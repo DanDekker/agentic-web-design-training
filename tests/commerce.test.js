@@ -19,7 +19,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://guantlet-web.test${path}`, {
+    new Request(`http://gauntlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -27,7 +27,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "guantlet-web-commerce-"));
+  dir = await mkdtemp(join(tmpdir(), "gauntlet-web-commerce-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -187,7 +187,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
 
     // 2. Create customer account & merge guest cart + deduplicate shipping address
     const acctRes = await call("POST", "/api/commerce/shop/account", {
-      email: "  Shopper@guantlet-web.test ",
+      email: "  Shopper@gauntlet-web.test ",
       displayName: "Ada Shopper",
       guestCartId: "cart_guest_session_99",
       shippingAddress: {
@@ -201,7 +201,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     });
     expect(acctRes.status).toBe(201);
     const onboarded = await acctRes.json();
-    expect(onboarded.account.email).toBe("shopper@guantlet-web.test");
+    expect(onboarded.account.email).toBe("shopper@gauntlet-web.test");
     expect(onboarded.cart.itemCount).toBe(3);
     expect(onboarded.account.savedAddresses.length).toBe(1);
 
@@ -247,7 +247,7 @@ describe("First-Party E-Commerce, Checkout, Stripe & Polar.sh Engine", () => {
     expect(delivered.status).toBe("FULFILLED");
     expect(delivered.grandTotalMinor).toBe(origGrandTotal);
     expect(delivered.lines.find((l) => l.sku === "GUANTLET_WEB-KB-OBS-TKL").snapshotTitle).toBe(
-      "guantlet-web Monochrome Mechanical Keyboard (Obsidian · TKL)",
+      "gauntlet-web Monochrome Mechanical Keyboard (Obsidian · TKL)",
     );
 
     const rmaRes = await call("POST", "/api/commerce/shop/orders/lifecycle", {

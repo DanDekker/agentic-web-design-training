@@ -14,7 +14,7 @@ let handle;
 
 const call = (method, path, body) =>
   handle(
-    new Request(`http://guantlet-web.test${path}`, {
+    new Request(`http://gauntlet-web.test${path}`, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -22,7 +22,7 @@ const call = (method, path, body) =>
   );
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "guantlet-web-seo-"));
+  dir = await mkdtemp(join(tmpdir(), "gauntlet-web-seo-"));
   const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
   const authStore = await new AuthStore(join(dir, "auth.json")).load();
   const oauthServer = await new OAuthServer(join(dir, "oauth.json")).load();
@@ -35,7 +35,7 @@ afterEach(async () => {
 
 describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
   test("builds connected Schema.org JSON-LD @graph with XSS-safe script serialization", async () => {
-    const graphRes = buildApplicationJsonLdGraph("https://guantlet-web.test");
+    const graphRes = buildApplicationJsonLdGraph("https://gauntlet-web.test");
     expect(graphRes.payload["@context"]).toBe("https://schema.org");
     expect(graphRes.payload["@graph"].length).toBe(5);
     expect(graphRes.scriptHtml).toContain("application/ld+json");
@@ -54,7 +54,7 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(report.passed).toBe(true);
     expect(report.score).toBe(100);
     expect(report.jsonLdBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(report.jsonLdBlocks[0].codeRepository).toBe("https://github.com/DanDekker/webdev-gauntlet");
+    expect(report.jsonLdBlocks[0].codeRepository).toBe("https://github.com/DanDekker/gauntlet-web");
     expect(indexHtml).not.toContain('href="http://localhost:3000/"');
 
     const apiAudit = await call("POST", "/api/seo/audit", { html: indexHtml });

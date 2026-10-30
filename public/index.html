@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>guantlet-web | 170 Web Development Challenges for LLM Agents</title>
+    <title>gauntlet-web | 170 Web Development Challenges for LLM Agents</title>
     <meta name="description" content="Practice and evaluate 170 web development challenges across CSS renewal, WebGPU, WebTransport, WebAssembly, WebNN, Digital Credentials, WebXR, real-time media, frameworks, and agentic systems." />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0b0b0b" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="guantlet-web | 170 Web Development Challenges for LLM Agents" />
+    <meta property="og:title" content="gauntlet-web | 170 Web Development Challenges for LLM Agents" />
     <meta property="og:description" content="A local curriculum and evaluation workspace for JavaScript, TypeScript, React, Angular, Vue, Svelte, and modern web systems." />
-    <meta property="og:image" content="https://raw.githubusercontent.com/DanDekker/webdev-gauntlet/master/assets/social-preview.png" />
+    <meta property="og:image" content="https://raw.githubusercontent.com/DanDekker/gauntlet-web/master/assets/social-preview.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -19,9 +19,9 @@
       {
         "@context": "https://schema.org",
         "@type": "SoftwareSourceCode",
-        "name": "guantlet-web",
+        "name": "gauntlet-web",
         "description": "A local curriculum and evaluation workspace with 170 web development exercises, including a dedicated CSS renewal track.",
-        "codeRepository": "https://github.com/DanDekker/webdev-gauntlet",
+        "codeRepository": "https://github.com/DanDekker/gauntlet-web",
         "programmingLanguage": ["JavaScript", "TypeScript"],
         "runtimePlatform": "Bun",
         "author": { "@type": "Person", "name": "DanDekker", "url": "https://github.com/DanDekker" }
@@ -50,15 +50,15 @@
     />
     <link rel="stylesheet" href="/styles.css" />
     <!-- MDN Web Components & Custom Elements -->
-    <script type="module" src="/components/guantlet-web-task-item.js"></script>
-    <script type="module" src="/components/guantlet-web-diff-viewer.js"></script>
-    <script type="module" src="/components/guantlet-web-badge.js"></script>
-    <script type="module" src="/components/guantlet-web-platform.js"></script>
-    <script type="module" src="/components/guantlet-web-design-swatch.js"></script>
+    <script type="module" src="/components/gauntlet-web-task-item.js"></script>
+    <script type="module" src="/components/gauntlet-web-diff-viewer.js"></script>
+    <script type="module" src="/components/gauntlet-web-badge.js"></script>
+    <script type="module" src="/components/gauntlet-web-platform.js"></script>
+    <script type="module" src="/components/gauntlet-web-design-swatch.js"></script>
     <script>
       try {
         const asked = new URLSearchParams(location.search).get("theme");
-        const saved = localStorage.getItem("guantlet-web.theme");
+        const saved = localStorage.getItem("gauntlet-web.theme");
         const dark = matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.theme =
           asked === "dark" || asked === "light" ? asked : saved || (dark ? "dark" : "light");
@@ -76,7 +76,7 @@
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M6.2 12.6l3.7 3.7L17.8 8.3" /></svg>
           </span>
-          <span class="brand-name">guantlet-web</span>
+          <span class="brand-name">gauntlet-web</span>
           <span class="version-tag">170 Exercises</span>
         </div>
 
@@ -211,10 +211,10 @@
       </footer>
 
 
-      <!-- Declarative Shadow DOM: server-rendered content, hydrated by guantlet-web-platform.js -->
+      <!-- Declarative Shadow DOM: server-rendered content, hydrated by gauntlet-web-platform.js -->
       <details class="platform-panel">
         <summary>Platform capabilities</summary>
-        <guantlet-web-capabilities>
+        <gauntlet-web-capabilities>
           <template shadowrootmode="open">
             <style>
               ul { list-style: none; margin: 0; padding: 0; }
@@ -222,7 +222,7 @@
             </style>
             <ul><li>Detecting platform features…</li></ul>
           </template>
-        </guantlet-web-capabilities>
+        </gauntlet-web-capabilities>
       </details>
 
       <!-- Keyboard Hints -->
@@ -265,9 +265,9 @@
         <header class="modal-header">
           <div>
             <div class="badge-row">
-              <guantlet-web-badge variant="difficulty" id="refactor-difficulty">Intermediate</guantlet-web-badge>
-              <guantlet-web-badge variant="category" id="refactor-category">Async</guantlet-web-badge>
-              <guantlet-web-badge variant="track" id="refactor-track">core-engineering</guantlet-web-badge>
+              <gauntlet-web-badge variant="difficulty" id="refactor-difficulty">Intermediate</gauntlet-web-badge>
+              <gauntlet-web-badge variant="category" id="refactor-category">Async</gauntlet-web-badge>
+              <gauntlet-web-badge variant="track" id="refactor-track">core-engineering</gauntlet-web-badge>
             </div>
             <h2 id="refactor-title" class="modal-title">Refactor Callback Hell to Pipeline</h2>
           </div>
@@ -299,7 +299,7 @@
 
           <div id="tab-diff" class="tab-pane">
             <!-- Web Component: Shadow DOM Diff Viewer -->
-            <guantlet-web-diff-viewer id="guantlet-web-diff-component"></guantlet-web-diff-viewer>
+            <gauntlet-web-diff-viewer id="gauntlet-web-diff-component"></gauntlet-web-diff-viewer>
           </div>
 
           <div id="tab-verify" class="tab-pane">
@@ -319,7 +319,7 @@
     <dialog class="native-modal" id="auth-modal" aria-labelledby="auth-title">
       <div class="modal-card auth-card" role="document">
         <header class="modal-header">
-          <h2 class="modal-title" id="auth-title">Sign In to guantlet-web</h2>
+          <h2 class="modal-title" id="auth-title">Sign In to gauntlet-web</h2>
           <button type="button" class="close-btn" id="btn-close-auth" aria-label="Close dialog">×</button>
         </header>
 
@@ -650,7 +650,7 @@
 
         <div class="modal-body">
           <p class="benchmark-desc">
-            Compiles W3C Design Tokens (<code>DTCG 2025.10</code>) with <code>$type</code> inheritance and alias resolution, audits perceptual <code>OKLCH</code> / <code>APCA Lc</code> contrast, and renders live Form-Associated <code>&lt;guantlet-web-design-swatch&gt;</code> Web Components using <code>ElementInternals</code> and <code>CustomStateSet</code>.
+            Compiles W3C Design Tokens (<code>DTCG 2025.10</code>) with <code>$type</code> inheritance and alias resolution, audits perceptual <code>OKLCH</code> / <code>APCA Lc</code> contrast, and renders live Form-Associated <code>&lt;gauntlet-web-design-swatch&gt;</code> Web Components using <code>ElementInternals</code> and <code>CustomStateSet</code>.
           </p>
 
           <div class="telemetry-grid" id="design-telemetry-grid">
@@ -673,10 +673,10 @@
           </div>
 
           <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.85rem 0;">
-            <guantlet-web-design-swatch token="--bg-obsidian-950" oklch="oklch(0.11 0.005 90)" apca-lc="102.4" selected></guantlet-web-design-swatch>
-            <guantlet-web-design-swatch token="--panel-obsidian-900" oklch="oklch(0.15 0.005 90)" apca-lc="96.8"></guantlet-web-design-swatch>
-            <guantlet-web-design-swatch token="--ink-alabaster-50" oklch="oklch(0.97 0.004 90)" apca-lc="102.4"></guantlet-web-design-swatch>
-            <guantlet-web-design-swatch token="--accent-emerald-500" oklch="oklch(0.72 0.17 155)" apca-lc="68.2"></guantlet-web-design-swatch>
+            <gauntlet-web-design-swatch token="--bg-obsidian-950" oklch="oklch(0.11 0.005 90)" apca-lc="102.4" selected></gauntlet-web-design-swatch>
+            <gauntlet-web-design-swatch token="--panel-obsidian-900" oklch="oklch(0.15 0.005 90)" apca-lc="96.8"></gauntlet-web-design-swatch>
+            <gauntlet-web-design-swatch token="--ink-alabaster-50" oklch="oklch(0.97 0.004 90)" apca-lc="102.4"></gauntlet-web-design-swatch>
+            <gauntlet-web-design-swatch token="--accent-emerald-500" oklch="oklch(0.72 0.17 155)" apca-lc="68.2"></gauntlet-web-design-swatch>
           </div>
 
           <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin:0.9rem 0;">
