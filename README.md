@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **121 exercises in 32 categories and 13 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **130 exercises in 35 categories and 14 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -107,7 +107,8 @@ The repository currently includes **121 exercises in 32 categories and 13 tracks
 | Web platform | HTML, structured data, cookies, storage, HTTP traffic |
 | UI engineering | Design tokens, interaction patterns, web components |
 | Developer tooling | TypeScript frameworks, migrations, package management |
-| Browser platform | Web Workers, shared memory, streams |
+| Browser platform | Web Workers, shared memory, streams, WebGPU compute |
+| Real-time media | WebRTC signaling and data channels, WebCodecs encoding and decoding |
 | Agentic web | WebMCP tool APIs, GEO/AEO discovery, agentic commerce protocols |
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
@@ -134,6 +135,15 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | Streams | [Streaming NDJSON frame decoder](exercises/platform/web_streams/json_frame_decoder/starter.js) |
 | Streams | [Resumable SSE parser with `Last-Event-ID`](exercises/platform/web_streams/sse_reconnect_parser/starter.js) |
 | Streams | [Constant-memory streaming checksum](exercises/platform/web_streams/streaming_checksum/starter.js) |
+| WebGPU | [Tile compute dispatches within adapter limits](exercises/platform/webgpu/dispatch_tiling/starter.js) |
+| WebGPU | [Negotiate only supported features and limits](exercises/platform/webgpu/capability_selection/starter.js) |
+| WebGPU | [Read back results with aligned staging buffers](exercises/platform/webgpu/buffer_readback/starter.js) |
+| WebRTC | [Resolve simultaneous offers with perfect negotiation](exercises/platform/webrtc/perfect_negotiation/starter.js) |
+| WebRTC | [Buffer trickle ICE across remote-description and restart boundaries](exercises/platform/webrtc/ice_candidate_inbox/starter.js) |
+| WebRTC | [Control data-channel send pressure by queued UTF-8 bytes](exercises/platform/webrtc/data_channel_backpressure/starter.js) |
+| WebCodecs | [Bound the encoder queue and release every frame](exercises/platform/webcodecs/bounded_encode_queue/starter.js) |
+| WebCodecs | [Map source-clock timestamps to monotonic microseconds](exercises/platform/webcodecs/timestamp_mapper/starter.js) |
+| WebCodecs | [Flush before changing decoder configuration](exercises/platform/webcodecs/decoder_config_router/starter.js) |
 
 ### Agentic web exercises
 
@@ -163,7 +173,7 @@ Evaluation uses `node:vm` to run submitted code. **A VM context is not a securit
 | --- | --- |
 | [`src/curriculum.js`](src/curriculum.js) | Exercise catalog and tracks |
 | [`exercises/frameworks/`](exercises/frameworks/) | TypeScript starter and reference files for framework challenges |
-| [`exercises/platform/`](exercises/platform/) | Starter and reference files for Web Worker, Streams and agentic-web challenges |
+| [`exercises/platform/`](exercises/platform/) | Starter and reference files for browser platforms, GPU, realtime media, and agentic-web challenges |
 | [`src/evaluator.js`](src/evaluator.js) | Solution checks and runtime assertions |
 | [`src/benchmark.js`](src/benchmark.js) | Catalog statistics and benchmark reports |
 | [`src/server.js`](src/server.js) and [`src/api.js`](src/api.js) | Bun server and HTTP routes |

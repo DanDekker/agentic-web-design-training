@@ -1,6 +1,6 @@
 /**
- * Web development curriculum: 121 exercises across 32 categories and 13 tracks.
- * Framework, browser-platform and agentic-web challenge code is imported from standalone files.
+ * Web development curriculum: 130 exercises across 35 categories and 14 tracks.
+ * Framework, browser-platform, GPU, real-time media and agentic-web challenge code is imported from standalone files.
  */
 
 import reactNextStarter from "../exercises/frameworks/ts_react_nextjs_server_actions/starter.ts" with { type: "text" };

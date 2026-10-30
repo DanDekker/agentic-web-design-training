@@ -26,7 +26,7 @@ last re-verified on **2026-10-30**.
 | GitHub profile | <https://github.com/DanDekker> |
 | CI workflow | <https://github.com/DanDekker/webdev-gauntlet/actions/workflows/ci.yml> |
 | CI status badge | <https://github.com/DanDekker/webdev-gauntlet/actions/workflows/ci.yml/badge.svg> |
-| Social preview image (Open Graph) | <https://raw.githubusercontent.com/DanDekker/webdev-gauntlet/main/assets/social-preview.png> |
+| Social preview image (Open Graph) | <https://raw.githubusercontent.com/DanDekker/webdev-gauntlet/master/assets/social-preview.png> |
 
 ## Technology map
 
@@ -73,6 +73,14 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Yarn | <https://github.com/yarnpkg/berry> |
 | Deno | <https://github.com/denoland/deno> |
 | JSR | <https://github.com/jsr-io/jsr> |
+
+**Browser GPU & real-time media standards**
+
+| Technology | Primary specification |
+| --- | --- |
+| WebGPU | <https://www.w3.org/TR/webgpu/> |
+| WebRTC | <https://www.w3.org/TR/webrtc/> |
+| WebCodecs | <https://www.w3.org/TR/webcodecs/> |
 
 **Payments**
 

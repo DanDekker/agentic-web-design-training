@@ -53,7 +53,7 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
         "@type": "WebSite",
         "@id": websiteId,
         url: cleanOrigin,
-        name: "guantlet-web — 121-Exercise Curriculum & Monochrome Suite",
+        name: "guantlet-web — 130-Exercise Curriculum & Monochrome Suite",
         publisher: { "@id": orgId },
       },
       {
@@ -67,7 +67,7 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
       {
         "@type": "SoftwareApplication",
         "@id": appId,
-        name: "guantlet-web 121-Exercise Curriculum Suite",
+        name: "guantlet-web 130-Exercise Curriculum Suite",
         applicationCategory: "DeveloperApplication",
         operatingSystem: "Web, macOS, Linux, Windows",
         offers: {
@@ -87,7 +87,7 @@ export function buildApplicationJsonLdGraph(origin = "http://localhost:3000") {
       {
         "@type": "ItemList",
         "@id": catalogId,
-        name: "121-Exercise Curriculum Domain Tracks",
+        name: "130-Exercise Curriculum Domain Tracks",
         numberOfItems: trackItems.length,
         itemListElement: trackItems,
       },
