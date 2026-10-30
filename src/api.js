@@ -729,7 +729,7 @@ const benchmarkSuite = new BenchmarkSuite();
             expectedSeq: body.expectedSeq,
             replyToSeq: body.replyToSeq,
           });
-          if (result.message) {
+          if (result.message && !result.deduplicated) {
             hub?.broadcast({
               type: "chat",
               event: "message",
