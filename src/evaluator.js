@@ -1428,6 +1428,35 @@ export class Evaluator {
           code.includes("pages: group.map"),
         detail: "Surfaces multiple URLs per query/country/device cohort as a manual review candidate",
       });
+    } else if (id === "task_seo_site_migration_redirect_auditor") {
+      results.push({
+        name: "Redirect Graph Resolution and Loop Detection",
+        passed:
+          code.includes("REDIRECT_LOOP") &&
+          code.includes("REDIRECT_CHAIN_SHOULD_BE_COLLAPSED") &&
+          code.includes("REDIRECT_CHAIN_EXCEEDS_RECOMMENDED_HOPS") &&
+          code.includes("recommendedDestinationUrl"),
+        detail: "Resolves multi-hop maps to final destinations and keeps cycles from producing unsafe recommendations",
+      });
+      results.push({
+        name: "Destination Eligibility and Origin Review",
+        passed:
+          code.includes("DESTINATION_ORIGIN_NOT_ALLOWLISTED") &&
+          code.includes("FINAL_TARGET_NOT_200") &&
+          code.includes("FINAL_TARGET_NOT_SELF_CANONICAL") &&
+          code.includes("FINAL_TARGET_CRAWL_BLOCKED") &&
+          code.includes("FINAL_TARGET_NOINDEX"),
+        detail: "Audits the final page's HTTP, canonical, crawl, and noindex state against the migration allowlist",
+      });
+      results.push({
+        name: "Sitemap and Internal-Link Migration Hygiene",
+        passed:
+          code.includes("LEGACY_SOURCE_IN_NEW_SITEMAP") &&
+          code.includes("INTERNAL_LINK_POINTS_TO_REDIRECT") &&
+          code.includes("FINAL_URL_MISSING_FROM_NEW_SITEMAP") &&
+          code.includes("url.hash = \"\""),
+        detail: "Finds stale old URLs and missing final sitemap targets while preserving URL query strings",
+      });
     } else if (id === "task_ecom_integer_cents_dinero_cart_engine") {
       results.push({
         name: "Integer Minor-Unit (Dinero) & Multi-Currency Exponent Guard",
@@ -5474,6 +5503,61 @@ export class Evaluator {
         name: "Multiple URLs as a Search Review Candidate",
         passed: Boolean(res?.multiPageManualReview),
         detail: "Identifies query cohorts with multiple pages for human investigation without assuming a ranking penalty",
+      });
+    } else if (taskId === "task_seo_site_migration_redirect_auditor") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const audit = typeof auditSeoMigration === "function" ? auditSeoMigration : exports.auditSeoMigration;
+          const legacy = "https://legacy.example.test/guides/wool?sku=42";
+          const middle = "https://legacy.example.test/catalog/wool?sku=42";
+          const finalUrl = "https://shop.example.test/products/wool?sku=42";
+          const input = {
+            redirects: [
+              { sourceUrl: legacy, destinationUrl: middle, status: 301 },
+              { sourceUrl: middle, destinationUrl: finalUrl, status: 301 },
+              { sourceUrl: "https://legacy.example.test/loop-a", destinationUrl: "https://legacy.example.test/loop-b", status: 301 },
+              { sourceUrl: "https://legacy.example.test/loop-b", destinationUrl: "https://legacy.example.test/loop-a", status: 301 },
+              { sourceUrl: "https://legacy.example.test/sale-old", destinationUrl: "https://shop.example.test/sale", status: 302 },
+              { sourceUrl: "https://legacy.example.test/missing", destinationUrl: "https://outside.example.test/missing", status: 301 },
+            ],
+            destinationSnapshots: [
+              { url: finalUrl, status: 200, canonicalUrl: finalUrl, robotsAllowed: true, noindex: false },
+              { url: "https://shop.example.test/sale", status: 200, canonicalUrl: "https://shop.example.test/sale", robotsAllowed: true, noindex: false },
+              { url: "https://outside.example.test/missing", status: 404, canonicalUrl: null, robotsAllowed: true, noindex: false },
+            ],
+            newSitemapUrls: [legacy, middle, finalUrl, "https://shop.example.test/sale"],
+            internalLinks: [legacy],
+            allowedDestinationOrigins: ["https://shop.example.test"],
+          };
+          const report = audit(input);
+          const oldRoute = report.redirects.find((entry) => entry.sourceUrl === legacy);
+          const loopRoute = report.redirects.find((entry) => entry.sourceUrl === "https://legacy.example.test/loop-a");
+          const badTarget = report.redirects.find((entry) => entry.sourceUrl === "https://legacy.example.test/missing");
+          const tempRoute = report.redirects.find((entry) => entry.sourceUrl === "https://legacy.example.test/sale-old");
+          let duplicateSourceRejected = false;
+          try {
+            audit({ ...input, redirects: [...input.redirects, input.redirects[0]] });
+          } catch { duplicateSourceRejected = true; }
+          return {
+            preservesQueryAndCollapsesChain: oldRoute?.recommendedDestinationUrl === finalUrl && oldRoute?.chain.length === 3 && oldRoute?.findings.includes("REDIRECT_CHAIN_SHOULD_BE_COLLAPSED"),
+            loopHasNoRecommendation: loopRoute?.recommendedDestinationUrl === null && loopRoute?.findings.includes("REDIRECT_LOOP"),
+            destinationPreflight: badTarget?.findings.includes("DESTINATION_ORIGIN_NOT_ALLOWLISTED") && badTarget?.findings.includes("FINAL_TARGET_NOT_200") && badTarget?.findings.includes("FINAL_TARGET_NOT_SELF_CANONICAL") && badTarget?.findings.includes("FINAL_URL_MISSING_FROM_NEW_SITEMAP"),
+            migrationHygiene: oldRoute?.findings.includes("LEGACY_SOURCE_IN_NEW_SITEMAP") && oldRoute?.findings.includes("INTERNAL_LINK_POINTS_TO_REDIRECT") && report.legacySitemapUrls.includes(legacy) && report.internalRedirectLinks.includes(legacy),
+            temporaryStatusAndInputGuard: tempRoute?.findings.includes("TEMPORARY_REDIRECT_IN_PERMANENT_SITE_MIGRATION") && duplicateSourceRejected,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Migration Redirect Graph and Destination Preflight",
+        passed: Boolean(res?.preservesQueryAndCollapsesChain && res?.loopHasNoRecommendation && res?.destinationPreflight && res?.temporaryStatusAndInputGuard),
+        detail: "Resolves legacy URLs with query strings intact and flags loops, temporary rules, and non-ready final destinations",
+      });
+      results.push({
+        name: "Stale Sitemap and Internal-Link References",
+        passed: Boolean(res?.migrationHygiene),
+        detail: "Identifies legacy URLs still emitted by the new sitemap or linked internally",
       });
     } else if (taskId === "task_ecom_integer_cents_dinero_cart_engine") {
       const harness = `
