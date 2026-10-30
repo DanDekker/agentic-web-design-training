@@ -239,6 +239,45 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect((await call("POST", "/oauth/authorize/decision", { ...base, code_challenge: "a".repeat(43), code_challenge_method: "plain" })).status).toBe(422);
   });
 
+  test("requires client authentication without PKCE and binds refreshes to that client", async () => {
+    const redirectUri = "http://localhost:3000/oauth/callback";
+    const decision = await (await call("POST", "/oauth/authorize/decision", {
+      client_id: "agent-runner", redirect_uri: redirectUri, approved: "true",
+    })).json();
+    const exchange = { grant_type: "authorization_code", client_id: "agent-runner", redirect_uri: redirectUri, code: decision.code };
+    expect((await call("POST", "/oauth/token", exchange)).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...exchange, client_secret: "wrong" })).status).toBe(422);
+    const tokenRes = await call("POST", "/oauth/token", { ...exchange, client_secret: "agent-secret-2026" });
+    expect(tokenRes.status).toBe(200);
+    const tokens = await tokenRes.json();
+    expect((await call("POST", "/oauth/token", { ...exchange, client_secret: "agent-secret-2026" })).status).toBe(422);
+
+    const refresh = { grant_type: "refresh_token", client_id: "agent-runner", refresh_token: tokens.refresh_token };
+    expect((await call("POST", "/oauth/token", refresh)).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...refresh, client_id: "desktop-curriculum-suite" })).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...refresh, client_secret: "agent-secret-2026" })).status).toBe(200);
+    expect((await call("POST", "/oauth/token", { ...refresh, client_secret: "agent-secret-2026" })).status).toBe(422);
+  });
+
+  test("validates a PKCE verifier and does not let another client refresh its token", async () => {
+    const redirectUri = "http://localhost:3000/oauth/callback";
+    const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    const decision = await (await call("POST", "/oauth/authorize/decision", {
+      client_id: "agent-runner", redirect_uri: redirectUri, approved: "true",
+      code_challenge: sha256Base64Url(verifier), code_challenge_method: "S256",
+    })).json();
+    const exchange = { grant_type: "authorization_code", client_id: "agent-runner", redirect_uri: redirectUri, code: decision.code };
+    expect((await call("POST", "/oauth/token", { ...exchange, code_verifier: "short" })).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...exchange, code_verifier: verifier, client_secret: "wrong" })).status).toBe(422);
+    const tokenRes = await call("POST", "/oauth/token", { ...exchange, code_verifier: verifier });
+    expect(tokenRes.status).toBe(200);
+    const tokens = await tokenRes.json();
+    const refresh = { grant_type: "refresh_token", refresh_token: tokens.refresh_token };
+    expect((await call("POST", "/oauth/token", refresh)).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...refresh, client_id: "desktop-curriculum-suite" })).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...refresh, client_id: "agent-runner" })).status).toBe(200);
+  });
+
   test("complete OAuth Authorization Code flow with PKCE S256", async () => {
     const clientId = "agent-runner";
     const redirectUri = "http://localhost:3000/oauth/callback";

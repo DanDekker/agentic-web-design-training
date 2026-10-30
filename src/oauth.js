@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ValidationError } from "./store.js";
@@ -6,6 +6,7 @@ import { ValidationError } from "./store.js";
 export const OAUTH_SCOPES = Object.freeze(["read:tasks", "write:tasks", "read:user", "tasks:refactor", "offline_access"]);
 const SCOPE_TOKEN = /^[\x21\x23-\x5B\x5D-\x7E]+$/;
 const S256_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+const PKCE_VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
 
 function randomToken(bytes = 24) {
   return randomBytes(bytes).toString("hex");
@@ -18,6 +19,13 @@ function sha256Base64Url(str) {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
+}
+
+function equalSecrets(left, right) {
+  if (typeof left !== "string" || typeof right !== "string") return false;
+  const a = Buffer.from(left, "utf8");
+  const b = Buffer.from(right, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 function isValidRedirectUri(value) {
@@ -217,20 +225,20 @@ export class OAuthServer {
     const client = this.getClient(clientId);
     if (!client) throw new ValidationError("Invalid client.");
 
+    const suppliedSecret = clientSecret !== undefined && clientSecret !== null && clientSecret !== "";
+    if (suppliedSecret && !equalSecrets(clientSecret, client.clientSecret)) {
+      throw new ValidationError("Invalid client_secret.");
+    }
     // PKCE verification if challenge was supplied
     if (record.codeChallenge) {
-      if (!codeVerifier) throw new ValidationError("code_verifier is required for PKCE.");
-      let calculated;
-      if (record.codeChallengeMethod === "plain") {
-        calculated = codeVerifier;
-      } else {
-        calculated = sha256Base64Url(codeVerifier);
+      if (typeof codeVerifier !== "string" || !PKCE_VERIFIER.test(codeVerifier)) {
+        throw new ValidationError("A valid code_verifier is required for PKCE.");
       }
-      if (calculated !== record.codeChallenge) {
+      if (!equalSecrets(sha256Base64Url(codeVerifier), record.codeChallenge)) {
         throw new ValidationError("Invalid code_verifier (PKCE verification failed).");
       }
-    } else if (clientSecret && client.clientSecret !== clientSecret) {
-      throw new ValidationError("Invalid client_secret.");
+    } else if (!suppliedSecret) {
+      throw new ValidationError("client_secret is required without PKCE.");
     }
 
     // Code is single use
@@ -245,6 +253,7 @@ export class OAuthServer {
       clientId,
       userId: record.userId,
       scope: record.scope,
+      clientAuthenticated: suppliedSecret,
       expiresAt: Date.now() + expiresIn * 1000,
       createdAt: new Date().toISOString(),
     };
@@ -264,7 +273,7 @@ export class OAuthServer {
   issueClientCredentialsToken({ clientId, clientSecret, scope = "read:tasks" }) {
     const client = this.getClient(clientId);
     if (!client) throw new ValidationError("Invalid client_id.");
-    if (client.clientSecret !== clientSecret) throw new ValidationError("Invalid client_secret.");
+    if (!equalSecrets(clientSecret, client.clientSecret)) throw new ValidationError("Invalid client_secret.");
     const grantedScope = validateScope(scope, client);
 
     const accessToken = `lat_cc_${randomToken(32)}`;
@@ -287,12 +296,19 @@ export class OAuthServer {
     };
   }
 
-  refreshToken(refreshToken) {
+  refreshToken(refreshToken, { clientId, clientSecret } = {}) {
     const oldAccessToken = this.#refreshTokens.get(refreshToken);
     if (!oldAccessToken) throw new ValidationError("Invalid refresh_token.");
 
     const existing = this.#tokens.get(oldAccessToken);
     if (!existing) throw new ValidationError("Token record not found.");
+    if (!clientId || existing.clientId !== clientId) throw new ValidationError("refresh_token belongs to another client.");
+    const client = this.getClient(clientId);
+    if (!client) throw new ValidationError("Invalid client_id.");
+    const suppliedSecret = clientSecret !== undefined && clientSecret !== null && clientSecret !== "";
+    if ((existing.clientAuthenticated || suppliedSecret) && !equalSecrets(clientSecret, client.clientSecret)) {
+      throw new ValidationError("Invalid client_secret.");
+    }
 
     this.#tokens.delete(oldAccessToken);
     this.#refreshTokens.delete(refreshToken);

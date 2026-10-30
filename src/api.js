@@ -359,7 +359,7 @@ const benchmarkSuite = new BenchmarkSuite();
         }
 
         if (grantType === "refresh_token") {
-          const result = oauthServer.refreshToken(body.refresh_token);
+          const result = oauthServer.refreshToken(body.refresh_token, { clientId, clientSecret });
           return json(result);
         }
 
