@@ -115,7 +115,7 @@ Each exercise defines a prompt, starter code, acceptance criteria, and a referen
 
 ### CSS engineering and renewal
 
-The dedicated **CSS Engineering** track contains 46 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling. Four native-platform labs cover scroll-state sticky checkout summaries, nested `exportparts` contracts, directly slotted CMS content, and form-associated custom states with a public `::part()` API.
+The dedicated **CSS Engineering** track contains 46 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Seven essential web labs teach intrinsic sizing, float containment with `flow-root`, transformed stacking contexts, native form color schemes, responsive embeds, GFM rendering, and Markdown fragment navigation. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling. Four native-platform labs cover scroll-state sticky checkout summaries, nested `exportparts` contracts, directly slotted CMS content, and form-associated custom states with a public `::part()` API.
 
 The newest exercises cover bounded `@scope`, proposed `@function` and `if()` syntax, cross-document View Transitions, scroll-state queries, and advanced Shadow DOM styling. CSS Shadow Module Level 1 is a CSSWG draft describing `:host()`, `::slotted()`, `:has-slotted`, `::part()`, and `exportparts`; the labs mark feature maturity and keep useful baseline styling where browser support may vary. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
 
@@ -125,6 +125,8 @@ The newest exercises cover bounded `@scope`, proposed `@function` and `if()` syn
 | Modernization | Sass-to-native CSS, layered cascades, feature-query fallbacks, `:has()` state, native popover transitions |
 | Production quality | Keyboard focus, reduced motion, forced colors, font loading, content visibility, scroll snap and print styles |
 | Advanced platform | Container queries, subgrid, OKLCH tokens, scroll-driven animations, anchor positioning, `@scope`, custom CSS functions, `if()`, cross-document view transitions, scroll-state queries, and Shadow DOM parts and slots |
+| Essential browser behavior | Intrinsic sizing, local overflow, flow-root float containment, fixed containing blocks, stacking contexts, native control schemes, and responsive embeds |
+| Markdown interfaces | GFM task lists, fenced-code and table overflow, heading fragment offsets, and focusable skip links under sticky headers |
 | Industry implementation | Retail product discovery, patient intake, account ledgers, dispatch operations, editorial publishing, touch-first POS, public-service forms, and SaaS vendor migrations |
 
 ### Frontend framework exercises
