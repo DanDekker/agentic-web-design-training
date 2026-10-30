@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **183 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **184 exercises in 41 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -115,7 +115,7 @@ Each exercise defines a prompt, starter code, acceptance criteria, and a referen
 
 ### CSS engineering and renewal
 
-The dedicated **CSS Engineering** track contains 40 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling. Four native-platform labs cover scroll-state sticky checkout summaries, nested `exportparts` contracts, directly slotted CMS content, and form-associated custom states with a public `::part()` API.
+The dedicated **CSS Engineering** track contains 41 exercises that move from fundamentals through legacy upgrades, practical production interfaces, and advanced platform work. Eight industry labs start with realistic failures in retail catalogs, healthcare intake forms, banking ledgers, logistics dispatch boards, newsroom publishing, restaurant point-of-sale menus, public permit applications, and SaaS vendor stylesheets. They practice container-aware layouts, resilient content, accessible state styling, financial data tables, print paths, cascade migrations, and user preference handling. Four native-platform labs cover scroll-state sticky checkout summaries, nested `exportparts` contracts, directly slotted CMS content, and form-associated custom states with a public `::part()` API.
 
 The newest exercises cover bounded `@scope`, proposed `@function` and `if()` syntax, cross-document View Transitions, scroll-state queries, and advanced Shadow DOM styling. CSS Shadow Module Level 1 is a CSSWG draft describing `:host()`, `::slotted()`, `:has-slotted`, `::part()`, and `exportparts`; the labs mark feature maturity and keep useful baseline styling where browser support may vary. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
 

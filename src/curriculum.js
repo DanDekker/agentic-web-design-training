@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 183 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 184 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4487,6 +4487,64 @@ clinic-dose-field::part(control) {
       "Removes automatic min-content pressure with minmax(0, 1fr) and min-inline-size: 0 along the nested grid chain",
       "Uses an auto-fitting minmax(min(100%, ...)) card grid that adapts to the workspace container",
       "Wraps unbroken claim data, allows actions to wrap, and constrains images without distorting their ratio",
+    ],
+  },
+
+  {
+    id: "task_css_flow_root_legacy_float_containment",
+    title: "Replace a Legacy Clearfix with flow-root While Preserving Editorial Float Wrapping",
+    category: "css",
+    difficulty: "intermediate",
+    tags: ["css", "flow-root", "block-formatting-context", "legacy-css", "content-layout"],
+    instructions:
+      "A long-form insurance explanation still uses a floated policy diagram so text can wrap beside it. A clearfix pseudo-element was added to stop the parent border from ending above the image, while overflow: hidden on nearby content clips focus rings and translated notes. Keep the text-wrap behavior, contain the float and parent margins with display: flow-root, and remove both hacks. Use logical float and spacing values, and size the media without forcing a fixed crop.",
+    starterCode: `/* The image should stay floated beside the explanation, but clearfix hacks leak. */
+.claim-explanation {
+  padding: 1rem;
+}
+
+.claim-explanation__image {
+  float: left;
+  inline-size: 16rem;
+  block-size: 10rem;
+}
+
+.claim-explanation::after {
+  content: "";
+  display: table;
+  clear: both;
+}`,
+    solutionCode: `/* Keep editorial text wrapping around the media while containing the float. */
+.claim-explanation {
+  display: flow-root;
+  padding: 1rem;
+  border: 1px solid currentColor;
+}
+
+.claim-explanation__image {
+  float: inline-start;
+  inline-size: min(40%, 18rem);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  margin-block: 0.25rem 1rem;
+  margin-inline-end: 1rem;
+}
+
+.claim-explanation__caption {
+  max-inline-size: 68ch;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.claim-explanation__next {
+  margin-block-start: 2rem;
+  border-block-start: 1px solid currentColor;
+  padding-block-start: 1rem;
+}`,
+    criteria: [
+      "Uses display: flow-root on the containing explanation to contain the float without a clearfix pseudo-element",
+      "Keeps the intentional text wrap with a logical inline-start float and responsive media sizing",
+      "Uses logical spacing and leaves focus rings and overflowing content unclipped",
     ],
   },
 
