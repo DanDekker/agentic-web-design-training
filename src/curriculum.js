@@ -59,6 +59,8 @@ import rtcNegotiationStarter from "../exercises/platform/webrtc/perfect_negotiat
 import rtcNegotiationSolution from "../exercises/platform/webrtc/perfect_negotiation/solution.js" with { type: "text" };
 import rtcIceStarter from "../exercises/platform/webrtc/ice_candidate_inbox/starter.js" with { type: "text" };
 import rtcIceSolution from "../exercises/platform/webrtc/ice_candidate_inbox/solution.js" with { type: "text" };
+import rtcBackpressureStarter from "../exercises/platform/webrtc/data_channel_backpressure/starter.js" with { type: "text" };
+import rtcBackpressureSolution from "../exercises/platform/webrtc/data_channel_backpressure/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10193,6 +10195,23 @@ export class VirtualizedShadowListEngine {
       "Deduplicates candidate records independently for each ICE username fragment generation",
       "Drops candidates tagged with stale ICE credentials after a restart",
       "Preserves valid empty-string and null end-of-candidates markers",
+    ],
+  },
+  {
+    id: "task_webrtc_data_channel_backpressure",
+    title: "Bound Ordered RTCDataChannel Writes by UTF-8 Buffered Bytes",
+    category: "webrtc",
+    difficulty: "advanced",
+    tags: ["webrtc", "data-channel", "backpressure", "bufferedamountlow", "utf8"],
+    instructions:
+      "A fast producer calls RTCDataChannel.send() without checking bufferedAmount, eventually hitting memory pressure and OperationError. Serialize concurrent producers, count a string's UTF-8 bytes, wait for bufferedamountlow before crossing the high-water mark, and reject payloads that cannot fit or sends on a closing channel. Keep the low-water listener and abort handling removable on every exit path.",
+    starterCode: rtcBackpressureStarter,
+    solutionCode: rtcBackpressureSolution,
+    criteria: [
+      "Counts UTF-8 payload bytes and supports ArrayBuffer or typed-array views",
+      "Pauses sends at a high-water mark using bufferedAmountLowThreshold and bufferedamountlow",
+      "Serializes concurrent producers so they cannot collectively overshoot the limit",
+      "Removes event and abort listeners when a wait resolves, fails, closes or is cancelled",
     ],
   },
 ];
