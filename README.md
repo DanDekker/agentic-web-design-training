@@ -97,7 +97,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **215 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **216 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -113,7 +113,7 @@ The repository currently includes **215 exercises in 42 categories and 21 tracks
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
-The HTML Architecture track now includes a bidi-safe claims intake lab covering native field direction metadata, mixed-script text isolation, and direction-aware logical CSS.
+The HTML Architecture track now includes a bidi-safe claims intake lab covering native field direction metadata, mixed-script text isolation, and direction-aware logical CSS, plus a find-in-page lab for collapsed support annexes using `hidden="until-found"`, `beforematch`, and layout containment.
 
 ### CSS engineering and renewal
 
@@ -121,7 +121,7 @@ The dedicated **CSS Engineering** track contains 55 exercises that move from fun
 
 The newest exercises cover bounded `@scope`, proposed `@function` and `if()` syntax, cross-document View Transitions, scroll-state queries, and advanced Shadow DOM styling. The latest practical labs also cover nested scroll containment, two-axis sticky data tables, content-sized textareas through `field-sizing`, and feature-gated `<details>` animations through `interpolate-size`. CSS Paged Media Level 3, CSS Shadow Module Level 1, and CSS Sizing Level 4 are CSSWG drafts; the labs mark feature maturity and keep useful baseline behavior where browser support may vary. See the [CSS standards references](links.md#css-specifications-and-emerging-proposals).
 
-HTML and CSS now meet in production interface work too: the clinical intake lab pairs semantic forms with container-aware error styling, the SSR status-card lab defines a Declarative Shadow DOM and CSS theming contract using slots, `::part()`, custom properties, and forced-colors support, and a native `<details name>` lab builds exclusive disclosures for sequential troubleshooting flows.
+HTML and CSS now meet in production interface work too: the clinical intake lab pairs semantic forms with container-aware error styling, the SSR status-card lab defines a Declarative Shadow DOM and CSS theming contract using slots, `::part()`, custom properties, and forced-colors support, a native `<details name>` lab builds exclusive disclosures for sequential troubleshooting flows, and the support-annex lab keeps browser find and fragment navigation working through native collapsed content.
 
 Less common platform details now have dedicated labs too: `timeline-scope` isolates repeated named scroll timelines, CSS `reading-flow` aligns navigation with dense Grid placement, dialog `requestClose()` keeps close requests cancellable, `requestSubmit(submitter)` preserves native form behavior, and prioritized `scheduler.postTask()`/`yield()` work supports bounded batches with cancellation and a lower-capability fallback.
 
