@@ -81,6 +81,8 @@ import wasmJspiStarter from "../exercises/platform/webassembly/jspi_bindings/sta
 import wasmJspiSolution from "../exercises/platform/webassembly/jspi_bindings/solution.js" with { type: "text" };
 import webnnInferenceStarter from "../exercises/platform/webnn/tensor_inference/starter.js" with { type: "text" };
 import webnnInferenceSolution from "../exercises/platform/webnn/tensor_inference/solution.js" with { type: "text" };
+import webnnQueueStarter from "../exercises/platform/webnn/shared_tensor_queue/starter.js" with { type: "text" };
+import webnnQueueSolution from "../exercises/platform/webnn/shared_tensor_queue/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10422,6 +10424,23 @@ export class VirtualizedShadowListEngine {
       "Writes named inputs and submits the graph once without treating dispatch as a Promise",
       "Awaits readTensor for each named output before returning its data",
       "Destroys all created tensors in a finally block while preserving caller ownership of graph and context",
+    ],
+  },
+  {
+    id: "task_webnn_shared_tensor_queue",
+    title: "Serialize Concurrent WebNN Runs Sharing the Same Tensors",
+    category: "webnn",
+    difficulty: "advanced",
+    tags: ["webnn", "concurrency", "mltensor", "queue", "input-snapshot"],
+    instructions:
+      "A compiled model reuses one set of writable input and readable output tensors to avoid per-inference allocation. Concurrent callers can overwrite shared inputs before an earlier dispatch has consumed them, or read an output after a later dispatch replaces it. Snapshot each caller's input buffers at invocation, then serialize the complete write → dispatch → awaited readback sequence in call order. dispose() must reject new runs and wait for already accepted work without destroying tensors owned by the caller.",
+    starterCode: webnnQueueStarter,
+    solutionCode: webnnQueueSolution,
+    criteria: [
+      "Copies every ArrayBuffer or view at invocation so later caller mutations cannot change queued inputs",
+      "Serializes the entire input write, synchronous dispatch, and output readback sequence",
+      "Returns named output buffers and recovers the queue after a failed inference",
+      "Stops accepting runs on dispose and drains earlier runs without destroying caller-owned tensors",
     ],
   },
 ];

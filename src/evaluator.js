@@ -2218,6 +2218,22 @@ export class Evaluator {
         passed: code.includes("finally") && code.includes("ownedTensors.reverse()") && code.includes("tensor.destroy()"),
         detail: "Destroys all locally allocated tensors after success or failure",
       });
+    } else if (id === "task_webnn_shared_tensor_queue") {
+      results.push({
+        name: "Invocation-Time Buffer Snapshot",
+        passed: code.includes("source.buffer.slice") && code.includes("new source.constructor(source)"),
+        detail: "Copies the selected view bytes before work waits in the shared tensor queue",
+      });
+      results.push({
+        name: "Write, Dispatch and Readback Serialization",
+        passed: code.includes("tail.then") && code.includes("context.dispatch(graph, inputTensors, outputTensors)") && code.includes("await context.readTensor(tensor)"),
+        detail: "Keeps each inference's writes and output reads within one ordered queue operation",
+      });
+      results.push({
+        name: "Drain-on-Dispose Without Resource Transfer",
+        passed: code.includes("accepting = false") && code.includes("disposePromise = tail") && !code.includes("tensor.destroy"),
+        detail: "Stops new work, drains accepted calls and leaves tensor ownership with the caller",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7695,6 +7711,61 @@ export class Evaluator {
         name: "WebNN Tensor Permissions, Timeline Readback & Failure Cleanup",
         passed: Boolean(res?.webnnInferenceOk),
         detail: "Runs a named graph, awaits output readback and destroys input/output tensors on successful and failed reads",
+      });
+    } else if (taskId === "task_webnn_shared_tensor_queue") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const events = [];
+            let failNextRead = false;
+            const inputTensors = { values: { value: 0 } };
+            const outputTensors = { result: { value: 0 } };
+            const context = {
+              writeTensor(tensor, data) { tensor.value = data[0]; events.push("write:" + data[0]); },
+              dispatch(graph, inputs, outputs) {
+                outputs.result.value = inputs.values.value * 2;
+                events.push("dispatch:" + inputs.values.value);
+              },
+              readTensor(tensor) {
+                const value = tensor.value;
+                if (failNextRead) { failNextRead = false; return Promise.reject(new Error("lost context")); }
+                events.push("read-start:" + value);
+                return new Promise((resolve) => setTimeout(() => {
+                  events.push("read-end:" + value);
+                  resolve(new Float32Array([value]).buffer);
+                }, 0));
+              },
+            };
+            const queue = createWebNNInferenceQueue(context, { id: "shared" }, inputTensors, outputTensors);
+            const first = queue.run({ values: new Float32Array([3]) });
+            const mutableSecond = new Float32Array([5]);
+            const second = queue.run({ values: mutableSecond });
+            mutableSecond[0] = 99;
+            const [firstResult, secondResult] = await Promise.all([first, second]);
+            failNextRead = true;
+            let failedRunRejected = false;
+            try { await queue.run({ values: new Float32Array([7]) }); } catch { failedRunRejected = true; }
+            const recovered = await queue.run({ values: new Float32Array([8]) });
+            const firstReadEnd = events.indexOf("read-end:6");
+            const secondWrite = events.indexOf("write:5");
+            let postDisposeRejected = false;
+            await queue.dispose();
+            try { await queue.run({ values: new Float32Array([9]) }); } catch { postDisposeRejected = true; }
+            return {
+              webnnQueueOk: new Float32Array(firstResult.result)[0] === 6 &&
+                new Float32Array(secondResult.result)[0] === 10 && new Float32Array(recovered.result)[0] === 16 &&
+                firstReadEnd >= 0 && secondWrite > firstReadEnd && events.includes("write:5") &&
+                !events.includes("write:99") && failedRunRejected && postDisposeRejected,
+            };
+          } catch { return { webnnQueueOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1500 });
+      results.push({
+        name: "WebNN Shared-Tensor Isolation, Failure Recovery & Drain",
+        passed: Boolean(res?.webnnQueueOk),
+        detail: "Returns distinct queued results, recovers after a failed readback and rejects runs after disposal",
       });
     } else {
       // General syntax evaluation
