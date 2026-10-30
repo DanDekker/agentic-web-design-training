@@ -4605,7 +4605,7 @@ export class Evaluator {
             : exports.compileTechnicalSeoHead;
 
           const res = compileHead({
-            rawUrl: "http://GUANTLET-WEB.TEST/docs/guide/?utm_source=newsletter&b=2&fbclid=xyz123&a=1#section",
+            rawUrl: "http://GAUNTLET-WEB.TEST/docs/guide/?utm_source=newsletter&b=2&fbclid=xyz123&a=1#section",
             title: "gauntlet-web SEO & <Graph> Guide",
             description: "Technical SEO canonicalization",
             ogImageUrl: "https://gauntlet-web.test/og.png",
