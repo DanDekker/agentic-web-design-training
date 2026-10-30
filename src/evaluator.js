@@ -169,7 +169,7 @@ const CSS_TASK_CHECKS = Object.freeze({
   ],
   task_css_shadow_slots_compound_boundary: [
     { name: "Direct Assigned Element Styling", all: ['slot[name="primary-actions"]::slotted(a)', 'slot[name="primary-actions"]::slotted(button)', 'slot[name="article-body"]::slotted(p)'], none: ["::slotted(a strong)", "::slotted(button span)"] },
-    { name: "Progressive Slot Presence Decoration", all: ["@supports selector(slot:has-slotted)", ":has-slotted", "border-block-end-color: transparent", "border-block-end-color: currentColor"] },
+    { name: "Progressive Slot Presence Decoration", all: ["@supports selector(slot:has-slotted)", ":has-slotted", "border-block-end: 1px solid transparent", "border-block-end-color: currentColor"] },
     { name: "Focus and High-Contrast Cues", all: [":focus-visible", "forced-colors: active", "outline-offset: 3px", "LinkText", "Highlight"] },
   ],
   task_css_shadow_host_custom_state_theming: [
