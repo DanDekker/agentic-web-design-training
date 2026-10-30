@@ -1553,6 +1553,37 @@ export class Evaluator {
           code.includes("findingCounts"),
         detail: "Reports client-only content, missing text, blocked assets, and deterministic totals by finding code",
       });
+    } else if (id === "task_seo_faceted_navigation_url_governance") {
+      results.push({
+        name: "Deterministic Facet URLs and Curated Landing Pages",
+        passed:
+          code.includes("DEFAULT_IGNORED_PARAMETERS") &&
+          code.includes("searchParams.append(name, value)") &&
+          code.includes("curated-indexable-facet-landing-page") &&
+          code.includes("potentialUrlCount") &&
+          code.includes("MAX_URL_STATES"),
+        detail: "Orders validated facets, removes classified sort/tracking parameters, preserves curated pages, and estimates URL growth safely",
+      });
+      results.push({
+        name: "Separate Canonical, robots.txt, and noindex Strategies",
+        passed:
+          code.includes('decision: "canonicalize"') &&
+          code.includes("canonicalUrl: base.href") &&
+          code.includes('decision: "robots-disallow"') &&
+          code.includes('robotsMeta: "noindex,follow"') &&
+          code.includes("blocked page cannot expose a noindex rule"),
+        detail: "Keeps crawl blocking distinct from crawlable noindex and treats canonicalization as a hint",
+      });
+      results.push({
+        name: "Empty Results, Invalid Facets, and Manual Query Review",
+        passed:
+          code.includes("input.resultCount === 0") &&
+          code.includes("Duplicate value for facet") &&
+          code.includes("Unsupported value for facet") &&
+          code.includes("Unclassified query parameter") &&
+          code.includes('emptyDecision("not-found"'),
+        detail: "Returns 404 for empty or invalid facets and avoids silently dropping unknown content parameters",
+      });
     } else if (id === "task_ecom_integer_cents_dinero_cart_engine") {
       results.push({
         name: "Integer Minor-Unit (Dinero) & Multi-Currency Exponent Guard",
@@ -5889,6 +5920,71 @@ export class Evaluator {
         name: "Blocked, Non-HTML, and HTTP Error Observability Boundaries",
         passed: Boolean(res?.respectsObservabilityAndContentBoundaries && res?.cleanSsrPageHasNoFindings),
         detail: "Does not infer rendered signals for blocked, non-HTML, or non-200 pages and leaves clean SSR pages clear",
+      });
+    } else if (taskId === "task_seo_faceted_navigation_url_governance") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const audit = typeof auditFacetedNavigation === "function"
+            ? auditFacetedNavigation
+            : exports.auditFacetedNavigation;
+          const baseUrl = "https://shop.example.test/collections/shoes";
+          const facetValues = { brand: ["acme", "zenith"], color: ["navy", "tan"], size: ["s", "m", "l"] };
+          const shared = {
+            baseUrl,
+            facetValues,
+            indexableCombinations: [{ brand: ["acme"], color: ["navy"] }],
+            unwantedFacetStrategy: "canonical",
+            resultCount: 24,
+          };
+          const curated = audit({
+            ...shared,
+            url: baseUrl + "?color=navy&brand=acme&utm_source=crm&sort=price",
+          });
+          const canonical = audit({
+            ...shared,
+            url: baseUrl + "?size=m&brand=zenith&order=price",
+          });
+          const blocked = audit({
+            ...shared,
+            url: baseUrl + "?color=tan&size=l",
+            unwantedFacetStrategy: "robots-disallow",
+          });
+          const noindex = audit({
+            ...shared,
+            url: baseUrl + "?brand=zenith&color=tan",
+            unwantedFacetStrategy: "noindex",
+          });
+          const empty = audit({ ...shared, url: baseUrl + "?color=navy", resultCount: 0 });
+          const duplicate = audit({ ...shared, url: baseUrl + "?brand=acme&brand=acme" });
+          const unsupported = audit({ ...shared, url: baseUrl + "?brand=other" });
+          const unknown = audit({ ...shared, url: baseUrl + "?q=boots" });
+          const huge = audit({
+            baseUrl,
+            url: baseUrl,
+            facetValues: { many: Array.from({ length: 54 }, (_, index) => "v" + index) },
+            unwantedFacetStrategy: "canonical",
+            resultCount: 1,
+          });
+          return {
+            curatedCanonicalAndNormalization: curated.decision === "index" && curated.normalizedUrl === baseUrl + "?brand=acme&color=navy" && curated.canonicalUrl === curated.normalizedUrl && curated.includeInSitemap && curated.robotsMeta === "index,follow",
+            uncuratedCanonicalHint: canonical.decision === "canonicalize" && canonical.normalizedUrl === baseUrl + "?brand=zenith&size=m" && canonical.canonicalUrl === baseUrl && canonical.crawlAllowed && canonical.robotsMeta === "index,follow" && !canonical.includeInSitemap,
+            crawlPolicySeparation: blocked.decision === "robots-disallow" && blocked.crawlAllowed === false && blocked.robotsMeta === null && blocked.canonicalUrl === null && blocked.robotsDisallowParameters.join(",") === "color,size" && noindex.decision === "noindex" && noindex.crawlAllowed && noindex.robotsMeta === "noindex,follow" && noindex.canonicalUrl === null,
+            invalidAndUnknownRouteHandling: empty.httpStatus === 404 && duplicate.httpStatus === 404 && unsupported.httpStatus === 404 && unknown.decision === "review" && unknown.normalizedUrl === null && unknown.canonicalUrl === null,
+            saturatesUrlInventoryEstimate: curated.potentialUrlCount === 128 && huge.potentialUrlCount === Number.MAX_SAFE_INTEGER,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Curated Facet Indexing, Stable URLs, and Inventory Estimate",
+        passed: Boolean(res?.curatedCanonicalAndNormalization && res?.uncuratedCanonicalHint && res?.saturatesUrlInventoryEstimate),
+        detail: "Keeps curated listings self-canonical, normalizes parameter order, and safely estimates the filter URL space",
+      });
+      results.push({
+        name: "Crawl Blocking, Crawlable noindex, and Invalid Routes",
+        passed: Boolean(res?.crawlPolicySeparation && res?.invalidAndUnknownRouteHandling),
+        detail: "Does not combine robots.txt blocking with an unobservable noindex directive and sends ambiguous query parameters for review",
       });
     } else if (taskId === "task_ecom_integer_cents_dinero_cart_engine") {
       const harness = `
