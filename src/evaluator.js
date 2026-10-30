@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webrtc_ice_candidate_inbox") {
+      results.push({
+        name: "Pre-Description Candidate Buffer",
+        passed: code.includes("#pending") && code.includes("setRemoteDescription"),
+        detail: "Buffers arriving candidates and applies them only after the description is set",
+      });
+      results.push({
+        name: "ICE Generation Stale Candidate Fence",
+        passed: code.includes("usernameFragment") && code.includes("#ufrags"),
+        detail: "Rejects candidates whose ICE username fragment belongs to an old generation",
+      });
+      results.push({
+        name: "Per-Generation Candidate Deduplication",
+        passed: code.includes("candidateKey") && code.includes("#seen"),
+        detail: "Deduplicates candidates and end-of-candidates signals within an ICE generation",
+      });
     } else if (id === "task_webrtc_perfect_negotiation") {
       results.push({
         name: "Stable-State Offer Collision Detection",
@@ -6824,6 +6840,45 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webrtc_ice_candidate_inbox") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const applied = [];
+            const peerConnection = {
+              async setRemoteDescription() {},
+              async addIceCandidate(candidate) { applied.push(candidate); },
+            };
+            const inbox = new RemoteIceCandidateInbox(peerConnection);
+            const current = { candidate: "candidate:one", sdpMid: "0", usernameFragment: "g1" };
+            const stale = { candidate: "candidate:stale", sdpMid: "0", usernameFragment: "g0" };
+            const end = { candidate: "", sdpMid: "0", usernameFragment: "g1" };
+            const buffered =
+              !(await inbox.receive(current)) && !(await inbox.receive(current)) &&
+              !(await inbox.receive(stale)) && !(await inbox.receive(end));
+            const drained = await inbox.setRemoteDescription({ type: "offer", sdp: "v=0\\r\\na=ice-ufrag:g1\\r\\n" });
+            const duplicateRejected = !(await inbox.receive(current));
+            await inbox.setRemoteDescription({ type: "offer", sdp: "v=0\\r\\na=ice-ufrag:g2\\r\\n" });
+            const oldGenerationRejected = !(await inbox.receive(current));
+            const newCandidate = { candidate: "candidate:two", sdpMid: "0", usernameFragment: "g2" };
+            const accepted = await inbox.receive(newCandidate);
+            const acceptedEnd = await inbox.receive(null);
+            return {
+              iceInboxOk:
+                buffered && drained === 2 && duplicateRejected && oldGenerationRejected &&
+                applied.length === 4 && applied[0] === current && applied[1] === end &&
+                applied[2] === newCandidate && applied[3] === null && accepted && acceptedEnd,
+            };
+          } catch { return { iceInboxOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1500 });
+      results.push({
+        name: "Trickle ICE Ordering, Deduplication & Restart Fencing",
+        passed: Boolean(res?.iceInboxOk),
+        detail: "Drains active ICE in order, suppresses duplicates and drops a stale restart candidate",
       });
     } else if (taskId === "task_webrtc_perfect_negotiation") {
       const harness = `
