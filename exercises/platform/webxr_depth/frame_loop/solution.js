@@ -43,6 +43,12 @@ function startXRDepthFrameLoop({ session, referenceSpace, binding, onFrame, onEr
   }
 
   session.addEventListener("end", onSessionEnd, { once: true });
-  frameRequestId = session.requestAnimationFrame(tick);
+  try {
+    frameRequestId = session.requestAnimationFrame(tick);
+  } catch (error) {
+    active = false;
+    session.removeEventListener?.("end", onSessionEnd);
+    throw error;
+  }
   return { stop };
 }

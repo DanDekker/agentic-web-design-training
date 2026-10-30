@@ -9,6 +9,6 @@ function readXrDepthSample(depthInformation, x, y) {
     throw error;
   }
   const depthMeters = depthInformation.getDepthInMeters(x, y);
-  if (!Number.isFinite(depthMeters) || depthMeters <= 0) return null;
+  if (!Number.isFinite(depthMeters)) return null;
   return depthMeters;
 }

@@ -2332,7 +2332,7 @@ export class Evaluator {
       });
       results.push({
         name: "Unavailable and Invalid Sample Handling",
-        passed: code.includes("if (!depthInformation) return null") && code.includes('error.name = "NotSupportedError"') && code.includes("depthMeters <= 0"),
+        passed: code.includes("if (!depthInformation) return null") && code.includes('error.name = "NotSupportedError"') && code.includes("!Number.isFinite(depthMeters)"),
         detail: "Handles absent, invalid, and GPU-only depth data without assuming an encoding",
       });
     } else if (id === "task_webxr_depth_frame_loop") {
@@ -2350,6 +2350,54 @@ export class Evaluator {
         name: "End and Failure Cleanup",
         passed: code.includes('session.addEventListener("end"') && code.includes("cancelAnimationFrame") && code.includes('removeEventListener?.("end"'),
         detail: "Cancels pending frame work and removes the session end listener on stop or error",
+      });
+    } else if (id === "task_webrtc_encoded_script_transform") {
+      results.push({
+        name: "Worker Script Transform Feature Gate",
+        passed: code.includes("typeof ScriptTransformConstructor !== \"function\"") && code.includes('error.name = "NotSupportedError"'),
+        detail: "Reports unsupported runtimes explicitly instead of assuming the draft API is universally available",
+      });
+      results.push({
+        name: "Construct Before Endpoint Mutation",
+        passed: code.includes("new ScriptTransformConstructor(worker, options)") && code.includes("endpoint.transform = transform"),
+        detail: "Installs a successfully constructed worker transform on the sender or receiver endpoint",
+      });
+      results.push({
+        name: "Input and Options Validation",
+        passed: code.includes('!("transform" in endpoint)') && code.includes("Array.isArray(options)"),
+        detail: "Rejects unrelated endpoints and malformed options before changing the media pipeline",
+      });
+    } else if (id === "task_webrtc_sframe_key_rotation") {
+      results.push({
+        name: "Unsigned Stable Key Identifier Validation",
+        passed: code.includes("Number.isSafeInteger(value)") && code.includes("18446744073709551615n") && code.includes("normalizedId === normalizedPreviousId"),
+        detail: "Rejects reused or numerically imprecise SFrame key identifiers",
+      });
+      results.push({
+        name: "Receive-First Key Activation Order",
+        passed: code.indexOf("await decryptor.addDecryptionKey(key, keyId)") < code.indexOf("await encryptor.setEncryptionKey(key, keyId)"),
+        detail: "Makes the new receive key available before the sender encrypts with it",
+      });
+      results.push({
+        name: "Rollback and Graceful Key Retirement",
+        passed: code.includes("await decryptor.removeDecryptionKey(keyId)") && code.includes("previousKeyRetired = true") && code.includes("previousKeyId"),
+        detail: "Rolls back failed activation and keeps the old receive key if retirement cannot complete",
+      });
+    } else if (id === "task_webrtc_encoded_frame_pipe") {
+      results.push({
+        name: "Low-Latency Encoded Stream Bridge",
+        passed: code.includes("new TransformStream") && code.includes("readable.pipeThrough(frameTransform)") && code.includes("readable.pipeTo(transformer.writable"),
+        detail: "Connects the script transform's streams with a standard TransformStream pipeline",
+      });
+      results.push({
+        name: "Synchronous Processing and Explicit Drops",
+        passed: code.includes("output.then === \"function\"") && code.includes("output === null || output === undefined"),
+        detail: "Prevents asynchronous queue buildup and makes deliberate frame drops explicit",
+      });
+      results.push({
+        name: "Frame Ownership, Order and Abort",
+        passed: code.includes("output !== frame") && code.includes("controller.enqueue(frame)") && code.includes("{ signal }"),
+        detail: "Preserves the original encoded frame and allows lifecycle cancellation through AbortSignal",
       });
     } else {
       results.push({
@@ -8119,7 +8167,7 @@ export class Evaluator {
               getDepthInMeters(x, y) { coordinates.push([x, y]); return 1.75; },
             };
             const meters = readXrDepthSample(information, 0.25, 1);
-            const invalid = readXrDepthSample({ getDepthInMeters() { return 0; } }, 0, 0);
+            const invalid = readXrDepthSample({ getDepthInMeters() { return Number.NaN; } }, 0, 0);
             const absent = readXrDepthSample(null, 0.5, 0.5);
             let boundsRejected = false;
             let gpuRejected = false;
@@ -8203,6 +8251,120 @@ export class Evaluator {
         name: "Current Per-View Depth, Session End & Render Failure Cleanup",
         passed: Boolean(res?.webxrLoopOk),
         detail: "Samples each view, preserves missing depth, and cancels queued callbacks on end or renderer failure",
+      });
+    } else if (taskId === "task_webrtc_encoded_script_transform") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const worker = { id: "worker" };
+            const options = { operation: "encrypt", room: "r1" };
+            class FakeScriptTransform {
+              constructor(receivedWorker, receivedOptions) {
+                if (receivedOptions.fail) throw new Error("clone failed");
+                this.worker = receivedWorker;
+                this.options = receivedOptions;
+              }
+            }
+            const sender = { transform: null };
+            const attached = attachRtcScriptTransform(sender, worker, options, FakeScriptTransform);
+            const receiver = { transform: null };
+            attachRtcScriptTransform(receiver, worker, { operation: "decrypt" }, FakeScriptTransform);
+            const unchanged = { transform: "existing" };
+            let constructionFailed = false;
+            try { attachRtcScriptTransform(unchanged, worker, { fail: true }, FakeScriptTransform); }
+            catch { constructionFailed = true; }
+            let unavailable = false;
+            try { attachRtcScriptTransform({ transform: null }, worker, {}, undefined); }
+            catch (error) { unavailable = error.name === "NotSupportedError"; }
+            return {
+              rtcScriptTransformOk: sender.transform === attached && attached.worker === worker &&
+                attached.options === options && receiver.transform.options.operation === "decrypt" &&
+                unchanged.transform === "existing" && constructionFailed && unavailable,
+            };
+          } catch { return { rtcScriptTransformOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Sender and Receiver Script Transform Installation",
+        passed: Boolean(res?.rtcScriptTransformOk),
+        detail: "Attaches worker transforms to both endpoint kinds and preserves old state on failure",
+      });
+    } else if (taskId === "task_webrtc_sframe_key_rotation") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const events = [];
+            const key = { type: "secret" };
+            const decryptor = {
+              async addDecryptionKey(received, id) { events.push("add:" + id); if (received !== key) throw new Error("wrong key"); },
+              async removeDecryptionKey(id) { events.push("remove:" + id); },
+            };
+            const encryptor = { async setEncryptionKey(received, id) { events.push("set:" + id); if (received !== key) throw new Error("wrong key"); } };
+            const rotated = await rotateSFrameEncryptionKey({ encryptor, decryptor, key, keyId: 2, previousKeyId: 1 });
+            let failedActivation = false;
+            const failingEncryptor = { async setEncryptionKey() { throw new Error("sender rejected key"); } };
+            try { await rotateSFrameEncryptionKey({ encryptor: failingEncryptor, decryptor, key, keyId: 3, previousKeyId: 2 }); }
+            catch (error) { failedActivation = error.message === "sender rejected key"; }
+            let unsafeIdRejected = false;
+            try { await rotateSFrameEncryptionKey({ encryptor, decryptor, key, keyId: Number.MAX_SAFE_INTEGER + 1 }); }
+            catch (error) { unsafeIdRejected = error.name === "RangeError"; }
+            return {
+              sframeRotationOk: rotated.keyId === 2 && rotated.previousKeyRetired &&
+                events.slice(0, 3).join(",") === "add:2,set:2,remove:1" &&
+                failedActivation && events.includes("remove:3") && !events.includes("remove:2") && unsafeIdRejected,
+            };
+          } catch { return { sframeRotationOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Receive-First SFrame Key Rotation and Failed Activation Rollback",
+        passed: Boolean(res?.sframeRotationOk),
+        detail: "Adds the new receive key first, activates the sender, retires the old key, and rolls back a failed switch",
+      });
+    } else if (taskId === "task_webrtc_encoded_frame_pipe") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const first = { id: 1 };
+            const dropped = { id: 2, drop: true };
+            const last = { id: 3 };
+            const output = [];
+            const input = new ReadableStream({
+              start(controller) { controller.enqueue(first); controller.enqueue(dropped); controller.enqueue(last); controller.close(); },
+            });
+            const destination = new WritableStream({ write(frame) { output.push(frame); } });
+            await pipeEncodedFrames({ readable: input, writable: destination }, (frame) => frame.drop ? null : frame);
+            let replacementRejected = false;
+            try {
+              await pipeEncodedFrames({
+                readable: new ReadableStream({ start(controller) { controller.enqueue({ id: 4 }); controller.close(); } }),
+                writable: new WritableStream({ write() {} }),
+              }, (frame) => ({ ...frame }));
+            } catch (error) { replacementRejected = error.name === "TypeError"; }
+            let asyncRejected = false;
+            try {
+              await pipeEncodedFrames({
+                readable: new ReadableStream({ start(controller) { controller.enqueue({ id: 5 }); controller.close(); } }),
+                writable: new WritableStream({ write() {} }),
+              }, (frame) => Promise.resolve(frame));
+            } catch (error) { asyncRejected = error.name === "TypeError"; }
+            return {
+              encodedFramePipeOk: output.length === 2 && output[0] === first && output[1] === last &&
+                replacementRejected && asyncRejected,
+            };
+          } catch { return { encodedFramePipeOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Synchronous In-Order Frame Processing, Drop & Ownership Checks",
+        passed: Boolean(res?.encodedFramePipeOk),
+        detail: "Drops a selected frame, preserves object identity and rejects asynchronous or replacement outputs",
       });
     } else {
       // General syntax evaluation
