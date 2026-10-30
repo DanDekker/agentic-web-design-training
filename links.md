@@ -117,6 +117,7 @@ not assumed to work uniformly across browsers.
 | Values and Units Level 4 | <https://www.w3.org/TR/css-values-4/> |
 | Cascade Level 5 | <https://www.w3.org/TR/css-cascade-5/> |
 | Scroll Snap Level 1 | <https://www.w3.org/TR/css-scroll-snap-1/> |
+| Overflow Level 3 (scroll containers and `scrollbar-gutter`) | <https://www.w3.org/TR/css-overflow-3/> |
 | Containment Level 2 (`content-visibility`) | <https://www.w3.org/TR/css-contain-2/> |
 | Transitions Level 2 (`@starting-style`, discrete transitions) | <https://www.w3.org/TR/css-transitions-2/> |
 | View Transitions Level 1 | <https://www.w3.org/TR/css-view-transitions-1/> |
@@ -131,6 +132,8 @@ not assumed to work uniformly across browsers.
 | Display Level 3 (formatting contexts and flow-root) | <https://www.w3.org/TR/css-display-3/> |
 | Positioned Layout Level 3 (sticky/fixed containing blocks and stacking contexts) | <https://www.w3.org/TR/css-position-3/> |
 | Basic User Interface Level 4 (accent-color) | <https://drafts.csswg.org/css-ui-4/> |
+| Form Control Styling Level 1 (`field-sizing`) | <https://drafts.csswg.org/css-forms/> |
+| Box Sizing Level 4 (`interpolate-size`, `calc-size()`) | <https://drafts.csswg.org/css-sizing-4/> |
 | CSS Conditional Rules Level 5 (scroll-state container queries) | <https://www.w3.org/TR/css-conditional-5/> |
 | CSS Shadow Module Level 1 (`:host()`, `::slotted()`, `:has-slotted`, `::part()`, `exportparts`) | <https://drafts.csswg.org/css-shadow-parts/> |
 | Cascade Level 6 (`@scope` and scope proximity) | <https://www.w3.org/TR/css-cascade-6/> |
