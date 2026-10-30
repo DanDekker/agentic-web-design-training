@@ -20,7 +20,7 @@ export class ValidationError extends Error {
   }
 }
 
-const clone = (value) => ({ ...value });
+const clone = (value) => structuredClone(value);
 const squeeze = (value) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
 
 function slugify(name) {
@@ -138,15 +138,15 @@ export class TaskStore {
     const now = new Date().toISOString();
     return {
       id: task.id || randomUUID(),
-      boardId: task.boardId || boardId,
+      boardId,
       title: squeeze(task.title),
       notes: typeof task.notes === "string" ? task.notes : "",
       priority: Number.isInteger(task.priority) ? task.priority : 0,
       due: typeof task.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.due) ? task.due : null,
       done: Boolean(task.done),
       category: typeof task.category === "string" ? task.category : "task",
-      tags: Array.isArray(task.tags) ? task.tags : [],
-      refactorData: task.refactorData && typeof task.refactorData === "object" ? task.refactorData : null,
+      tags: Array.isArray(task.tags) ? clone(task.tags) : [],
+      refactorData: task.refactorData && typeof task.refactorData === "object" ? clone(task.refactorData) : null,
       createdAt: task.createdAt ?? now,
       updatedAt: task.updatedAt ?? task.createdAt ?? now,
       doneAt: task.doneAt ?? null,
@@ -272,19 +272,27 @@ export class TaskStore {
       throw new ValidationError("A task needs a title.");
     }
 
-    const board = this.#boards.find((b) => b.id === boardId) ?? this.#boards[0];
+    const board = this.#boards.find((b) => b.id === boardId);
+    if (!board) throw new ValidationError("Unknown board.");
+    const id = input?.id || randomUUID();
+    if (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id)) {
+      throw new ValidationError("Task ID must contain only letters, numbers, hyphens, and underscores.");
+    }
+    if (this.#tasks.some((existing) => existing.id === id)) {
+      throw new ValidationError("That task already exists.");
+    }
     const now = new Date().toISOString();
     const task = {
-      id: input?.id || randomUUID(),
-      boardId: board?.id || "board_today",
+      id,
+      boardId: board.id,
       title: cleanTitle(title),
       notes: cleanNotes(notes),
       priority: cleanPriority(priority ?? 0),
       due: cleanDue(due ?? null),
       done: Boolean(input?.done),
       category: typeof category === "string" ? category : "task",
-      tags: Array.isArray(tags) ? tags : [],
-      refactorData: refactorData && typeof refactorData === "object" ? refactorData : null,
+      tags: Array.isArray(tags) ? clone(tags) : [],
+      refactorData: refactorData && typeof refactorData === "object" ? clone(refactorData) : null,
       createdAt: now,
       updatedAt: now,
       doneAt: null,
@@ -300,16 +308,20 @@ export class TaskStore {
   }
 
   async update(id, patch = {}) {
-    const task = this.#tasks.find((t) => t.id === id);
-    if (!task) return null;
+    const index = this.#tasks.findIndex((t) => t.id === id);
+    if (index === -1) return null;
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+      throw new ValidationError("Task updates must be an object.");
+    }
+    const task = clone(this.#tasks[index]);
 
     if (patch.title !== undefined) task.title = cleanTitle(patch.title);
     if (patch.notes !== undefined) task.notes = cleanNotes(patch.notes);
     if (patch.priority !== undefined) task.priority = cleanPriority(patch.priority);
     if (patch.due !== undefined) task.due = cleanDue(patch.due);
     if (patch.category !== undefined) task.category = String(patch.category);
-    if (Array.isArray(patch.tags)) task.tags = patch.tags;
-    if (patch.refactorData !== undefined) task.refactorData = patch.refactorData;
+    if (Array.isArray(patch.tags)) task.tags = clone(patch.tags);
+    if (patch.refactorData !== undefined) task.refactorData = clone(patch.refactorData);
 
     if (patch.done !== undefined) {
       const done = Boolean(patch.done);
@@ -322,9 +334,11 @@ export class TaskStore {
     if (patch.boardId !== undefined && patch.boardId !== task.boardId) {
       const board = this.#boards.find((b) => b.id === patch.boardId);
       if (!board) throw new ValidationError("Unknown board.");
-      this.#tasks.splice(this.#tasks.indexOf(task), 1);
+      this.#tasks.splice(index, 1);
       task.boardId = board.id;
       this.#insert(task);
+    } else {
+      this.#tasks[index] = task;
     }
 
     task.updatedAt = new Date().toISOString();

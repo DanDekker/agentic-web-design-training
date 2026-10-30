@@ -56,6 +56,14 @@ describe("/api", () => {
     expect(raw.status).toBe(400);
   });
 
+  test("a rejected task update does not alter the visible task", async () => {
+    const task = await (await call("POST", "/api/tasks", { title: "Original" })).json();
+    const rejected = await call("PATCH", `/api/tasks/${task.id}`, { title: "Changed", priority: 9 });
+    expect(rejected.status).toBe(422);
+    const state = await (await call("GET", "/api/tasks")).json();
+    expect(state.tasks[0].title).toBe("Original");
+  });
+
   test("404s for unknown tasks and endpoints", async () => {
     expect((await call("PATCH", "/api/tasks/missing", { done: true })).status).toBe(404);
     expect((await call("DELETE", "/api/tasks/missing")).status).toBe(404);
