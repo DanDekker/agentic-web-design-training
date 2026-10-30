@@ -684,14 +684,50 @@ describe("Live state and rendering", () => {
     expect(app.get("counts").textContent).toBe("0 of 2 done");
   });
 
+  test("a late create response does not recreate a task deleted remotely", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "POST" && path === "/api/tasks"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    app.get("new-task").value = "Already removed";
+    await app.get("composer").emit("submit");
+    await settle();
+    finish(json({ id: "gone", boardId: "board_today", title: "Already removed", done: false }, 201));
+    await settle();
+    expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["task-one"]);
+  });
+
+  test("a late create response keeps a newly selected board and filter", async () => {
+    let finish;
+    const app = await createClient({ route: ({ method, path }) =>
+      method === "POST" && path === "/api/tasks"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    app.get("new-task").value = "Created on Today";
+    await app.get("composer").emit("submit");
+    await settle();
+    await app.click(app.get("board-tabs").children[1]);
+    await app.get("filter-done").emit("change");
+    const task = { id: "new-task-remote", boardId: "board_today", title: "Created on Today", done: false };
+    app.snapshot.tasks.push(task);
+    finish(json(task, 201));
+    await settle();
+    expect(app.get("board-title").textContent).toBe("Agentic Refactoring.");
+    expect(app.get("filter-done").checked).toBe(true);
+    expect(app.get("list").children).toHaveLength(0);
+  });
+
   test("failed task creation keeps the draft and blocks duplicate submits while pending", async () => {
     let finish;
     let attempts = 0;
-    const app = await createClient({ route: ({ method, path }) => {
+    const app = await createClient({ route: ({ method, path, snapshot }) => {
       if (method === "POST" && path === "/api/tasks") {
         attempts++;
         if (attempts === 1) return new Promise((resolve) => { finish = resolve; });
-        return json({ id: "saved", boardId: "board_today", title: "Keep this draft", done: false }, 201);
+        const task = { id: "saved", boardId: "board_today", title: "Keep this draft", done: false };
+        snapshot.tasks.push(task);
+        return json(task, 201);
       }
     } });
     app.get("new-task").value = "Keep this draft";
