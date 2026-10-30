@@ -192,6 +192,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Sticky Nav and Inner Transform Placement", all: ["position: sticky", "inset-block-start: 0", "z-index: var(--layer-navigation)", ".ops-shell__canvas", "transform: translateZ(0)"], withinRules: [{ selector: ".ops-shell__canvas", all: ["transform: translateZ(0)"] }] },
     { name: "Viewport Alert Outside the Trapped Context", all: ["position: fixed", "inset-inline-end: 1rem", "z-index: var(--layer-alert)", "pointer-events: none", "pointer-events: auto"], withinRules: [{ selector: "#incident-alert-root", all: ["position: fixed", "z-index: var(--layer-alert)", "pointer-events: none"] }] , none: ["z-index: 9999", "z-index: 2147483647"] },
   ],
+  task_css_native_controls_color_scheme: [
+    { name: "Native Browser Scheme and Author Tokens", all: ["color-scheme: light dark", "prefers-color-scheme: dark", "--page-surface:", "--form-ink:", "--form-accent:"] },
+    { name: "Native Controls and Accent Color", all: ['input[type="checkbox"]', 'input[type="radio"]', 'input[type="range"]', "accent-color: var(--form-accent)", "font: inherit"], none: ["appearance: none"] },
+    { name: "Keyboard and Forced-Colors Support", all: [":focus-visible", "forced-colors: active", "background-color: Field", "color: FieldText", "outline-color: Highlight"], none: ["outline: none"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
