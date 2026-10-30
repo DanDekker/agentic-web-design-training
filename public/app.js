@@ -808,7 +808,7 @@ async function runRefactorVerification() {
         </div>
 
         <div class="${passClass}" style="font-size: 0.95rem; margin-bottom: 0.6rem;">
-          ${result.passed ? "✓ Sandbox Evaluation Passed!" : "✗ Sandbox Evaluation Incomplete"}
+          ${result.passed ? "✓ Checks passed" : "✗ Checks incomplete"}
         </div>
         <div style="margin-bottom: 0.4rem; color: var(--ink);">Test Assertions & Criteria:</div>
         <ul style="margin: 0 0 0.5rem 1.2rem; padding: 0;">
@@ -915,7 +915,7 @@ async function logout() {
   }
 }
 
-/* ── 1st-Party Proprietary OAuth 2.0 & PKCE Simulator ─────── */
+/* ── OAuth 2.0 & PKCE demo ───────────────────────────────── */
 
 function openOAuthModal() {
   renderOAuthClients();
@@ -1011,7 +1011,7 @@ async function simulateAgentOAuthPkce() {
     }).then((r) => r.json());
 
     el.oauthSimOutput.textContent += `[Step 4] Verified UserInfo: ${JSON.stringify(userinfo, null, 2)}\n\n`;
-    el.oauthSimOutput.textContent += `✓ 1st-Party Proprietary OAuth 2.0 PKCE Handshake Complete & Verified!`;
+    el.oauthSimOutput.textContent += `✓ OAuth 2.0 PKCE demo completed.`;
     toast("OAuth PKCE Flow Successfully Simulated!");
   } catch (err) {
     el.oauthSimOutput.textContent += `\nError during OAuth flow: ${err.message}`;
