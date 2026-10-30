@@ -1,6 +1,6 @@
 /**
- * Web development curriculum: 130 exercises across 35 categories and 14 tracks.
- * Framework, browser-platform, GPU, real-time media and agentic-web challenge code is imported from standalone files.
+ * Web development curriculum: 139 exercises across 38 categories and 17 tracks.
+ * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, real-time media and agentic-web code is imported from standalone files.
  */
 
 import reactNextStarter from "../exercises/frameworks/ts_react_nextjs_server_actions/starter.ts" with { type: "text" };
@@ -10452,7 +10452,7 @@ export class VirtualizedShadowListEngine {
     difficulty: "advanced",
     tags: ["webnn", "mlcontext", "device-loss", "recovery", "generation-fence"],
     instructions:
-      "An MLContext can become lost, which destroys its graphs and tensors and rejects outstanding operations. Build a lazy session runner that shares concurrent session creation, observes each context's lost promise, fences results from stale sessions, and retries idempotent inference against a freshly compiled session at most a configured number of times. Closing the runner must stop new work and invalidate its active generation. The operation callback should not perform non-idempotent side effects because it may be retried.",
+      "An MLContext can become lost, which destroys its graphs and tensors and rejects outstanding operations. Build a lazy session runner that shares concurrent session creation, observes each context's lost promise, fences results from stale sessions, and retries idempotent inference against a freshly compiled session at most a configured number of times. Closing the runner must stop new work, invalidate its active generation, and destroy its owned MLContext when supported. The operation callback should not perform non-idempotent side effects because it may be retried.",
     starterCode: webnnLossStarter,
     solutionCode: webnnLossSolution,
     criteria: [

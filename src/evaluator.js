@@ -2250,6 +2250,11 @@ export class Evaluator {
         passed: code.includes("attempt < maxAttempts") && code.includes("Promise.race") && code.includes("record.lost"),
         detail: "Retries after a lost context but stops at the caller's configured attempt limit",
       });
+      results.push({
+        name: "Runner-Owned Context Cleanup",
+        passed: code.includes("context.destroy?.()") && code.includes("function close()"),
+        detail: "Destroys the active context when closing the session runner where the backend supports it",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7446,8 +7451,10 @@ export class Evaluator {
           try {
             const events = [];
             let released = false;
+            let readyPromise = Promise.resolve();
+            let onReady;
             const writer = {
-              get ready() { events.push("ready"); return Promise.resolve(); },
+              get ready() { events.push("ready"); onReady?.(); return readyPromise; },
               async write(bytes) { events.push("write:" + [...bytes].join(".")); },
               async close() { events.push("close"); },
               releaseLock() { released = true; },
@@ -7461,13 +7468,24 @@ export class Evaluator {
             const backing = new Uint8Array([9, 1, 2, 8]);
             const sent = await sender.send(backing.subarray(1, 3));
             const tooLarge = await sender.send(new Uint8Array(5));
+            let announceReady;
+            const readyEntered = new Promise((resolve) => { announceReady = resolve; });
+            onReady = announceReady;
+            let releaseReady;
+            readyPromise = new Promise((resolve) => { releaseReady = resolve; });
+            const changedLimitSend = sender.send(new Uint8Array(4));
+            await readyEntered;
+            datagrams.maxDatagramSize = 3;
+            releaseReady();
+            const changedLimitRejected = !(await changedLimitSend);
             await sender.close();
             let closedSendRejected = false;
             try { await sender.send(new Uint8Array([1])); } catch { closedSendRejected = true; }
             return {
               datagramSenderOk: sent === true && tooLarge === false && datagrams.outgoingMaxAge === 50 &&
                 events.includes("write:1.2") && events.indexOf("ready") < events.findIndex((event) => event.startsWith("write:")) &&
-                events.includes("options:2") && released && closedSendRejected,
+                events.includes("options:2") && changedLimitRejected &&
+                events.filter((event) => event.startsWith("write:")).length === 1 && released && closedSendRejected,
             };
           } catch { return { datagramSenderOk: false }; }
         })();
@@ -7793,7 +7811,11 @@ export class Evaluator {
               await Promise.resolve();
               let resolveLost;
               const lost = new Promise((resolve) => { resolveLost = resolve; });
-              const session = { id: sessions.length + 1, context: { lost }, markLost: resolveLost };
+              const session = {
+                id: sessions.length + 1,
+                context: { lost, destroyed: false, destroy() { this.destroyed = true; } },
+                markLost: resolveLost,
+              };
               sessions.push(session);
               return session;
             }, { maxAttempts: 2 });
@@ -7821,7 +7843,7 @@ export class Evaluator {
             try { await runner.run(() => "should not run"); } catch { closedRejected = true; }
             return {
               webnnRecoveryOk: recoveredResult === "session-2" && resultA === 2 && resultB === 2 &&
-                sessions.length === 2 && generation === 2 && closedRejected,
+                sessions.length === 2 && generation === 2 && sessions[1].context.destroyed && closedRejected,
             };
           } catch { return { webnnRecoveryOk: false }; }
         })();
