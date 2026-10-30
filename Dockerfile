@@ -4,18 +4,19 @@ LABEL org.opencontainers.image.source="https://github.com/DanDekker/gauntlet-web
 
 WORKDIR /app
 
-COPY --chown=bun:bun package.json ./
+RUN mkdir -p /data && chown bun:bun /app /data
+COPY --chown=bun:bun package.json bun.lock ./
+USER bun
+RUN bun install --frozen-lockfile --production --ignore-scripts
+
 COPY --chown=bun:bun src/ ./src/
 COPY --chown=bun:bun public/ ./public/
 COPY --chown=bun:bun exercises/ ./exercises/
-
-RUN mkdir -p /data && chown bun:bun /data
 
 ENV NODE_ENV=production \
     PORT=3000 \
     GUANTLET_WEB_HOST=0.0.0.0 \
     GUANTLET_WEB_DATA_DIR=/data
 
-USER bun
 EXPOSE 3000
 CMD ["bun", "src/server.js"]
