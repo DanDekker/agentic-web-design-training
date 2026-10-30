@@ -294,17 +294,33 @@ fetchers (`ChatGPT-User`, `Claude-User`, `Perplexity-User`):
 | AP2 technical specification | <https://ap2-protocol.org/ap2/specification/> |
 | AP2 sample flows | <https://ap2-protocol.org/ap2/flows/> |
 | AP2 reference implementation | <https://github.com/google-agentic-commerce/AP2> |
+| AP2 — security and privacy considerations | <https://ap2-protocol.org/ap2/security_and_privacy_considerations/> |
+| AP2 — implementation considerations | <https://ap2-protocol.org/ap2/implementation_considerations/> |
+| AP2 — glossary | <https://ap2-protocol.org/glossary/> |
+| AP2 — FAQ | <https://ap2-protocol.org/faq/> |
 | AP2 announcement (2025-09-16) | <https://cloud.google.com/blog/products/ai-machine-learning/announcing-agents-to-payments-ap2-protocol> |
 | AP2 v0.2 and FIDO Alliance donation | <https://blog.google/products-and-platforms/platforms/google-pay/agent-payments-protocol-fido-alliance/> |
 | FIDO Alliance — standards for trusted AI agent interactions | <https://fidoalliance.org/fido-alliance-to-develop-standards-for-trusted-ai-agent-interactions/> |
 | CSA — Secure use of AP2 | <https://cloudsecurityalliance.org/blog/2025/10/06/secure-use-of-the-agent-payments-protocol-ap2-a-framework-for-trustworthy-ai-driven-transactions> |
 | arXiv — systematic security analysis of AP2 | <https://arxiv.org/abs/2608.23858v1> |
 | Agent2Agent (A2A) protocol | <https://a2a-protocol.org/> |
+| A2A — specification | <https://a2a-protocol.org/latest/specification/> |
+| A2A — core concepts | <https://a2a-protocol.org/latest/topics/key-concepts/> |
+| A2A — agent discovery | <https://a2a-protocol.org/latest/topics/agent-discovery/> |
+| A2A and MCP | <https://a2a-protocol.org/latest/topics/a2a-and-mcp/> |
+| Universal Commerce Protocol (UCP) | <https://ucp.dev/> |
 | Universal Commerce Protocol (UCP) + AP2 | <https://ucp.dev/documentation/ucp-and-ap2/> |
 | UCP REST API reference | <https://perfectpay.ai/docs/agent-commerce/ucp-rest-api> |
 | x402 — HTTP 402 Payment Required | <https://docs.x402.org/core-concepts/http-402> |
+| x402 — core protocol specification, v2 | <https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v2.md> |
+| x402 — HTTP transport specification, v2 | <https://github.com/x402-foundation/x402/blob/main/specs/transports-v2/http.md> |
 | x402 — payment schemes | <https://docs.x402.org/schemes/overview> |
+| x402 — `exact` scheme | <https://docs.x402.org/schemes/exact.md> |
 | x402 — V1 to V2 migration guide | <https://docs.x402.org/guides/migration-v1-to-v2> |
+| x402 — facilitator | <https://docs.x402.org/core-concepts/facilitator.md> |
+| x402 — client / server roles | <https://docs.x402.org/core-concepts/client-server> |
+| x402 — payment-identifier extension (idempotency) | <https://docs.x402.org/extensions/payment-identifier> |
+| x402 — Bazaar discovery extension | <https://docs.x402.org/extensions/bazaar> |
 | x402 Foundation repository | <https://github.com/x402-foundation/x402> |
 | x402 issue — v1-to-v2 PaymentRequired envelope defect | <https://github.com/x402-foundation/x402/issues/3210> |
 
@@ -393,6 +409,8 @@ identify themselves through a `Signature-Agent` header.
 | Document | URL |
 | --- | --- |
 | MCP specification (2025-06-18 revision) | <https://modelcontextprotocol.io/specification/2025-06-18> |
+| MCP — server tools | <https://modelcontextprotocol.io/specification/2025-06-18/server/tools> |
+| MCP — transports | <https://modelcontextprotocol.io/specification/2025-06-18/basic/transports> |
 | MCP documentation index | <https://modelcontextprotocol.io/llms.txt> |
 
 ### Further reading
