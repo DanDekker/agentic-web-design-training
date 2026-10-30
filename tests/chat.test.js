@@ -139,6 +139,36 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
     expect(typeof bench.latency.p99Ms).toBe("number");
   });
 
+  test("chat HTTP retries do not replace pending messages or rebroadcast committed ones", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-chat-retry-"));
+    try {
+      const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
+      const broadcasts = [];
+      const handle = createHandler(taskStore, { broadcast: (event) => broadcasts.push(event) });
+      const send = (body) => handle(new Request("http://gauntlet-web.test/api/chat/messages", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      }));
+      const future = { roomId: "dm:agent:pp", sender: "agent", recipient: "pp", text: "Fourth", clientMsgId: "future", expectedSeq: 4 };
+      const first = await send(future);
+      expect(first.status).toBe(201);
+      expect((await first.json()).buffered).toBe(true);
+      const retry = await send(future);
+      expect(retry.status).toBe(200);
+      expect(await retry.json()).toMatchObject({ buffered: true, deduplicated: true });
+      expect((await send({ ...future, clientMsgId: "conflict" })).status).toBe(422);
+      expect(broadcasts).toHaveLength(0);
+      const gap = { roomId: "dm:agent:pp", sender: "pp", recipient: "agent", text: "Third", clientMsgId: "gap", expectedSeq: 3 };
+      expect((await send(gap)).status).toBe(201);
+      expect(broadcasts).toHaveLength(1);
+      expect((await send(future)).status).toBe(200);
+      expect(broadcasts).toHaveLength(1);
+      const history = await (await handle(new Request("http://gauntlet-web.test/api/chat/messages"))).json();
+      expect(history.messages.slice(-2).map((message) => message.text)).toEqual(["Third", "Fourth"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   test("exposes real-time chat REST endpoints for two-user messaging, typing, read receipts, debug & benchmark", async () => {
     const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-chat-api-"));
     try {
