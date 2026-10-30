@@ -41,12 +41,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build image
-        run: docker build --pull --tag webdev-gauntlet:ci .
+        run: docker build --pull --tag gauntlet-web:ci .
       - name: Smoke test HTTP server
         shell: bash
         run: |
           set -euo pipefail
-          container_id=$(docker run --detach --publish 127.0.0.1:4317:3000 webdev-gauntlet:ci)
+          container_id=$(docker run --detach --publish 127.0.0.1:4317:3000 gauntlet-web:ci)
           trap 'docker rm --force "$container_id" >/dev/null 2>&1 || true' EXIT
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:4317/api/health >/dev/null; then

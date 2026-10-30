@@ -4451,7 +4451,7 @@ export class Evaluator {
 
           const hero = buildMedia({
             basePath: "/assets/hero",
-            alt: "guantlet-web Dashboard",
+            alt: "gauntlet-web Dashboard",
             width: 1600,
             height: 900,
             isAboveTheFoldLcp: true,
@@ -4495,11 +4495,11 @@ export class Evaluator {
             : exports.buildArticleKnowledgeGraphJsonLd;
 
           const out = buildGraph({
-            canonicalUrl: "https://guantlet-web.test/guides/json-ld",
-            siteOrigin: "https://guantlet-web.test/",
-            siteName: "guantlet-web Engineering",
-            orgName: "guantlet-web Labs",
-            logoUrl: "https://guantlet-web.test/logo.png",
+            canonicalUrl: "https://gauntlet-web.test/guides/json-ld",
+            siteOrigin: "https://gauntlet-web.test/",
+            siteName: "gauntlet-web Engineering",
+            orgName: "gauntlet-web Labs",
+            logoUrl: "https://gauntlet-web.test/logo.png",
             headline: "Attack </script><script>alert(1)</script>",
             description: "Connected Schema.org Graph",
             datePublishedIso: "2026-10-29T00:00:00Z",
@@ -4519,8 +4519,8 @@ export class Evaluator {
             graphLinkedOk:
               out.payload["@context"] === "https://schema.org" &&
               nodes.length === 5 &&
-              articleNode?.publisher?.["@id"] === "https://guantlet-web.test/#organization" &&
-              pageNode?.breadcrumb?.["@id"] === "https://guantlet-web.test/guides/json-ld#breadcrumb",
+              articleNode?.publisher?.["@id"] === "https://gauntlet-web.test/#organization" &&
+              pageNode?.breadcrumb?.["@id"] === "https://gauntlet-web.test/guides/json-ld#breadcrumb",
             xssNeutralizedOk:
               !out.scriptHtml.includes("</script><script>") &&
               out.scriptHtml.includes("\\\\u003c/script\\\\u003e"),
@@ -4544,10 +4544,10 @@ export class Evaluator {
           const valid = buildProd({
             sku: "GUANTLET_WEB-ENT-01",
             gtin13: "0012345678905",
-            name: "guantlet-web Enterprise Workstation",
+            name: "gauntlet-web Enterprise Workstation",
             description: "Monochrome hardware kit",
-            brandName: "guantlet-web",
-            imageUrls: ["https://guantlet-web.test/img/hw.avif"],
+            brandName: "gauntlet-web",
+            imageUrls: ["https://gauntlet-web.test/img/hw.avif"],
             price: 1299.5,
             currency: "USD",
             inStock: true,
@@ -4565,7 +4565,7 @@ export class Evaluator {
               gtin13: "123", // invalid GTIN-13
               name: "Bad",
               description: "Bad",
-              brandName: "guantlet-web",
+              brandName: "gauntlet-web",
               imageUrls: [],
               price: -5,
               currency: "usd",
@@ -4606,25 +4606,25 @@ export class Evaluator {
 
           const res = compileHead({
             rawUrl: "http://GUANTLET-WEB.TEST/docs/guide/?utm_source=newsletter&b=2&fbclid=xyz123&a=1#section",
-            title: "guantlet-web SEO & <Graph> Guide",
+            title: "gauntlet-web SEO & <Graph> Guide",
             description: "Technical SEO canonicalization",
-            ogImageUrl: "https://guantlet-web.test/og.png",
+            ogImageUrl: "https://gauntlet-web.test/og.png",
             localeAlternates: {
-              "en-US": "https://guantlet-web.test/docs/guide?b=2&a=1&utm_medium=social",
-              "de-DE": "https://guantlet-web.test/de/docs/guide/?b=2&a=1",
+              "en-US": "https://gauntlet-web.test/docs/guide?b=2&a=1&utm_medium=social",
+              "de-DE": "https://gauntlet-web.test/de/docs/guide/?b=2&a=1",
             },
             defaultLocale: "en-US",
             noIndex: false,
           });
 
           return {
-            canonicalNormalizedOk: res.canonicalUrl === "https://guantlet-web.test/docs/guide?a=1&b=2",
+            canonicalNormalizedOk: res.canonicalUrl === "https://gauntlet-web.test/docs/guide?a=1&b=2",
             hreflangClusterOk:
-              res.headHtml.includes('hreflang="en-us" href="https://guantlet-web.test/docs/guide?a=1&amp;b=2"') &&
-              res.headHtml.includes('hreflang="de-de" href="https://guantlet-web.test/de/docs/guide?a=1&amp;b=2"') &&
+              res.headHtml.includes('hreflang="en-us" href="https://gauntlet-web.test/docs/guide?a=1&amp;b=2"') &&
+              res.headHtml.includes('hreflang="de-de" href="https://gauntlet-web.test/de/docs/guide?a=1&amp;b=2"') &&
               res.headHtml.includes('hreflang="x-default"'),
             metaEscapedOk:
-              res.headHtml.includes("guantlet-web SEO &amp; &lt;Graph&gt; Guide") &&
+              res.headHtml.includes("gauntlet-web SEO &amp; &lt;Graph&gt; Guide") &&
               res.headHtml.includes("max-image-preview:large"),
           };
         })();
@@ -4700,14 +4700,14 @@ export class Evaluator {
           const out = compileMap({
             entries: [
               {
-                specifier: "@guantlet-web/core",
-                url: "https://cdn.guantlet-web.test/core@1.0.0/index.mjs",
+                specifier: "@gauntlet-web/core",
+                url: "https://cdn.gauntlet-web.test/core@1.0.0/index.mjs",
                 integritySha384: "sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC",
                 preload: true,
               },
             ],
             scopes: {
-              "/legacy/": { "@guantlet-web/core": "https://cdn.guantlet-web.test/core@0.9.0/index.mjs" },
+              "/legacy/": { "@gauntlet-web/core": "https://cdn.gauntlet-web.test/core@0.9.0/index.mjs" },
             },
             entryModuleSrc: "/app.mjs",
           });
@@ -4719,8 +4719,8 @@ export class Evaluator {
           return {
             orderingValid: importMapIdx === 0 && importMapIdx < preloadIdx && preloadIdx < moduleScriptIdx,
             sriMappedOk:
-              out.importMapJson.integrity["https://cdn.guantlet-web.test/core@1.0.0/index.mjs"].startsWith("sha384-") &&
-              out.importMapJson.scopes["/legacy/"]["@guantlet-web/core"].includes("0.9.0"),
+              out.importMapJson.integrity["https://cdn.gauntlet-web.test/core@1.0.0/index.mjs"].startsWith("sha384-") &&
+              out.importMapJson.scopes["/legacy/"]["@gauntlet-web/core"].includes("0.9.0"),
           };
         })();
       `;
@@ -4739,15 +4739,15 @@ export class Evaluator {
             : exports.buildBenchmarkPortalJsonLdGraph;
 
           const graphDoc = buildPortal({
-            origin: "https://guantlet-web.test/",
-            orgName: "guantlet-web Research",
-            sameAsUrls: ["https://github.com/guantlet-web-labs", "https://wikidata.org/wiki/Q12345"],
-            searchUrlTemplate: "https://guantlet-web.test/search?q={search_term_string}",
+            origin: "https://gauntlet-web.test/",
+            orgName: "gauntlet-web Research",
+            sameAsUrls: ["https://github.com/gauntlet-web-labs", "https://wikidata.org/wiki/Q12345"],
+            searchUrlTemplate: "https://gauntlet-web.test/search?q={search_term_string}",
             dataset: {
               name: "Agentic 1M Refactoring Benchmark Dataset",
               description: "Sandboxed execution traces and AST evaluation scores across 62 software engineering tasks.",
               licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
-              downloadUrl: "https://guantlet-web.test/datasets/agentic-1m.parquet",
+              downloadUrl: "https://gauntlet-web.test/datasets/agentic-1m.parquet",
               encodingFormat: "application/parquet",
             },
             faqs: [
@@ -4764,7 +4764,7 @@ export class Evaluator {
             datasetOk:
               ds?.distribution?.[0]?.["@type"] === "DataDownload" &&
               ds?.distribution?.[0]?.encodingFormat === "application/parquet" &&
-              ds?.creator?.["@id"] === "https://guantlet-web.test/#organization",
+              ds?.creator?.["@id"] === "https://gauntlet-web.test/#organization",
             searchActionOk:
               ws?.potentialAction?.["@type"] === "SearchAction" &&
               ws?.potentialAction?.["query-input"] === "required name=search_term_string",
@@ -5312,9 +5312,9 @@ export class Evaluator {
 
           const matrix = new Controller(
             [
-              { sku: "KB-OBS-TKL", title: "guantlet-web Key Obsidian TKL", attributes: { color: "obsidian", layout: "TKL" }, unitPriceMinor: 18900, availableStock: 5 },
-              { sku: "KB-OBS-FULL", title: "guantlet-web Key Obsidian Full", attributes: { color: "obsidian", layout: "FULL" }, unitPriceMinor: 19900, availableStock: 0 },
-              { sku: "KB-SLV-FULL", title: "guantlet-web Key Silver Full", attributes: { color: "silver", layout: "FULL" }, unitPriceMinor: 19900, availableStock: 2 },
+              { sku: "KB-OBS-TKL", title: "gauntlet-web Key Obsidian TKL", attributes: { color: "obsidian", layout: "TKL" }, unitPriceMinor: 18900, availableStock: 5 },
+              { sku: "KB-OBS-FULL", title: "gauntlet-web Key Obsidian Full", attributes: { color: "obsidian", layout: "FULL" }, unitPriceMinor: 19900, availableStock: 0 },
+              { sku: "KB-SLV-FULL", title: "gauntlet-web Key Silver Full", attributes: { color: "silver", layout: "FULL" }, unitPriceMinor: 19900, availableStock: 2 },
             ],
             ["color", "layout"],
           );
@@ -5352,7 +5352,7 @@ export class Evaluator {
           drawer.seedItems([
             {
               sku: "MON-4K",
-              title: "guantlet-web 4K Studio Display",
+              title: "gauntlet-web 4K Studio Display",
               quantity: 1,
               unitPriceAtAddMinor: 79900,
               liveCatalogPriceMinor: 79900,
@@ -5370,7 +5370,7 @@ export class Evaluator {
           drawer.commitServerResponse(m2.mutationId, [
             {
               sku: "MON-4K",
-              title: "guantlet-web 4K Studio Display",
+              title: "gauntlet-web 4K Studio Display",
               quantity: 2,
               unitPriceAtAddMinor: 79900,
               liveCatalogPriceMinor: 84900,
@@ -5405,7 +5405,7 @@ export class Evaluator {
 
           const merged = promote({
             accountId: "acc_01",
-            rawEmail: "  Shopper@guantlet-web.test ",
+            rawEmail: "  Shopper@gauntlet-web.test ",
             existingAccountCart: [
               { sku: "GPU-CARD", title: "Compute Card", quantity: 2, unitPriceMinor: 50000, maxPerOrder: 4, availableStock: 10, updatedAtMs: 1000 },
             ],
@@ -5430,7 +5430,7 @@ export class Evaluator {
 
           return {
             cartMergedAndClampedOk:
-              merged.email === "shopper@guantlet-web.test" &&
+              merged.email === "shopper@gauntlet-web.test" &&
               merged.mergedCartItems.length === 2 &&
               gpuLine?.quantity === 4 &&
               merged.quantityAdjustments[0]?.reason === "MAX_PER_ORDER_LIMIT",
@@ -5454,7 +5454,7 @@ export class Evaluator {
 
           const stepper = new Stepper();
           const blockedEarly = stepper.canNavigateTo("PAYMENT");
-          stepper.completeAccountStep("buyer@guantlet-web.test");
+          stepper.completeAccountStep("buyer@gauntlet-web.test");
           stepper.submitShippingAddress({
             line1: "742 Evergreen Terrace",
             postalCode: "94107",
@@ -5565,7 +5565,7 @@ export class Evaluator {
             : exports.NormalizedCommerceEntityStore;
 
           const store = new Store();
-          store.upsertCustomer({ id: "c_1", email: "initial@guantlet-web.test", displayName: "Ada" });
+          store.upsertCustomer({ id: "c_1", email: "initial@gauntlet-web.test", displayName: "Ada" });
 
           let orphanBlocked = false;
           try {
@@ -5580,13 +5580,13 @@ export class Evaluator {
           store.insertShipment({ id: "ship_1", orderId: "o_2", trackingNumber: "1Z999", status: "DELIVERED" });
 
           // Updating customer email in one place immediately reflects in order history view
-          store.upsertCustomer({ id: "c_1", email: "updated@guantlet-web.test", displayName: "Ada Lovelace" });
+          store.upsertCustomer({ id: "c_1", email: "updated@gauntlet-web.test", displayName: "Ada Lovelace" });
           const view = store.getCustomerOrderHistoryView("c_1");
 
           return {
             fkAndNormalizedUpdateOk:
               orphanBlocked === true &&
-              view.customer.email === "updated@guantlet-web.test" &&
+              view.customer.email === "updated@gauntlet-web.test" &&
               view.orders.length === 2 &&
               view.orders[0].order.id === "o_2" &&
               view.orders[0].items.length === 1 &&
@@ -5609,7 +5609,7 @@ export class Evaluator {
             : exports.OrderSnapshotVault;
 
           const catalog = new Map([
-            ["HW-KEY", { sku: "HW-KEY", title: "guantlet-web Mechanical Keyboard v1", unitPriceMinor: 15000, taxRateBps: 1000 }],
+            ["HW-KEY", { sku: "HW-KEY", title: "gauntlet-web Mechanical Keyboard v1", unitPriceMinor: 15000, taxRateBps: 1000 }],
           ]);
 
           const vault = new Vault();
@@ -5634,7 +5634,7 @@ export class Evaluator {
               verified.order.totalDiscountMinor === 2000 &&
               verified.order.totalTaxMinor === 2800 &&
               verified.order.grandTotalMinor === 30800 &&
-              verified.order.lines[0].snapshotTitle === "guantlet-web Mechanical Keyboard v1",
+              verified.order.lines[0].snapshotTitle === "gauntlet-web Mechanical Keyboard v1",
           };
         })();
       `;
@@ -5654,7 +5654,7 @@ export class Evaluator {
 
           const promoter = new Promoter();
           promoter.seedState({
-            customers: [{ accountId: "acc_1", email: "pp@guantlet-web.test", orderCount: 0, lifetimeSpendMinor: 0 }],
+            customers: [{ accountId: "acc_1", email: "pp@gauntlet-web.test", orderCount: 0, lifetimeSpendMinor: 0 }],
             carts: [
               {
                 cartId: "cart_ok",
@@ -5813,7 +5813,7 @@ export class Evaluator {
 
           // 1. Valid __Host- + CHIPS Partitioned cookie with >400d Max-Age clamped
           const valid = serialize({
-            name: "__Host-guantlet-web_sess",
+            name: "__Host-gauntlet-web_sess",
             value: "tok_123",
             path: "/",
             secure: true,
@@ -5839,7 +5839,7 @@ export class Evaluator {
 
           return {
             hostChipsAndClampOk:
-              valid.header.includes("__Host-guantlet-web_sess=tok_123") &&
+              valid.header.includes("__Host-gauntlet-web_sess=tok_123") &&
               valid.header.includes("Partitioned") &&
               valid.clampedMaxAgeSec === 34560000 &&
               valid.warnings.includes("MAX_AGE_CLAMPED_TO_400_DAYS") &&
@@ -6765,8 +6765,8 @@ export class Evaluator {
           ]);
 
           const parts = engine.validateCssPartSelectors([
-            "guantlet-web-card::part(surface)",
-            "guantlet-web-card::part(private-internal-node)",
+            "gauntlet-web-card::part(surface)",
+            "gauntlet-web-card::part(private-internal-node)",
           ]);
 
           return {

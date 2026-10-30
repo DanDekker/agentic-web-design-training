@@ -106,7 +106,7 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
   });
 
   test("exposes real-time chat REST endpoints for two-user messaging, typing, read receipts, debug & benchmark", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "guantlet-web-chat-api-"));
+    const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-chat-api-"));
     try {
       const taskStore = await new TaskStore(join(dir, "tasks.json")).load();
       const authStore = await new AuthStore(join(dir, "auth.json")).load();
@@ -115,7 +115,7 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
 
       const call = (method, path, body) =>
         handle(
-          new Request(`http://guantlet-web.test${path}`, {
+          new Request(`http://gauntlet-web.test${path}`, {
             method,
             headers: body ? { "content-type": "application/json" } : undefined,
             body: body ? JSON.stringify(body) : undefined,

@@ -4703,7 +4703,7 @@ export function compileSpeculationRulesTag(config: SpeculationConfig): {
       "A custom UI card component calls attachShadow({ mode: 'open' }) only after client JavaScript downloads, causing a severe Flash of Unstyled Content (FOUC) and failing to forward focus to its internal control. Refactor to a streaming-friendly SSR Declarative Shadow DOM generator (<template shadowrootmode=\"open\" shadowrootdelegatesfocus shadowrootclonable>) with named <slot> fallbacks and an idempotent client hydrator that reuses existing this.shadowRoot without throwing NotSupportedError.",
     starterCode: `// Client-Only Shadow DOM with FOUC & Duplicate attachShadow Crash on SSR
 export function renderSSRComponent(title: string) {
-  return \`<guantlet-web-card>\${title}</guantlet-web-card>\`;
+  return \`<gauntlet-web-card>\${title}</gauntlet-web-card>\`;
 }
 export function hydrateCard(hostEl: any) {
   // Crashes if Declarative Shadow DOM already attached hostEl.shadowRoot!
@@ -4729,7 +4729,7 @@ function escapeAttr(val: string): string {
 export function renderDeclarativeShadowCardSSR(props: DeclarativeCardProps): string {
   const focusAttr = props.delegateFocus !== false ? " shadowrootdelegatesfocus" : "";
   return [
-    \`<guantlet-web-surface-card id="\${escapeAttr(props.id)}">\`,
+    \`<gauntlet-web-surface-card id="\${escapeAttr(props.id)}">\`,
     \`  <template shadowrootmode="open"\${focusAttr} shadowrootclonable>\`,
     \`    <style>:host{display:block;contain:content}::slotted([slot="badge"]){font-family:monospace}</style>\`,
     \`    <article part="surface">\`,
@@ -4740,7 +4740,7 @@ export function renderDeclarativeShadowCardSSR(props: DeclarativeCardProps): str
     \`  </template>\`,
     \`  <span slot="badge">\${escapeAttr(props.badgeText)}</span>\`,
     \`  <h2 slot="heading">\${escapeAttr(props.heading)}</h2>\`,
-    \`</guantlet-web-surface-card>\`,
+    \`</gauntlet-web-surface-card>\`,
   ].join("\\n");
 }
 
@@ -7466,7 +7466,7 @@ export function buildOrderHistoryPortalViewModel(params: {
       "A web shop stores customers, carts, orders, line items, and shipments as deeply nested duplicated objects across UI slices. Updating a customer's email or a shipment tracking status leaves stale copies in 4 views and requires O(N^2) nested scans. Refactor into a NormalizedCommerceEntityStore with primary-key entity maps, O(1) foreign-key secondary indexes (ordersByCustomerId, itemsByOrderId, shipmentsByOrderId), and strict foreign-key referential integrity guards.",
     starterCode: `// Unorganized Deeply Nested E-Commerce State with Duplicated Customer & Order Objects
 export const messyShopState = {
-  orders: [{ id: "o1", customer: { id: "c1", email: "old@guantlet-web.test" }, items: [] }],
+  orders: [{ id: "o1", customer: { id: "c1", email: "old@gauntlet-web.test" }, items: [] }],
 };`,
     solutionCode: `// Normalized Commerce Entity Store with Referential Integrity & O(1) Secondary Indexes
 export interface CustomerEntity {

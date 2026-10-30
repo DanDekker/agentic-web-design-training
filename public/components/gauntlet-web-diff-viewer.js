@@ -1,5 +1,5 @@
 /**
- * Web Component: <guantlet-web-diff-viewer>
+ * Web Component: <gauntlet-web-diff-viewer>
  * MDN Standards: Autonomous Custom Element, Open Shadow DOM, Adopted StyleSheets.
  * Provides encapsulated line-by-line diff viewing with zero host stylesheet leakage.
  */
@@ -64,7 +64,7 @@ diffStyles.replaceSync(`
   }
 `);
 
-export class GuantletWebDiffViewer extends HTMLElement {
+export class GauntletWebDiffViewer extends HTMLElement {
   static observedAttributes = ["original", "modified"];
   #shadowRoot;
   #container;
@@ -145,6 +145,6 @@ export class GuantletWebDiffViewer extends HTMLElement {
   }
 }
 
-if (!customElements.get("guantlet-web-diff-viewer")) {
-  customElements.define("guantlet-web-diff-viewer", GuantletWebDiffViewer);
+if (!customElements.get("gauntlet-web-diff-viewer")) {
+  customElements.define("gauntlet-web-diff-viewer", GauntletWebDiffViewer);
 }

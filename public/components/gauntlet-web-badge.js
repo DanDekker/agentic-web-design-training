@@ -1,5 +1,5 @@
 /**
- * Web Component: <guantlet-web-badge>
+ * Web Component: <gauntlet-web-badge>
  * MDN Standards: Autonomous Custom Element, Form-Associated Custom Element,
  * ElementInternals API (accessibility role mapping & validation), Shadow DOM.
  */
@@ -48,7 +48,7 @@ badgeStyles.replaceSync(`
   }
 `);
 
-export class GuantletWebBadge extends HTMLElement {
+export class GauntletWebBadge extends HTMLElement {
   static formAssociated = true;
   static observedAttributes = ["variant", "level", "value"];
 
@@ -92,6 +92,6 @@ export class GuantletWebBadge extends HTMLElement {
   }
 }
 
-if (!customElements.get("guantlet-web-badge")) {
-  customElements.define("guantlet-web-badge", GuantletWebBadge);
+if (!customElements.get("gauntlet-web-badge")) {
+  customElements.define("gauntlet-web-badge", GauntletWebBadge);
 }

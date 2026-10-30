@@ -118,22 +118,22 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
       replaceSync() {}
     };
 
-    await import("../public/components/guantlet-web-task-item.js");
-    await import("../public/components/guantlet-web-diff-viewer.js");
-    await import("../public/components/guantlet-web-badge.js");
-    await import("../public/components/guantlet-web-platform.js");
-    await import("../public/components/guantlet-web-design-swatch.js");
+    await import("../public/components/gauntlet-web-task-item.js");
+    await import("../public/components/gauntlet-web-diff-viewer.js");
+    await import("../public/components/gauntlet-web-badge.js");
+    await import("../public/components/gauntlet-web-platform.js");
+    await import("../public/components/gauntlet-web-design-swatch.js");
 
-    expect(globalThis.customElements.get("guantlet-web-task-item")).toBeDefined();
-    expect(globalThis.customElements.get("guantlet-web-diff-viewer")).toBeDefined();
-    expect(globalThis.customElements.get("guantlet-web-badge")).toBeDefined();
-    expect(globalThis.customElements.get("guantlet-web-capabilities")).toBeDefined();
-    expect(globalThis.customElements.get("guantlet-web-design-swatch")).toBeDefined();
+    expect(globalThis.customElements.get("gauntlet-web-task-item")).toBeDefined();
+    expect(globalThis.customElements.get("gauntlet-web-diff-viewer")).toBeDefined();
+    expect(globalThis.customElements.get("gauntlet-web-badge")).toBeDefined();
+    expect(globalThis.customElements.get("gauntlet-web-capabilities")).toBeDefined();
+    expect(globalThis.customElements.get("gauntlet-web-design-swatch")).toBeDefined();
   });
 
-  test("guantlet-web-task-item encapsulates Shadow DOM and manages attributes", async () => {
-    const { GuantletWebTaskItem } = await import("../public/components/guantlet-web-task-item.js");
-    const item = new GuantletWebTaskItem();
+  test("gauntlet-web-task-item encapsulates Shadow DOM and manages attributes", async () => {
+    const { GauntletWebTaskItem } = await import("../public/components/gauntlet-web-task-item.js");
+    const item = new GauntletWebTaskItem();
     item.setAttribute("task-id", "task-123");
     item.setAttribute("done", "false");
 
@@ -145,9 +145,9 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     expect(item.getAttribute("done")).toBe("true");
   });
 
-  test("guantlet-web-diff-viewer handles original and modified code diffs in Shadow DOM", async () => {
-    const { GuantletWebDiffViewer } = await import("../public/components/guantlet-web-diff-viewer.js");
-    const diff = new GuantletWebDiffViewer();
+  test("gauntlet-web-diff-viewer handles original and modified code diffs in Shadow DOM", async () => {
+    const { GauntletWebDiffViewer } = await import("../public/components/gauntlet-web-diff-viewer.js");
+    const diff = new GauntletWebDiffViewer();
     diff.original = "line 1\nline 2";
     diff.modified = "line 1\nline 2 modified\nline 3";
 
@@ -156,18 +156,18 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     expect(diff.modified).toContain("line 3");
   });
 
-  test("guantlet-web-badge leverages ElementInternals for form-association", async () => {
-    const { GuantletWebBadge } = await import("../public/components/guantlet-web-badge.js");
-    expect(GuantletWebBadge.formAssociated).toBe(true);
+  test("gauntlet-web-badge leverages ElementInternals for form-association", async () => {
+    const { GauntletWebBadge } = await import("../public/components/gauntlet-web-badge.js");
+    expect(GauntletWebBadge.formAssociated).toBe(true);
 
-    const badge = new GuantletWebBadge();
+    const badge = new GauntletWebBadge();
     badge.variant = "category";
     expect(badge.variant).toBe("category");
     expect(badge.shadowRoot).toBeDefined();
   });
 
-  test("guantlet-web-capabilities probes the platform surface without throwing", async () => {
-    const { probeCapabilities, GuantletWebCapabilities } = await import("../public/components/guantlet-web-platform.js");
+  test("gauntlet-web-capabilities probes the platform surface without throwing", async () => {
+    const { probeCapabilities, GauntletWebCapabilities } = await import("../public/components/gauntlet-web-platform.js");
 
     const results = probeCapabilities();
     expect(Array.isArray(results)).toBe(true);
@@ -178,17 +178,17 @@ describe("MDN Web Components & Shadow DOM Suite", () => {
     }
 
     // Hydration path: no declarative shadow root in the mock, so it attaches cleanly.
-    const el = new GuantletWebCapabilities();
+    const el = new GauntletWebCapabilities();
     expect(el.shadowRoot).toBeDefined();
     el.connectedCallback();
     expect(el.getAttribute("data-score")).toMatch(/^\d+$/);
   });
 
-  test("guantlet-web-design-swatch synchronizes OKLCH tokens, APCA Lc, and CustomStateSet states via ElementInternals", async () => {
-    const { GuantletWebDesignSwatch } = await import("../public/components/guantlet-web-design-swatch.js");
-    expect(GuantletWebDesignSwatch.formAssociated).toBe(true);
+  test("gauntlet-web-design-swatch synchronizes OKLCH tokens, APCA Lc, and CustomStateSet states via ElementInternals", async () => {
+    const { GauntletWebDesignSwatch } = await import("../public/components/gauntlet-web-design-swatch.js");
+    expect(GauntletWebDesignSwatch.formAssociated).toBe(true);
 
-    const swatch = new GuantletWebDesignSwatch();
+    const swatch = new GauntletWebDesignSwatch();
     swatch.token = "--bg-obsidian-950";
     swatch.oklch = "oklch(0.11 0.005 90)";
     swatch.apcaLc = 102.4;

@@ -22,12 +22,12 @@ last re-verified on **2026-10-30**.
 
 | Purpose | URL |
 | --- | --- |
-| Repository | <https://github.com/DanDekker/webdev-gauntlet> |
-| Clone URL | <https://github.com/DanDekker/webdev-gauntlet.git> |
+| Repository | <https://github.com/DanDekker/gauntlet-web> |
+| Clone URL | <https://github.com/DanDekker/gauntlet-web.git> |
 | GitHub profile | <https://github.com/DanDekker> |
-| CI workflow | <https://github.com/DanDekker/webdev-gauntlet/actions/workflows/ci.yml> |
-| CI status badge | <https://github.com/DanDekker/webdev-gauntlet/actions/workflows/ci.yml/badge.svg> |
-| Social preview image (Open Graph) | <https://raw.githubusercontent.com/DanDekker/webdev-gauntlet/master/assets/social-preview.png> |
+| CI workflow | <https://github.com/DanDekker/gauntlet-web/actions/workflows/ci.yml> |
+| CI status badge | <https://github.com/DanDekker/gauntlet-web/actions/workflows/ci.yml/badge.svg> |
+| Social preview image (Open Graph) | <https://raw.githubusercontent.com/DanDekker/gauntlet-web/master/assets/social-preview.png> |
 
 ## Technology map
 
@@ -507,10 +507,10 @@ They are not live services and are not linked from production code paths.
 
 | Host | Used for |
 | --- | --- |
-| `guantlet-web.test` | Canonical/URL-normalisation fixtures |
+| `gauntlet-web.test` | Canonical/URL-normalisation fixtures |
 | `api.example.com`, `app.example.com`, `idp.example.com`, `login.example.com` | API, app and identity-provider fixtures |
 | `evil.example.com` | Negative security fixtures |
 | `tracker-a.example`, `tracker-b.example` | Tracking / fingerprinting fixtures |
 | `app.local`, `edge.local`, `npm.corp.internal`, `registry.npmjs.org` | Internal-infrastructure fixtures |
 | `oauth.pstmn.io` | OAuth provider fixture |
-| `github.com/guantlet-web-labs`, `wikidata.org/wiki/Q12345` | `sameAs` entity-linking fixtures |
+| `github.com/gauntlet-web-labs`, `wikidata.org/wiki/Q12345` | `sameAs` entity-linking fixtures |

@@ -1,5 +1,5 @@
 /**
- * Web Component: <guantlet-web-design-swatch>
+ * Web Component: <gauntlet-web-design-swatch>
  * MDN & WHATWG Standards:
  * - Autonomous Form-Associated Custom Element (static formAssociated = true)
  * - ElementInternals API (setFormValue, CustomStateSet :state(selected), :state(apca-aaa))
@@ -58,7 +58,7 @@ swatchSheet.replaceSync(`
   }
 `);
 
-export class GuantletWebDesignSwatch extends HTMLElement {
+export class GauntletWebDesignSwatch extends HTMLElement {
   static formAssociated = true;
   static observedAttributes = ["token", "oklch", "apca-lc", "selected"];
 
@@ -148,6 +148,6 @@ export class GuantletWebDesignSwatch extends HTMLElement {
   }
 }
 
-if (!customElements.get("guantlet-web-design-swatch")) {
-  customElements.define("guantlet-web-design-swatch", GuantletWebDesignSwatch);
+if (!customElements.get("gauntlet-web-design-swatch")) {
+  customElements.define("gauntlet-web-design-swatch", GauntletWebDesignSwatch);
 }

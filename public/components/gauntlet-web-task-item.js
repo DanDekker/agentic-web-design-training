@@ -1,5 +1,5 @@
 /**
- * Web Component: <guantlet-web-task-item>
+ * Web Component: <gauntlet-web-task-item>
  * MDN Standards: Autonomous Custom Element, Open Shadow DOM, Adopted StyleSheets, Slot API.
  */
 
@@ -125,7 +125,7 @@ itemStyles.replaceSync(`
   }
 `);
 
-export class GuantletWebTaskItem extends HTMLElement {
+export class GauntletWebTaskItem extends HTMLElement {
   static observedAttributes = ["done", "priority", "task-id", "cursor", "dragging", "drop-target"];
 
   #shadowRoot;
@@ -215,6 +215,6 @@ export class GuantletWebTaskItem extends HTMLElement {
   };
 }
 
-if (!customElements.get("guantlet-web-task-item")) {
-  customElements.define("guantlet-web-task-item", GuantletWebTaskItem);
+if (!customElements.get("gauntlet-web-task-item")) {
+  customElements.define("gauntlet-web-task-item", GauntletWebTaskItem);
 }
