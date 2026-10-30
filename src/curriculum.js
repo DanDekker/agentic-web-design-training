@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 203 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 204 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -73,6 +73,8 @@ import seoSitemapStarter from "../exercises/seo/technical/sitemap_compiler/start
 import seoSitemapSolution from "../exercises/seo/technical/sitemap_compiler/solution.ts" with { type: "text" };
 import seoSearchConsoleStarter from "../exercises/seo/technical/search_console_triage/starter.ts" with { type: "text" };
 import seoSearchConsoleSolution from "../exercises/seo/technical/search_console_triage/solution.ts" with { type: "text" };
+import seoMigrationStarter from "../exercises/seo/technical/migration_audit/starter.ts" with { type: "text" };
+import seoMigrationSolution from "../exercises/seo/technical/migration_audit/solution.ts" with { type: "text" };
 import webtransportDatagramStarter from "../exercises/platform/webtransport/datagram_sender/starter.js" with { type: "text" };
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
@@ -7233,6 +7235,22 @@ export function buildBenchmarkPortalJsonLdGraph(spec: BenchmarkPortalSchemaSpec)
       "Normalizes query, page URL, country, and device dimensions and aggregates clicks, impressions, and impression-weighted average position",
       "Uses non-overlapping country/device/position-specific CTR baselines and configurable minimum-impression and CTR-gap thresholds",
       "Reports multi-page query cohorts for human review without asserting cannibalization and rejects malformed or ambiguous input",
+    ],
+  },
+  {
+    id: "task_seo_site_migration_redirect_auditor",
+    title: "Audit Redirect Graphs and URL Signals Before a Site Migration",
+    category: "technical-seo",
+    difficulty: "advanced",
+    tags: ["seo", "technical-seo", "site-migration", "redirects", "canonical", "sitemap"],
+    instructions:
+      "A retailer is migrating its catalog and blog to new routes and a new domain. Build a deterministic migration auditor that normalizes URL mapping rows, resolves redirect chains and cycles, and recommends direct final destinations. Check destination origins against an allowlist, audit final HTTP/canonical/robots/noindex snapshots, and report legacy URLs still present in the new sitemap or internal links. Distinguish temporary from permanent redirect rules and keep query strings intact. A redirect plan is a review artifact; never silently rewrite mappings to unrelated destinations.",
+    starterCode: seoMigrationStarter.trimEnd(),
+    solutionCode: seoMigrationSolution.trimEnd(),
+    criteria: [
+      "Normalizes absolute HTTP(S) URLs while preserving queries, rejects duplicate sources, and validates allowed destination origins",
+      "Resolves redirect chains deterministically, detects cycles, and proposes final destinations with chain-length findings",
+      "Checks final target status, self-canonicalization, crawl/index eligibility, sitemap inclusion, and stale internal links",
     ],
   },
 

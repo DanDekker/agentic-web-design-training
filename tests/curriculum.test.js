@@ -333,7 +333,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
   test("verifies the technical SEO crawl and indexing category", async () => {
     const tasksRes = await call("GET", "/api/curriculum/tasks?category=technical-seo");
     const { tasks: technicalSeoTasks } = await tasksRes.json();
-    expect(technicalSeoTasks.length).toBe(3);
+    expect(technicalSeoTasks.length).toBe(4);
 
     for (const task of technicalSeoTasks) {
       const verifyRes = await call("POST", "/api/curriculum/verify", {
@@ -505,7 +505,7 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(203);
+    expect(validation.totalTasks).toBe(204);
     expect(CURRICULUM_CATEGORIES.length).toBe(42);
     expect(Object.keys(CURRICULUM_TRACKS).length).toBe(21);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
