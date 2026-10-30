@@ -2566,6 +2566,22 @@ export class Evaluator {
         passed: !code.includes("catch (") && !code.includes("catch{"),
         detail: "Keeps compile, link and guest-start failures from triggering a second instantiation attempt",
       });
+    } else if (id === "task_webassembly_utf8_abi_ownership") {
+      results.push({
+        name: "UTF-8 Byte-Length Encoding",
+        passed: code.includes("TextEncoder") && code.includes("encoder.encode(value)") && code.includes("bytes.byteLength"),
+        detail: "Sends encoded UTF-8 bytes and their byte count across the numeric guest ABI",
+      });
+      results.push({
+        name: "Post-Allocation Buffer Refresh and Pointer Bounds",
+        passed: code.includes("const buffer = memory.buffer") && code.includes("buffer.byteLength - pointer"),
+        detail: "Observes memory growth caused by allocation and bounds-checks before constructing a view",
+      });
+      results.push({
+        name: "Allocation Released on Guest Failure",
+        passed: code.includes("finally") && code.includes("exports.free(pointer)"),
+        detail: "Returns valid guest-owned memory after both successful and throwing calls",
+      });
     } else if (id === "task_webnn_tensor_inference_lifecycle") {
       results.push({
         name: "Least-Privilege Tensor Permissions",
@@ -8253,6 +8269,45 @@ export class Evaluator {
         name: "CDN MIME Fallback, HTTP Failure & Single Instantiation",
         passed: Boolean(res?.wasmStreamingLoaderOk),
         detail: "Uses streaming with a correct MIME type, buffers a legacy response, and preserves failures without retrying",
+      });
+    } else if (taskId === "task_webassembly_utf8_abi_ownership") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            let buffer = new ArrayBuffer(4);
+            const memory = { get buffer() { return buffer; } };
+            const freed = [];
+            const expectedTrap = new Error("guest trap");
+            const exports = {
+              alloc(size) {
+                if (buffer.byteLength < size + 12) buffer = new ArrayBuffer(size + 12);
+                return 8;
+              },
+              free(pointer) { freed.push(pointer); },
+              consume(pointer, length) {
+                return new TextDecoder("utf-8", { fatal: true })
+                  .decode(new Uint8Array(memory.buffer, pointer, length));
+              },
+              trap() { throw expectedTrap; },
+            };
+            const label = "Café 雪 🌐";
+            const decoded = callWasmWithUtf8(memory, exports, "consume", label);
+            let trapPreserved = false;
+            try { callWasmWithUtf8(memory, exports, "trap", "release me"); }
+            catch (error) { trapPreserved = error === expectedTrap; }
+            return {
+              wasmUtf8AbiOk: decoded === label && freed.length === 2 && freed[0] === 8 && freed[1] === 8 &&
+                new Uint8Array(buffer, 8, new TextEncoder().encode(label).byteLength).length > label.length && trapPreserved,
+            };
+          } catch { return { wasmUtf8AbiOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Unicode Byte Length, Memory Growth & Trap-Safe Free",
+        passed: Boolean(res?.wasmUtf8AbiOk),
+        detail: "Round-trips multibyte text after allocator-driven growth and releases each pointer even after a trap",
       });
     } else if (taskId === "task_webnn_tensor_inference_lifecycle") {
       const harness = `

@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 190 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 191 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -81,6 +81,8 @@ import wasmJspiStarter from "../exercises/platform/webassembly/jspi_bindings/sta
 import wasmJspiSolution from "../exercises/platform/webassembly/jspi_bindings/solution.js" with { type: "text" };
 import wasmStreamingStarter from "../exercises/platform/webassembly/streaming_loader/starter.js" with { type: "text" };
 import wasmStreamingSolution from "../exercises/platform/webassembly/streaming_loader/solution.js" with { type: "text" };
+import wasmUtf8AbiStarter from "../exercises/platform/webassembly/utf8_abi/starter.js" with { type: "text" };
+import wasmUtf8AbiSolution from "../exercises/platform/webassembly/utf8_abi/solution.js" with { type: "text" };
 import credentialBuilderStarter from "../exercises/platform/digital_credentials/request_builder/starter.js" with { type: "text" };
 import credentialBuilderSolution from "../exercises/platform/digital_credentials/request_builder/solution.js" with { type: "text" };
 import credentialPromptStarter from "../exercises/platform/digital_credentials/prompt_coordinator/starter.js" with { type: "text" };
@@ -12359,6 +12361,23 @@ export class VirtualizedShadowListEngine {
       "Uses streaming only for the normalized application/wasm media type and when supported",
       "Falls back to one arrayBuffer read and asynchronous instantiation for incorrect MIME or older runtimes",
       "Propagates errors from the chosen instantiation path without retrying guest startup",
+    ],
+  },
+  {
+    id: "task_webassembly_utf8_abi_ownership",
+    title: "Marshal UTF-8 Strings Across a WebAssembly Allocation Boundary",
+    category: "webassembly",
+    difficulty: "advanced",
+    tags: ["webassembly", "utf-8", "abi", "memory-ownership", "allocator"],
+    instructions:
+      "A browser editor sends Unicode labels to a native WebAssembly text-processing export that accepts (pointer, byteLength) and uses guest alloc/free exports. Encode UTF-8 rather than counting JavaScript UTF-16 code units, allocate by encoded byte length, read memory.buffer after allocation because alloc may grow memory, reject unsafe or out-of-bounds pointers, and always release a valid allocation even when copying or the guest call throws.",
+    starterCode: wasmUtf8AbiStarter,
+    solutionCode: wasmUtf8AbiSolution,
+    criteria: [
+      "Encodes input with TextEncoder and passes UTF-8 byte length rather than string.length",
+      "Reads the current memory.buffer after alloc and validates the complete byte range without overflow",
+      "Copies bytes into the guest allocation before calling the requested export with pointer and byte length",
+      "Frees every valid allocation in finally, including when guest code traps",
     ],
   },
   {
