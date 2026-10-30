@@ -1643,6 +1643,12 @@ async function copySummary() {
 function connectEvents() {
   if (typeof EventSource === "undefined") return;
   const es = new EventSource("/api/events");
+  // Events are notifications, not a replayable log. Reconcile the current
+  // snapshot on every connection, including the first, to cover missed updates.
+  es.onopen = () => {
+    loadInitialState();
+    if (el.chatModal?.open) refreshChatChannel();
+  };
   es.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);

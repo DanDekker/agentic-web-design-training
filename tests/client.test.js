@@ -264,6 +264,26 @@ describe("Live state and rendering", () => {
     expect(app.get("list").querySelector(".task-title").textContent).toBe("Updated in another tab");
   });
 
+  test("event stream connection and reconnection reconcile missed state and open chat", async () => {
+    let latestSeq = 2;
+    const app = await createClient({ route: ({ method, path }) => {
+      if (method === "GET" && path.startsWith("/api/chat/messages")) {
+        return json({ latestSeq, messages: [{ seq: latestSeq, sender: "pp", recipient: "agent", text: `Message ${latestSeq}` }], typingUsers: [] });
+      }
+    } });
+    app.snapshot.tasks[0].title = "Changed before connection";
+    await app.openEvents();
+    expect(app.get("list").querySelector(".task-title").textContent).toBe("Changed before connection");
+
+    await app.click("btn-chat-portal");
+    app.snapshot.tasks[0].title = "Changed while disconnected";
+    latestSeq = 3;
+    await app.reconnectEvents();
+    expect(app.get("list").querySelector(".task-title").textContent).toBe("Changed while disconnected");
+    expect(app.get("chat-stat-seq").textContent).toBe("3");
+    expect(app.get("chat-messages-list").innerHTML).toContain("Message 3");
+  });
+
   test("live updates preserve an unfinished inline edit", async () => {
     const app = await createClient();
     await app.key("j");
