@@ -265,6 +265,6 @@ The volume keeps local board and account data between runs. Keep the evaluator o
 
 ## Scope
 
-The project also contains local demos for auth, OAuth, chat, storefront flows, web traffic, and design systems. The OAuth demo checks exact registered redirect URIs and allowed scopes, supports S256 PKCE, and binds refresh tokens to clients. Authorization-code exchanges without PKCE require a client secret. Integrations using `plain` PKCE, an unregistered or omitted redirect URI, or a refresh request without a matching `client_id` need to be updated.
+The project also contains local demos for auth, OAuth, chat, storefront flows, web traffic, and design systems. The OAuth demo checks exact registered redirect URIs and allowed scopes, supports S256 PKCE, and binds refresh tokens to clients. Authorization-code exchanges without PKCE require a client secret. Refresh tokens rotate and expire seven days after the original grant. Integrations using `plain` PKCE, an unregistered or omitted redirect URI, or a refresh request without a matching `client_id` need to be updated.
 
 These auth features are demonstrations: task endpoints do not enforce OAuth permissions, authorization can fall back to the demo agent, and sessions and tokens live in memory. The seeded accounts and clients are intended for a trusted local workspace; the application is not a production identity provider or a service for untrusted submissions.

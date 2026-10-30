@@ -236,6 +236,7 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
   test("accepts only well-formed S256 challenges for authorization codes", async () => {
     const base = { client_id: "agent-runner", redirect_uri: "http://localhost:3000/oauth/callback", approved: "true" };
     expect((await call("POST", "/oauth/authorize/decision", { ...base, code_challenge: "too-short", code_challenge_method: "S256" })).status).toBe(422);
+    expect((await call("POST", "/oauth/authorize/decision", { ...base, code_challenge: `${"a".repeat(43)}\n`, code_challenge_method: "S256" })).status).toBe(422);
     expect((await call("POST", "/oauth/authorize/decision", { ...base, code_challenge: "a".repeat(43), code_challenge_method: "plain" })).status).toBe(422);
   });
 
@@ -268,6 +269,7 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     })).json();
     const exchange = { grant_type: "authorization_code", client_id: "agent-runner", redirect_uri: redirectUri, code: decision.code };
     expect((await call("POST", "/oauth/token", { ...exchange, code_verifier: "short" })).status).toBe(422);
+    expect((await call("POST", "/oauth/token", { ...exchange, code_verifier: `${verifier}\n` })).status).toBe(422);
     expect((await call("POST", "/oauth/token", { ...exchange, code_verifier: verifier, client_secret: "wrong" })).status).toBe(422);
     const tokenRes = await call("POST", "/oauth/token", { ...exchange, code_verifier: verifier });
     expect(tokenRes.status).toBe(200);
@@ -276,6 +278,35 @@ describe("1st-Party Proprietary OAuth 2.0 / OIDC Provider", () => {
     expect((await call("POST", "/oauth/token", refresh)).status).toBe(422);
     expect((await call("POST", "/oauth/token", { ...refresh, client_id: "desktop-curriculum-suite" })).status).toBe(422);
     expect((await call("POST", "/oauth/token", { ...refresh, client_id: "agent-runner" })).status).toBe(200);
+  });
+
+  test("refreshes after access-token expiry and enforces a fixed refresh lifetime", async () => {
+    const started = Date.parse("2026-01-01T00:00:00Z");
+    let now = started;
+    const clocked = await new OAuthServer(join(dir, "clocked-oauth.json"), { now: () => now }).load();
+    const redirectUri = "http://localhost:3000/oauth/callback";
+    const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    const grant = () => {
+      const code = clocked.createAuthorizationCode({
+        clientId: "agent-runner", userId: "usr_agent", redirectUri,
+        codeChallenge: sha256Base64Url(verifier), codeChallengeMethod: "S256",
+      });
+      return clocked.exchangeCodeForToken({ code, clientId: "agent-runner", redirectUri, codeVerifier: verifier });
+    };
+    const first = grant();
+    now += first.expires_in * 1000;
+    expect(clocked.verifyAccessToken(first.access_token)).toBeNull();
+    const rotated = clocked.refreshToken(first.refresh_token, { clientId: "agent-runner" });
+    expect(rotated.refresh_token).not.toBe(first.refresh_token);
+    expect(clocked.introspectToken(rotated.access_token).iat).toBe(now / 1000);
+    expect(() => clocked.refreshToken(first.refresh_token, { clientId: "agent-runner" })).toThrow();
+
+    const other = grant();
+    expect(clocked.revokeToken(other.refresh_token)).toBe(true);
+    expect(clocked.verifyAccessToken(other.access_token)).toBeNull();
+
+    now = started + 7 * 24 * 60 * 60 * 1000;
+    expect(() => clocked.refreshToken(rotated.refresh_token, { clientId: "agent-runner" })).toThrow("expired");
   });
 
   test("complete OAuth Authorization Code flow with PKCE S256", async () => {
