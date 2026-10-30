@@ -71,6 +71,8 @@ import webtransportDatagramStarter from "../exercises/platform/webtransport/data
 import webtransportDatagramSolution from "../exercises/platform/webtransport/datagram_sender/solution.js" with { type: "text" };
 import webtransportFramedStarter from "../exercises/platform/webtransport/framed_stream/starter.js" with { type: "text" };
 import webtransportFramedSolution from "../exercises/platform/webtransport/framed_stream/solution.js" with { type: "text" };
+import webtransportReplayStarter from "../exercises/platform/webtransport/datagram_replay_window/starter.js" with { type: "text" };
+import webtransportReplaySolution from "../exercises/platform/webtransport/datagram_replay_window/solution.js" with { type: "text" };
 
 export const CURRICULUM_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 
@@ -10315,6 +10317,23 @@ export class VirtualizedShadowListEngine {
       "Decodes the unsigned big-endian length and enforces the maximum before accepting the body",
       "Awaits each frame callback so consumer work applies backpressure",
       "Reports truncated headers and payloads at end-of-stream and releases the reader lock",
+    ],
+  },
+  {
+    id: "task_webtransport_datagram_replay_window",
+    title: "Reject Duplicate and Stale WebTransport Datagrams Across Sequence Wrap",
+    category: "webtransport",
+    difficulty: "advanced",
+    tags: ["webtransport", "datagrams", "replay-window", "sequence-number", "reordering"],
+    instructions:
+      "Datagrams can be lost, duplicated, or arrive out of order. Their application payload carries a uint32 sequence number; implement a bounded sliding replay window that accepts each fresh packet at most once, permits recent reordering, and rejects values that have fallen behind the window. Use serial-number arithmetic so 0 after 0xffffffff is considered newer, while the ambiguous half-range jump is rejected. This window is for packet ordering, not cryptographic replay protection.",
+    starterCode: webtransportReplayStarter,
+    solutionCode: webtransportReplaySolution,
+    criteria: [
+      "Validates uint32 sequence numbers and bounds the window to at most 32 packets",
+      "Accepts new packets and nearby out-of-order packets while rejecting duplicates",
+      "Drops packets older than the configured window and rejects ambiguous half-range jumps",
+      "Uses wrap-safe serial arithmetic so uint32 rollover advances the window correctly",
     ],
   },
 ];
