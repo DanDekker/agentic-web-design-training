@@ -58,6 +58,11 @@ jobs:
                 --data '{"html":"<meta name=robots content=noindex>"}' \
                 http://127.0.0.1:4317/api/seo/audit |
                 python3 -c 'import json, sys; assert json.load(sys.stdin)["robotsMeta"]["googleSearch"]["noindex"] is True'
+              curl --fail --silent --show-error \
+                -H 'content-type: application/json' \
+                --data '{"taskId":"task_refactor_async_pipeline","code":"async function processUserData(id) { const [user, prefs, activity] = await Promise.all([fetchUser(id), fetchUserPreferences(id), fetchRecentActivity(id)]); return { user, prefs, score: await calculateScore(activity) }; }"}' \
+                http://127.0.0.1:4317/api/curriculum/evaluate |
+                python3 -c 'import json, sys; assert json.load(sys.stdin)["passed"] is True'
               exit 0
             fi
             sleep 1

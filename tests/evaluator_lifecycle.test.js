@@ -38,7 +38,7 @@ test("canceling a running evaluation stops its worker and frees capacity", async
   expect((await evaluator.evaluate(task.id, task.solutionCode)).passed).toBe(true);
 }, 10000);
 
-test("an async infinite loop is terminated and a later evaluation still runs", async () => {
+test("runaway loops, worker exits, and leftover timers do not affect later runs", async () => {
   // A child process keeps the test runner safe if evaluation ever regresses to
   // running an uninterruptible async loop on the main event loop again.
   const root = fileURLToPath(new URL("..", import.meta.url));
@@ -48,8 +48,12 @@ test("an async infinite loop is terminated and a later evaluation still runs", a
     const evaluator = new Evaluator({ timeoutMs: 500 });
     const task = REFACTORING_CURRICULUM_TASKS.find(item => item.id === 'task_refactor_async_pipeline');
     const stalled = await evaluator.evaluate(task.id, 'async function processUserData() { await Promise.resolve(); while (true) {} }');
+    const exited = await evaluator.evaluate(task.id, 'setTimeout.constructor("return process")().exit(7); async function processUserData() {}');
     const next = await evaluator.evaluate(task.id, task.solutionCode);
-    console.log(JSON.stringify({ failed: !stalled.passed, timedOut: stalled.assertionResults.some(a => a.detail.includes('timed out')), recovered: next.passed }));
+    const timerCode = task.solutionCode + '\\nsetTimeout(() => setTimeout.constructor("return process")().stdout.write("leaked timer"), 200);';
+    const timer = await evaluator.evaluate(task.id, timerCode);
+    await Bun.sleep(350);
+    console.log(JSON.stringify({ failed: !stalled.passed, timedOut: stalled.assertionResults.some(a => a.detail.includes('timed out')), exited: exited.assertionResults.some(a => a.detail.includes('code 7')), recovered: next.passed, timer: timer.passed }));
   `;
   const child = Bun.spawn([process.execPath, "-e", script], { cwd: root, stdout: "pipe", stderr: "pipe" });
   let timer;
@@ -60,7 +64,7 @@ test("an async infinite loop is terminated and a later evaluation still runs", a
     ]);
     const stderr = await new Response(child.stderr).text();
     expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: "" });
-    expect(JSON.parse(await new Response(child.stdout).text())).toEqual({ failed: true, timedOut: true, recovered: true });
+    expect(JSON.parse(await new Response(child.stdout).text())).toEqual({ failed: true, timedOut: true, exited: true, recovered: true, timer: true });
   } finally {
     clearTimeout(timer);
     child.kill();
