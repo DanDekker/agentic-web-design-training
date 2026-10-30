@@ -716,6 +716,29 @@
     gap: 0.2rem;
   }
 
+  .task-move {
+    display: grid;
+    place-items: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ink);
+      border-color: var(--faint);
+    }
+
+    &[aria-disabled="true"] {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
   .remove {
     appearance: none;
     display: grid;
