@@ -17,6 +17,7 @@ class Element {
   disabled = false;
   checked = false;
   open = false;
+  parentElement = null;
 
   constructor(document, tagName) {
     this.document = document;
@@ -70,11 +71,27 @@ class Element {
   }
 
   append(...nodes) {
-    this.children.push(...nodes);
+    for (const node of nodes) {
+      node.parentElement = this;
+      this.children.push(node);
+    }
   }
 
   replaceChildren(...nodes) {
-    this.children = nodes;
+    if (this.children.some((child) => child.contains(this.document.activeElement))) {
+      this.document.body?.focus();
+    }
+    for (const child of this.children) child.parentElement = null;
+    this.children = [];
+    this.append(...nodes);
+  }
+
+  contains(node) {
+    return this === node || this.children.some((child) => child.contains(node));
+  }
+
+  get isConnected() {
+    return this === this.document || Boolean(this.parentElement?.isConnected);
   }
 
   matches(selector) {
@@ -114,7 +131,8 @@ class Element {
     if (!this.open) return;
     this.open = false;
     this.document.dialogs = this.document.dialogs.filter((dialog) => dialog !== this);
-    this.opener?.focus();
+    if (this.opener?.isConnected) this.opener.focus();
+    else this.document.body.focus();
     queueMicrotask(() => this.emit("close"));
   }
 }

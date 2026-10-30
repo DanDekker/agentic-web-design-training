@@ -133,6 +133,17 @@ describe("Client dialogs and keyboard navigation", () => {
 });
 
 describe("Refactor inspector", () => {
+  test("restores focus to the inspector control after a live rerender", async () => {
+    const app = await createClient({ snapshot: { tasks: [challenge("live-inspector")] } });
+    const opener = app.get("list").querySelector(".refactor-inspect-btn");
+    await app.click(opener);
+    app.snapshot.tasks[0].title = "Updated elsewhere";
+    await app.refresh();
+    expect(opener.isConnected).toBe(false);
+    await app.click("btn-close-refactor");
+    expect(app.document.activeElement).toBe(app.get("list").querySelector(".refactor-inspect-btn"));
+  });
+
   test("code tabs expose their panels and support keyboard navigation", async () => {
     const app = await createClient({ snapshot: { tasks: [challenge("tabs")] } });
     await app.click(app.get("list").querySelector(".refactor-inspect-btn"));
@@ -210,6 +221,40 @@ describe("Refactor inspector", () => {
 });
 
 describe("Live state and rendering", () => {
+  test("board selection retains focus and announces the active board", async () => {
+    const app = await createClient();
+    await app.click(app.get("board-tabs").children[1]);
+    let selected = app.get("board-tabs").children[1];
+    expect(app.document.activeElement).toBe(selected);
+    expect(selected.getAttribute("aria-pressed")).toBe("true");
+    expect(app.get("board-tabs").children[0].getAttribute("aria-pressed")).toBe("false");
+    await app.refresh();
+    selected = app.get("board-tabs").children[1];
+    expect(app.document.activeElement).toBe(selected);
+  });
+
+  test("task actions keep focus on the updated or next available control", async () => {
+    const app = await createClient({
+      snapshot: { tasks: [
+        { id: "one", title: "One", boardId: "board_today", done: false },
+        { id: "two", title: "Two", boardId: "board_today", done: false },
+      ] },
+      route: ({ method, path, snapshot }) => {
+        if (method === "DELETE" && path.startsWith("/api/tasks/")) {
+          snapshot.tasks = snapshot.tasks.filter((task) => task.id !== path.split("/").at(-1));
+          return new Response(null, { status: 204 });
+        }
+      },
+    });
+    await app.click(app.get("list").children[0].querySelector(".check"));
+    expect(app.document.activeElement).toBe(app.get("list").children[0].querySelector(".check"));
+    expect(app.document.activeElement.getAttribute("aria-pressed")).toBe("true");
+    await app.click(app.get("list").children[0].querySelector(".remove"));
+    expect(app.document.activeElement).toBe(app.get("list").children[0].querySelector(".check"));
+    await app.click(app.get("list").children[0].querySelector(".remove"));
+    expect(app.document.activeElement).toBe(app.get("new-task"));
+  });
+
   test("SSE refreshes visible tasks while preserving the selected board", async () => {
     const app = await createClient({ search: "?board=agentic-refactoring" });
     await app.click(app.get("board-tabs").children[0]);

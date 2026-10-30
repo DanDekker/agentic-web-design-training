@@ -263,23 +263,34 @@ function render() {
 
 function renderBoardsNav() {
   if (!el.boardTabs) return;
+  const focusedBoard = Array.from(el.boardTabs.children).find((button) => button === document.activeElement)?.dataset.boardId;
 
   el.boardTabs.replaceChildren(
     ...state.boards.map((board) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = `board-tab ${board.id === state.activeBoardId ? "active" : ""}`;
+      btn.dataset.boardId = board.id;
+      btn.setAttribute("aria-pressed", String(board.id === state.activeBoardId));
       const count = state.tasks.filter((t) => t.boardId === board.id).length;
+      btn.setAttribute("aria-label", `${board.name}, ${count} ${count === 1 ? "task" : "tasks"}`);
       const label = document.createElement("span");
       label.textContent = board.name;
       const badge = document.createElement("span");
       badge.className = "count";
       badge.textContent = count;
+      badge.setAttribute("aria-hidden", "true");
       btn.append(label, badge);
       btn.addEventListener("click", () => switchBoard(board.id));
       return btn;
     }),
   );
+  if (focusedBoard) {
+    const buttons = Array.from(el.boardTabs.children);
+    const replacement = buttons.find((button) => button.dataset.boardId === focusedBoard) ||
+      buttons.find((button) => button.dataset.boardId === state.activeBoardId) || el.btnAddBoard;
+    replacement?.focus({ preventScroll: true });
+  }
 
   const active = currentBoard();
   if (active) {
@@ -290,12 +301,34 @@ function renderBoardsNav() {
   }
 }
 
+function focusedTaskControl() {
+  const rows = Array.from(el.list?.children || []);
+  const selectors = [".check", ".remove", ".refactor-inspect-btn", ".task-edit"];
+  for (const [index, row] of rows.entries()) {
+    const selector = selectors.find((candidate) => row.querySelector(candidate) === document.activeElement);
+    if (selector) return { id: row.dataset.id, index, selector };
+  }
+  return null;
+}
+
+function taskControl(id, selector) {
+  const row = Array.from(el.list?.children || []).find((item) => item.dataset.id === id);
+  return row?.querySelector(selector) ?? null;
+}
+
 function renderTasks() {
   const items = visibleTasks();
   if (state.cursor >= items.length) state.cursor = items.length - 1;
   if (state.cursor < 0 && items.length > 0 && state.cursor !== -1) state.cursor = -1;
 
+  const focus = focusedTaskControl();
   if (el.list) el.list.replaceChildren(...items.map((task, index) => row(task, index)));
+  if (focus) {
+    const rows = Array.from(el.list?.children || []);
+    const replacement = taskControl(focus.id, focus.selector) ||
+      rows[Math.min(focus.index, rows.length - 1)]?.querySelector(".check") || el.input;
+    replacement?.focus({ preventScroll: true });
+  }
 
   if (el.empty) {
     el.empty.hidden = items.length > 0;
@@ -638,9 +671,14 @@ async function seedCurriculum() {
 }
 
 let verificationRun = 0;
+let refactorReturnFocus = null;
 
 function openRefactorModal(task) {
   if (!task.refactorData) return;
+  const focused = focusedTaskControl();
+  refactorReturnFocus = focused?.id === task.id && focused.selector === ".refactor-inspect-btn"
+    ? { id: task.id, opener: document.activeElement }
+    : null;
   verificationRun++;
   state.currentRefactorTask = task;
   const data = task.refactorData;
@@ -683,6 +721,14 @@ function resetRefactorModal() {
   verificationRun++;
   state.currentRefactorTask = null;
   if (el.btnRunVerify) el.btnRunVerify.disabled = false;
+}
+
+function restoreRefactorFocus() {
+  const target = refactorReturnFocus;
+  refactorReturnFocus = null;
+  if (!target || target.opener?.isConnected) return;
+  if (document.activeElement && document.activeElement !== document.body && document.activeElement !== document.documentElement) return;
+  (taskControl(target.id, ".refactor-inspect-btn") || el.input)?.focus({ preventScroll: true });
 }
 
 function switchRefactorTab(tabName, { focus = false } = {}) {
@@ -1651,7 +1697,10 @@ el.searchInput?.addEventListener("input", (e) => {
 // Refactor Modal Wiring
 el.btnCloseRefactor?.addEventListener("click", closeRefactorModal);
 el.refactorModal?.addEventListener("close", () => {
-  if (!el.refactorModal.open) resetRefactorModal();
+  if (!el.refactorModal.open) {
+    restoreRefactorFocus();
+    resetRefactorModal();
+  }
 });
 const codeTabs = Array.from(document.querySelectorAll(".code-tab"));
 codeTabs.forEach((btn, index) => {
