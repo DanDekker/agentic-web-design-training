@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webgpu_capability_selection") {
+      results.push({
+        name: "Required Capability Failure",
+        passed: code.includes("NotSupportedError") && code.includes("requiredFeatures"),
+        detail: "Clearly rejects an adapter that lacks a required feature or device limit",
+      });
+      results.push({
+        name: "Atomic Optional Feature Groups",
+        passed: code.includes("optionalFeatureGroups") && code.includes(".every"),
+        detail: "Enables optional features only when the entire requested group is supported",
+      });
+      results.push({
+        name: "Bounded Optional Limits",
+        passed: code.includes("Math.min") && code.includes("availableLimits"),
+        detail: "Caps optional device limits and avoids requesting unsupported ones",
+      });
     } else if (id === "task_webgpu_dispatch_tiling") {
       results.push({
         name: "Safe Dispatch Dimensions",
@@ -6772,6 +6788,42 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webgpu_capability_selection") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const adapter = {
+              features: new Set(["timestamp-query", "shader-f16"]),
+              limits: { maxBufferSize: 2097152, maxStorageBufferBindingSize: 1048576 },
+            };
+            const request = planGpuDeviceRequest(adapter, {
+              requiredFeatures: ["shader-f16"],
+              optionalFeatureGroups: [["timestamp-query"], ["texture-compression-bc"]],
+              requiredLimits: { maxBufferSize: 1048576 },
+              optionalLimits: { maxStorageBufferBindingSize: 2097152, maxComputeWorkgroupSizeX: 256 },
+            });
+            let missingRequiredFailed = false;
+            try {
+              planGpuDeviceRequest(adapter, { requiredFeatures: ["texture-compression-bc"] });
+            } catch (error) { missingRequiredFailed = error.name === "NotSupportedError"; }
+            return {
+              gpuCapabilitiesOk:
+                request.requiredFeatures.join(",") === "shader-f16,timestamp-query" &&
+                request.requiredLimits.maxBufferSize === 1048576 &&
+                request.requiredLimits.maxStorageBufferBindingSize === 1048576 &&
+                !("maxComputeWorkgroupSizeX" in request.requiredLimits) &&
+                missingRequiredFailed,
+            };
+          } catch (error) { return { gpuCapabilitiesOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "GPU Adapter Feature Negotiation & Limit Clamping",
+        passed: Boolean(res?.gpuCapabilitiesOk),
+        detail: "Selects only supported features, clamps optional limits and rejects missing requirements",
       });
     } else if (taskId === "task_webgpu_dispatch_tiling") {
       const harness = `
