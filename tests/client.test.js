@@ -314,6 +314,48 @@ describe("Live state and rendering", () => {
     expect(app.get("list").children).toHaveLength(0);
   });
 
+  test("failed reorders restore server order without losing tasks received during the request", async () => {
+    let finish;
+    const tasks = ["a", "b", "c"].map((id) => ({ id, title: id.toUpperCase(), boardId: "board_today", done: false }));
+    const app = await createClient({ snapshot: { tasks }, route: ({ method, path }) =>
+      method === "POST" && path === "/api/tasks/reorder"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const transfer = { value: "", setData(_type, value) { this.value = value; }, getData() { return this.value; } };
+    await app.get("list").children[0].emit("dragstart", { dataTransfer: transfer });
+    await app.get("list").children[2].emit("drop", { dataTransfer: transfer });
+    await settle();
+    const order = () => app.get("list").children.map((row) => row.dataset.id);
+    expect(order()).toEqual(["b", "a", "c"]);
+    app.snapshot.tasks.push({ id: "new", title: "New", boardId: "board_today", done: false });
+    await app.refresh();
+    expect(order()).toEqual(["b", "a", "c", "new"]);
+    expect((await app.get("list").children[0].emit("dragstart", { dataTransfer: transfer })).defaultPrevented).toBe(true);
+    finish(json({ error: "Reorder failed" }, 503));
+    await settle();
+    expect(order()).toEqual(["a", "b", "c", "new"]);
+    expect(app.get("toast").textContent).toBe("Reorder failed");
+  });
+
+  test("a stale reorder response cannot remove a concurrently created task", async () => {
+    let finish;
+    const tasks = ["a", "b", "c"].map((id) => ({ id, title: id.toUpperCase(), boardId: "board_today", done: false }));
+    const app = await createClient({ snapshot: { tasks }, route: ({ method, path }) =>
+      method === "POST" && path === "/api/tasks/reorder"
+        ? new Promise((resolve) => { finish = resolve; }) : undefined,
+    });
+    const transfer = { value: "", setData(_type, value) { this.value = value; }, getData() { return this.value; } };
+    await app.get("list").children[0].emit("dragstart", { dataTransfer: transfer });
+    await app.get("list").children[2].emit("drop", { dataTransfer: transfer });
+    await settle();
+    const stale = structuredClone(app.snapshot.tasks);
+    app.snapshot.tasks = [tasks[1], tasks[0], tasks[2], { id: "new", title: "New", boardId: "board_today", done: false }];
+    await app.refresh();
+    finish(json({ tasks: stale }));
+    await settle();
+    expect(app.get("list").children.map((row) => row.dataset.id)).toEqual(["b", "a", "c", "new"]);
+  });
+
   test("SSE refreshes visible tasks while preserving the selected board", async () => {
     const app = await createClient({ search: "?board=agentic-refactoring" });
     await app.click(app.get("board-tabs").children[0]);
