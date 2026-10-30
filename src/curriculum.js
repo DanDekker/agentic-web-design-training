@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 193 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 194 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -4940,6 +4940,72 @@ clinic-dose-field::part(control) {
       "Reserves intrinsic embed geometry with aspect-ratio on a fluid wrapper, including a portrait modifier",
       "Makes iframe and video fill the wrapper with logical sizing rather than fixed pixel dimensions",
       "Preserves keyboard focus around the embedded player and does not clip native controls",
+    ],
+  },
+  {
+    id: "task_css_nested_workspace_scrollers",
+    title: "Contain Nested Scroll Regions in a Customer Support Workspace",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "grid", "overflow", "min-block-size", "operations-console"],
+    instructions:
+      "A support-agent workspace has a queue sidebar, ticket header, long conversation, and reply tools. Long messages currently expand the entire CSS grid so the browser page scrolls behind the composer, while adding overflow:hidden to the parent clips keyboard focus. Build a viewport-bounded, responsive grid with shrink-safe tracks and min-inline-size/min-block-size resets at each nested grid boundary. Assign overflow:auto only to the intended queue and message panes, contain scroll chaining, and reserve a stable scrollbar gutter so the ticket does not shift when messages arrive.",
+    starterCode: `/* Long tickets push the reply composer below the viewport. */
+.support-app { height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+.support-app__workspace { display: grid; grid-template-columns: 18rem 1fr; }
+.support-inbox { display: grid; grid-template-rows: auto 1fr auto; }
+.support-inbox__messages { overflow: hidden; }`,
+    solutionCode: `@layer support.workspace {
+  .support-app {
+    block-size: 100vh;
+    block-size: 100dvh;
+    min-block-size: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .support-app__workspace {
+    display: grid;
+    grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+    min-inline-size: 0;
+    min-block-size: 0;
+  }
+
+  .support-app__queue,
+  .support-inbox,
+  .support-inbox__messages {
+    min-inline-size: 0;
+    min-block-size: 0;
+  }
+
+  .support-app__queue {
+    overflow: auto;
+    overscroll-behavior-block: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .support-inbox {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .support-inbox__messages {
+    overflow: auto;
+    overscroll-behavior-block: contain;
+    scrollbar-gutter: stable;
+  }
+
+  @media (max-width: 48rem) {
+    .support-app__workspace {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+  }
+}`,
+    criteria: [
+      "Uses shrinkable minmax(0, 1fr) tracks and resets automatic min sizes in nested grid items",
+      "Gives scrolling to the queue and message panes with stable gutters and contained scroll chaining",
+      "Reflows at narrow widths without hiding overflow or taking controls out of normal document order",
     ],
   },
 
