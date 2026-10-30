@@ -96,6 +96,8 @@ Open **http://localhost:3000**. Use **Demo Agent** on the sign-in screen, then o
 
 For a regular server without file watching, use `bun run start`. Run the test suite with `bun test`.
 
+Use **⌘K** or **Ctrl+K** to open the command palette, then use the arrow keys and Enter to choose a command; Tab reaches its close button and Escape dismisses it. Task filters use the native radio-group arrow keys. In the exercise inspector, use Left/Right or Home/End to move between code tabs. Board and task controls retain focus when live updates replace their rows.
+
 ## The curriculum
 
 The repository currently includes **220 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
@@ -114,7 +116,7 @@ The repository currently includes **220 exercises in 42 categories and 21 tracks
 
 Each exercise defines a prompt, starter code, acceptance criteria, and a reference solution in [the curriculum catalog](src/curriculum.js). Framework exercise code lives in [individual TypeScript files](exercises/frameworks/) that the catalog imports, and browser-platform and agentic-web code lives in [individual JavaScript files](exercises/platform/) that it imports the same way. Reference solutions are intentionally included for learning and for checking the evaluator; this is an open-book workspace, not a hidden test set.
 
-The framework migration track now includes a practical Express 4-to-5 claims API upgrade. It exercises Express 5 async rejection forwarding, an ordered unmatched-route 404 and four-argument error pipeline, RFC 9457 Problem Details, request ID validation, generic client-safe 500 responses, and delegation after response headers have been sent. See the [Express 5 references](links.md#express-5-api-migration-lab).
+The Express 5 labs cover a claims API error-pipeline upgrade, tenant-scoped nested routes, and a payment webhook that verifies raw bytes before recording an event and queueing work. The exercises use injected interfaces so the evaluator runs without installing Express. A real integration must supply authentication, scoped database queries, a provider signature-verification adapter, and an atomic durable outbox; webhook workers still need idempotent effects. See the [Express 5 references](links.md#express-5-api-migration-labs).
 
 The HTML Architecture track now includes a bidi-safe claims intake lab covering native field direction metadata, mixed-script text isolation, and direction-aware logical CSS, plus a find-in-page lab for collapsed support annexes using `hidden="until-found"`, `beforematch`, and layout containment.
 
