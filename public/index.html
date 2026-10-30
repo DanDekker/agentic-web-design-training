@@ -163,12 +163,13 @@
 
       <!-- Controls: Filter & Search -->
       <div class="controls-row">
-        <div class="segmented" role="tablist" aria-label="Filter tasks">
-          <button type="button" role="tab" data-filter="all" aria-selected="true">All</button>
-          <button type="button" role="tab" data-filter="active" aria-selected="false">Active</button>
-          <button type="button" role="tab" data-filter="done" aria-selected="false">Done</button>
-          <button type="button" role="tab" data-filter="refactor" aria-selected="false">Refactoring</button>
-        </div>
+        <fieldset class="segmented">
+          <legend class="visually-hidden">Filter tasks</legend>
+          <label><input class="visually-hidden" type="radio" name="task-filter" id="filter-all" data-filter="all" checked /><span>All</span></label>
+          <label><input class="visually-hidden" type="radio" name="task-filter" id="filter-active" data-filter="active" /><span>Active</span></label>
+          <label><input class="visually-hidden" type="radio" name="task-filter" id="filter-done" data-filter="done" /><span>Done</span></label>
+          <label><input class="visually-hidden" type="radio" name="task-filter" id="filter-refactor" data-filter="refactor" /><span>Refactoring</span></label>
+        </fieldset>
 
         <search class="search-wrap" aria-label="Filter tasks and tags">
           <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
