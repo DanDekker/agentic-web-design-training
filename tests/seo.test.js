@@ -76,8 +76,53 @@ describe("Technical SEO, Schema.org JSON-LD @graph & HTML5 Auditor", () => {
     expect(check(valid + invalid).passed).toBe(false);
     expect(check(invalid + valid).passed).toBe(false);
     expect(check(valid + block("null")).passed).toBe(false);
+    expect(check(valid + block("[1]")).passed).toBe(false);
     const array = block(JSON.stringify([{ "@context": { "@vocab": "https://schema.org/" }, "@type": "Article" }]));
     expect(check(array).passed).toBe(true);
     expect(check(block(JSON.stringify({ "@context": "https://example.test/context", "@type": "Thing" }))).passed).toBe(false);
+    expect(check(block(JSON.stringify({ "@context": "https://schema.org", "@value": "literal", "@type": "Text" }))).passed).toBe(false);
+  });
+
+  test("parses reordered metadata and ignores comments, scripts, and inert templates", async () => {
+    const html = `<!doctype html><html><head>
+      <title data-source="cms">Practical &amp; useful</title>
+      <meta content="A useful description" data-extra="yes" name="DESCRIPTION">
+      <meta content="A useful title" property="og:title">
+      <link href="https://example.test/docs?a=1&amp;b=2" rel="canonical">
+      <script id="schema" type="application/ld+json; profile=example">{"@context":"https://schema.org","@type":"Article","name":"<h4>literal</h4>"}</script>
+      </head><body><!-- <h1>Comment</h1><h6>Fake</h6> -->
+      <template><header></header><main><search></search><h1>Inert</h1><h6>Inert</h6></main>
+        <script type="application/ld+json">invalid</script></template>
+      <header></header><main><h1>Real heading</h1><h2>Details</h2><search></search></main>
+      <script>const sample = '<h1>Not a heading</h1>';</script></body></html>`;
+    const report = auditHtmlSeoAndStructuredData(html);
+    expect(report.passed).toBe(true);
+    expect(report.jsonLdBlocks).toHaveLength(1);
+    expect(report.jsonLdBlocks[0].name).toBe("<h4>literal</h4>");
+    const response = await call("POST", "/api/seo/audit", { html });
+    expect(response.status).toBe(200);
+    expect((await response.json()).score).toBe(100);
+
+    const fake = `<html><head><!-- <title>Fake</title><meta name="description" content="Fake"><meta property="og:title" content="Fake"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Thing"}</script> --></head>
+      <body><script>const html = '<header><main><search><h1>Fake</h1></search></main></header>';</script></body></html>`;
+    expect(auditHtmlSeoAndStructuredData(fake).checks.every((item) => !item.passed)).toBe(true);
+  });
+
+  test("flags empty, duplicate, relative, malformed, and misplaced canonical metadata", () => {
+    const head = '<title>Title</title><meta content="Description" name="description"><meta content="Title" property="og:title">';
+    const check = (markup, body = "") => auditHtmlSeoAndStructuredData(`<html><head>${head}${markup}</head><body>${body}</body></html>`).checks.find((item) => item.id === "technical_seo_head");
+    expect(check("").passed).toBe(true);
+    expect(check('<link rel="canonical" href="https://example.test/path?a=1&amp;b=2">').passed).toBe(true);
+    for (const markup of [
+      '<link rel="canonical">',
+      '<link rel="canonical" href="">',
+      '<link rel="canonical" href="/relative">',
+      '<link rel="canonical" href="javascript:alert(1)">',
+      '<link rel="canonical" href="https://example.test/one"><link rel="canonical" href="https://example.test/two">',
+    ]) expect(check(markup).passed).toBe(false);
+    expect(check("", '<link rel="canonical" href="https://example.test/">').passed).toBe(false);
+    expect(check('<meta name="description" content="Second">').passed).toBe(false);
+    const emptyTitle = auditHtmlSeoAndStructuredData('<head><title>&#32;&nbsp;</title><meta name="description" content="x"><meta property="og:title" content="x"></head>');
+    expect(emptyTitle.checks.find((item) => item.id === "technical_seo_head").passed).toBe(false);
   });
 });
