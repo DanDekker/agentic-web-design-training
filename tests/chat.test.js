@@ -60,6 +60,18 @@ describe("Real-Time Two-User ChatEngine & Instrumentation", () => {
     expect(history.messages[1].readBy).toContain("bob");
   });
 
+  test("evicting an automatic message ID does not remove a different retained retry key", () => {
+    const chat = new ChatEngine({ maxMessagesPerRoom: 2 });
+    const room = chat.ensureRoom("alice", "bob");
+    chat.sendMessage({ roomId: room.id, sender: "alice", recipient: "bob", text: "Automatic ID" });
+    const original = chat.sendMessage({ roomId: room.id, sender: "bob", recipient: "alice", text: "Explicit ID", clientMsgId: "auto_1" });
+    chat.sendMessage({ roomId: room.id, sender: "alice", recipient: "bob", text: "Evicts the first message" });
+    const retry = chat.sendMessage({ roomId: room.id, sender: "bob", recipient: "alice", text: "Explicit ID", clientMsgId: "auto_1" });
+    expect(retry.deduplicated).toBe(true);
+    expect(retry.message.seq).toBe(original.message.seq);
+    expect(chat.getRoom(room.id).latestSeq).toBe(3);
+  });
+
   test("resequences out-of-order packets and expires ghost typing indicators", () => {
     const chat = new ChatEngine({ typingTtlMs: 500 });
     const room = chat.ensureRoom("alice", "bob");
