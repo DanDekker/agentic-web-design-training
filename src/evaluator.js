@@ -1953,6 +1953,22 @@ export class Evaluator {
         passed: code.includes("allowed_merchants"),
         detail: "Evaluates the open mandate's allowed-merchants constraint",
       });
+    } else if (id === "task_webcodecs_bounded_encode_queue") {
+      results.push({
+        name: "Encoder Queue Backpressure",
+        passed: code.includes("encodeQueueSize") && code.includes('"dequeue"'),
+        detail: "Suspends frame production when the asynchronous encoder queue reaches its cap",
+      });
+      results.push({
+        name: "Frame Ownership & Keyframe Cadence",
+        passed: code.includes("frame.close()") && code.includes("keyFrameInterval"),
+        detail: "Closes VideoFrame resources and requests regular random-access frames",
+      });
+      results.push({
+        name: "Encoder Drain Before Completion",
+        passed: code.includes("encoder.flush()"),
+        detail: "Waits for outstanding encode output before completing the recording",
+      });
     } else if (id === "task_webrtc_data_channel_backpressure") {
       results.push({
         name: "UTF-8 Byte-Aware Queue Bound",
@@ -6856,6 +6872,53 @@ export class Evaluator {
         name: "AP2 Mandate Verification & Checkout Hash Binding",
         passed: Boolean(res?.mandateOk),
         detail: "Verifies the versioned type, the recomputed checkout hash, expiry and the merchant constraint",
+      });
+    } else if (taskId === "task_webcodecs_bounded_encode_queue") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            let queueSize = 0;
+            let peakQueueSize = 0;
+            let flushCount = 0;
+            const events = new Map();
+            const keyframes = [];
+            const frames = Array.from({ length: 5 }, (_, index) => ({ closed: false, close() { this.closed = true; } }));
+            const encoder = {
+              state: "configured",
+              get encodeQueueSize() { return queueSize; },
+              addEventListener(type, listener) {
+                if (!events.has(type)) events.set(type, new Set());
+                events.get(type).add(listener);
+              },
+              removeEventListener(type, listener) { events.get(type)?.delete(listener); },
+              encode(frame, options) {
+                keyframes.push(options.keyFrame);
+                queueSize++;
+                peakQueueSize = Math.max(peakQueueSize, queueSize);
+                setTimeout(() => {
+                  queueSize--;
+                  for (const listener of events.get("dequeue") ?? []) listener({ type: "dequeue" });
+                }, 0);
+              },
+              async flush() { flushCount++; },
+            };
+            const summary = await encodeVideoFrames(encoder, frames, { maxQueueSize: 2, keyFrameInterval: 2 });
+            const listenerCount = [...events.values()].reduce((sum, set) => sum + set.size, 0);
+            return {
+              encodeQueueOk:
+                summary.submittedFrames === 5 && summary.requestedKeyFrames === 3 &&
+                keyframes.join(",") === "true,false,true,false,true" && peakQueueSize === 2 &&
+                frames.every((frame) => frame.closed) && flushCount === 1 && listenerCount === 0,
+            };
+          } catch { return { encodeQueueOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1500 });
+      results.push({
+        name: "Bounded VideoEncoder, Keyframes & Frame Cleanup",
+        passed: Boolean(res?.encodeQueueOk),
+        detail: "Encodes five frames with a queue cap of two, then closes frames and flushes output",
       });
     } else if (taskId === "task_webrtc_data_channel_backpressure") {
       const harness = `
