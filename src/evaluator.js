@@ -2170,6 +2170,22 @@ export class Evaluator {
         passed: code.includes("TextDecoder") && code.includes("fatal: true") && code.includes("new Uint8Array"),
         detail: "Decodes the requested memory slice and rejects malformed UTF-8",
       });
+    } else if (id === "task_webassembly_component_resource_lifetimes") {
+      results.push({
+        name: "Generation-Checked Unique Ownership",
+        passed: code.includes("generation") && code.includes("transfer(ownerHandle)") && code.includes("owner.active = false"),
+        detail: "Invalidates moved and reused handles instead of allowing stale access to a new resource",
+      });
+      results.push({
+        name: "Task-Scoped Async Borrow Return",
+        passed: code.includes("borrow(ownerHandle, taskId)") && code.includes("resolveTask(taskId)") && code.includes("#tasks"),
+        detail: "Associates every temporary borrow with the subtask that must return it",
+      });
+      results.push({
+        name: "No Drop While Lent & Single Finalization",
+        passed: code.includes("resource.borrows !== 0") && code.includes("dropResource(resource.value)"),
+        detail: "Blocks disposal while an async subtask owns a borrow and finalizes after the last loan",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7504,6 +7520,50 @@ export class Evaluator {
         name: "Memory Growth, Pointer Bounds and UTF-8 Interop",
         passed: Boolean(res?.wasmMemoryViewOk),
         detail: "Reads from the replacement buffer after growth and rejects unsafe, out-of-range and malformed inputs",
+      });
+    } else if (taskId === "task_webassembly_component_resource_lifetimes") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          try {
+            const dropped = [];
+            const ledger = new ComponentResourceLedger((value) => dropped.push(value));
+            const owner = ledger.createOwned("socket");
+            const firstBorrow = ledger.borrow(owner, "request-1");
+            const secondBorrow = ledger.borrow(owner, "request-1");
+            let dropBlocked = false;
+            let transferBlocked = false;
+            try { ledger.drop(owner); } catch (error) { dropBlocked = error.name === "InvalidStateError"; }
+            try { ledger.transfer(owner); } catch (error) { transferBlocked = error.name === "InvalidStateError"; }
+            const readable = ledger.read(firstBorrow) === "socket" && ledger.read(secondBorrow) === "socket";
+            const returnedCount = ledger.resolveTask("request-1");
+            let staleBorrowRejected = false;
+            try { ledger.read(firstBorrow); } catch (error) { staleBorrowRejected = error.name === "InvalidStateError"; }
+            const nextOwner = ledger.transfer(owner);
+            let oldOwnerRejected = false;
+            try { ledger.read(owner); } catch (error) { oldOwnerRejected = error.name === "InvalidStateError"; }
+            const cancelledBorrow = ledger.borrow(nextOwner, "request-cancelled");
+            const cancelledCount = ledger.resolveTask("request-cancelled");
+            let cancelledBorrowRejected = false;
+            try { ledger.read(cancelledBorrow); } catch (error) { cancelledBorrowRejected = error.name === "InvalidStateError"; }
+            ledger.drop(nextOwner);
+            const reused = ledger.createOwned("new-resource");
+            let staleGenerationRejected = false;
+            try { ledger.read(nextOwner); } catch (error) { staleGenerationRejected = error.name === "InvalidStateError"; }
+            ledger.drop(reused);
+            return {
+              componentResourcesOk: dropBlocked && transferBlocked && readable && returnedCount === 2 &&
+                staleBorrowRejected && oldOwnerRejected && cancelledCount === 1 && cancelledBorrowRejected &&
+                staleGenerationRejected && dropped.join(",") === "socket,new-resource",
+            };
+          } catch { return { componentResourcesOk: false }; }
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Async Component Borrow Resolution, Transfer & Drop Safety",
+        passed: Boolean(res?.componentResourcesOk),
+        detail: "Returns loans after task completion or cancellation and blocks stale handles and premature disposal",
       });
     } else {
       // General syntax evaluation
