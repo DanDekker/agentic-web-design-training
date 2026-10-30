@@ -6,6 +6,16 @@
 import { REFACTORING_CURRICULUM_TASKS, CURRICULUM_TRACKS } from "./curriculum.js";
 import { Evaluator } from "./evaluator.js";
 
+// Entity escapes keep punctuation literal inside GFM table cells, including pipes.
+function markdownCell(value) {
+  return String(value ?? "")
+    .replace(/\r\n?|\n/g, " ")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/[\\|`*_~\[\]!:]/g, (character) => `&#${character.charCodeAt(0)};`);
+}
+
 export class BenchmarkSuite {
   #evaluator = new Evaluator();
 
@@ -102,21 +112,21 @@ export class BenchmarkSuite {
     const lines = [
       `# gauntlet-web Benchmark Report`,
       ``,
-      `*Generated at: ${benchmark.timestamp}*`,
+      `*Generated at: ${markdownCell(benchmark.timestamp)}*`,
       ``,
       `## Summary`,
-      `- **Total Tasks:** ${summary.totalTasks}`,
-      `- **Pass Rate:** ${summary.passRate} (${summary.passedTasks}/${summary.totalTasks})`,
-      `- **Average Score:** ${summary.averageScore}%`,
-      `- **Avg Execution Time:** ${summary.averageDurationMs}ms`,
-      `- **Total Benchmark Duration:** ${summary.totalDurationMs}ms`,
+      `- **Total Tasks:** ${markdownCell(summary.totalTasks)}`,
+      `- **Pass Rate:** ${markdownCell(summary.passRate)} (${markdownCell(summary.passedTasks)}/${markdownCell(summary.totalTasks)})`,
+      `- **Average Score:** ${markdownCell(summary.averageScore)}%`,
+      `- **Avg Execution Time:** ${markdownCell(summary.averageDurationMs)}ms`,
+      `- **Total Benchmark Duration:** ${markdownCell(summary.totalDurationMs)}ms`,
       ``,
       `## Category Breakdown`,
       `| Category | Passed | Total | Pass Rate |`,
       `| :--- | :--- | :--- | :--- |`,
       ...Object.entries(summary.byCategory || {}).map(
         ([cat, stat]) =>
-          `| \`${cat}\` | ${stat.passed} | ${stat.total} | ${Math.round((stat.passed / (stat.total || 1)) * 100)}% |`,
+          `| ${markdownCell(cat)} | ${markdownCell(stat.passed)} | ${markdownCell(stat.total)} | ${Math.round((stat.passed / (stat.total || 1)) * 100)}% |`,
       ),
       ``,
       `## Task Results`,
@@ -127,7 +137,7 @@ export class BenchmarkSuite {
     for (const r of results) {
       const statusIcon = r.passed ? "PASSED" : "FAILED";
       lines.push(
-        `| ${r.title} | \`${r.category}\` | ${r.difficulty} | ${r.score}% | ${r.durationMs}ms | **${statusIcon}** |`,
+        `| ${markdownCell(r.title)} | ${markdownCell(r.category)} | ${markdownCell(r.difficulty)} | ${markdownCell(r.score)}% | ${markdownCell(r.durationMs)}ms | **${statusIcon}** |`,
       );
     }
 
