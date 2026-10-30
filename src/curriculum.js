@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 194 exercises across 41 categories and 21 tracks.
+ * Web development curriculum: 195 exercises across 41 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -5006,6 +5006,93 @@ clinic-dose-field::part(control) {
       "Uses shrinkable minmax(0, 1fr) tracks and resets automatic min sizes in nested grid items",
       "Gives scrolling to the queue and message panes with stable gutters and contained scroll chaining",
       "Reflows at narrow widths without hiding overflow or taking controls out of normal document order",
+    ],
+  },
+  {
+    id: "task_css_warehouse_pinned_table",
+    title: "Keep Warehouse Inventory Headers Pinned on Both Scroll Axes",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "industry-logistics", "tables", "sticky-positioning", "overflow"],
+    instructions:
+      "Warehouse staff compare product identifiers, aisle locations, counts, and reorder thresholds in a wide inventory table. A redesign that makes rows block elements destroys the column relationships, while a single sticky header leaves the item labels detached during horizontal scroll. Preserve native table layout, put both axes of scrolling on a dedicated viewport wrapper, pin the column headers and row headers with logical sticky insets, and layer the top-left intersection above both with opaque system surfaces. Restore a readable, unpinned table in print.",
+    starterCode: `/* The spreadsheet-like table loses its relationships and clips overflow. */
+.warehouse-stock__viewport { overflow: hidden; }
+.warehouse-stock table { display: block; }
+.warehouse-stock th { position: fixed; top: 0; }
+.warehouse-stock td { white-space: nowrap; }`,
+    solutionCode: `@layer warehouse.stock {
+  .warehouse-stock__viewport {
+    max-inline-size: 100%;
+    max-block-size: min(70dvh, 44rem);
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .warehouse-stock table {
+    inline-size: max-content;
+    min-inline-size: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .warehouse-stock th,
+  .warehouse-stock td {
+    padding-block: 0.65rem;
+    padding-inline: 0.85rem;
+    border-block-end: 1px solid GrayText;
+    text-align: start;
+  }
+
+  .warehouse-stock thead th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: Canvas;
+  }
+
+  .warehouse-stock tbody th[scope="row"] {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background: Canvas;
+  }
+
+  .warehouse-stock thead th:first-child {
+    inset-inline-start: 0;
+    z-index: 3;
+  }
+}
+
+@media print {
+  .warehouse-stock__viewport {
+    max-block-size: none;
+    overflow: visible;
+  }
+
+  .warehouse-stock table {
+    inline-size: 100%;
+    min-inline-size: 0;
+    table-layout: fixed;
+    font-size: 8pt;
+  }
+
+  .warehouse-stock th,
+  .warehouse-stock td {
+    overflow-wrap: anywhere;
+    padding: 0.25rem;
+  }
+
+  .warehouse-stock thead th,
+  .warehouse-stock tbody th[scope="row"] {
+    position: static;
+  }
+}`,
+    criteria: [
+      "Preserves native table formatting inside a labelled two-axis scroll viewport",
+      "Pins header and row-label cells with logical insets, opaque backgrounds, and a top-left intersection layer",
+      "Removes scrolling and sticky positioning for printed stock records",
     ],
   },
 

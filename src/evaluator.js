@@ -217,6 +217,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Scroll Ownership and Containment", all: [".support-inbox__messages", "overflow: auto", "overscroll-behavior-block: contain", "scrollbar-gutter: stable"], none: ["overflow: hidden"] },
     { name: "Responsive Workspace Keeps Its Document Order", all: ["@media (max-width: 48rem)", "grid-template-columns: minmax(0, 1fr)", "grid-template-rows: auto minmax(0, 1fr)"], none: ["position: fixed"] },
   ],
+  task_css_warehouse_pinned_table: [
+    { name: "Native Table in a Two-Axis Scrollport", all: [".warehouse-stock__viewport", "overflow: auto", "border-collapse: separate", "min-inline-size: 100%"], none: ["display: block"] },
+    { name: "Sticky Header and Row Label Intersection", all: ["inset-block-start: 0", "inset-inline-start: 0", "z-index: 2", "z-index: 3", "background: Canvas"] },
+    { name: "Logical Pinning and Print Recovery", all: ["tbody th[scope=\"row\"]", "@media print", "overflow: visible", "position: static", "min-inline-size: 0"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
