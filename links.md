@@ -45,6 +45,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | HTML Standard: element directionality and dir | <https://html.spec.whatwg.org/multipage/dom.html#the-dir-attribute> |
 | HTML Standard: native form dirname direction submission | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitting-element-directionality-the-dirname-attribute> |
 | HTML Standard: named, exclusive `<details>` groups | <https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element> |
+| HTML Standard: `hidden="until-found"` and `beforematch` | <https://html.spec.whatwg.org/multipage/interaction.html#the-hidden-attribute> |
 | HTML Standard: forms, labels, and input controls | <https://html.spec.whatwg.org/multipage/forms.html> |
 | HTML Standard: forms and constraint validation | <https://html.spec.whatwg.org/multipage/form-control-infrastructure.html> |
 | HTML Standard: native form submission and `requestSubmit()` | <https://html.spec.whatwg.org/multipage/forms.html#dom-form-requestsubmit-dev> |
