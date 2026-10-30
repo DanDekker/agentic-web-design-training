@@ -98,7 +98,7 @@ For a regular server without file watching, use `bun run start`. Run the test su
 
 ## The curriculum
 
-The repository currently includes **218 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
+The repository currently includes **219 exercises in 42 categories and 21 tracks**, from introductory refactoring to more involved web systems work. Topics include:
 
 | Area | Examples |
 | --- | --- |
@@ -157,6 +157,7 @@ GitHub's **Languages** bar counts source file types, not frameworks. These exerc
 | Framework | Exercise |
 | --- | --- |
 | Express 5 | [Upgrade a claims API error pipeline](exercises/frameworks/express5_problem_details/starter.ts) |
+| Express 5 | [Protect a multi-tenant claims router](exercises/frameworks/express5_tenant_claims/starter.ts) |
 | Express and Hono | [Migrate callback middleware to a Fetch-based router](exercises/frameworks/migrate_express_to_hono_edge_ts/starter.ts) |
 | NestJS | [Build dependency injection, authorization guards, and interceptors](exercises/frameworks/ts_nestjs_di_guard_interceptor/starter.ts) |
 | tRPC | [Model typed procedures and input validation](exercises/frameworks/ts_trpc_zod_end_to_end_rpc/starter.ts) |

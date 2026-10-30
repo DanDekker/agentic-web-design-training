@@ -219,6 +219,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
     for (const id of [
       "task_express5_problem_details_error_pipeline",
+      "task_express5_tenant_claims",
       "task_migrate_express_to_hono_edge_ts",
       "task_migrate_react_hooks_to_svelte5_vue3_signals",
       "task_migrate_redux_thunks_to_tanstack_query_ts",
@@ -229,6 +230,19 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       const result = await evaluator.evaluate(id, task.solutionCode);
       expect(result.passed).toBe(true);
       expect(result.score).toBe(100);
+    }
+  });
+
+  test("rejects tenant authorization bypasses and unscoped claim lookups", async () => {
+    const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
+    const solution = REFACTORING_CURRICULUM_TASKS.find((t) => t.id === "task_express5_tenant_claims").solutionCode;
+    for (const broken of [
+      solution.replace("await services.canReadClaims(principal.id, orgId)", "true"),
+      solution.replace("services.findClaim(orgId, claimId)", 'services.findClaim("org2", claimId)'),
+    ]) {
+      const result = await evaluator.evaluate("task_express5_tenant_claims", broken);
+      expect(result.passed).toBe(false);
+      expect(result.assertionResults.find((a) => a.name === "Tenant Isolation and Indistinguishable 404s").passed).toBe(false);
     }
   });
 
@@ -377,7 +391,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(218);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(219);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);

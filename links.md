@@ -83,6 +83,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | --- | --- |
 | Express 5 error handling and rejected route promises | <https://expressjs.com/en/5x/guide/error-handling/> |
 | Middleware ordering and four-argument error handlers | <https://expressjs.com/en/guide/using-middleware/> |
+| Nested routers and merged parent parameters | <https://expressjs.com/en/guide/routing/> |
 | Express 5 migration guide | <https://expressjs.com/en/guide/migrating-5/> |
 | Problem Details for HTTP APIs (RFC 9457) | <https://www.rfc-editor.org/rfc/rfc9457.html> |
 

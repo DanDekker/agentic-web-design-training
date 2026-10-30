@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 218 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 219 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -15,6 +15,8 @@ import expressHonoStarter from "../exercises/frameworks/migrate_express_to_hono_
 import expressHonoSolution from "../exercises/frameworks/migrate_express_to_hono_edge_ts/solution.ts" with { type: "text" };
 import express5ProblemStarter from "../exercises/frameworks/express5_problem_details/starter.ts" with { type: "text" };
 import express5ProblemSolution from "../exercises/frameworks/express5_problem_details/solution.ts" with { type: "text" };
+import expressTenantStarter from "../exercises/frameworks/express5_tenant_claims/starter.ts" with { type: "text" };
+import expressTenantSolution from "../exercises/frameworks/express5_tenant_claims/solution.ts" with { type: "text" };
 import reactSvelteVueStarter from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/starter.ts" with { type: "text" };
 import reactSvelteVueSolution from "../exercises/frameworks/migrate_react_hooks_to_svelte5_vue3_signals/solution.ts" with { type: "text" };
 import reduxTanstackStarter from "../exercises/frameworks/migrate_redux_thunks_to_tanstack_query_ts/starter.ts" with { type: "text" };
@@ -5678,6 +5680,23 @@ clinic-dose-field::part(control) {
   },
 
   /* ── 9. TypeScript Framework Migrations (Express 4->5, Express->Hono, React->Svelte/Vue, Redux->TanStack, Pages->App Router) ── */
+  {
+    id: "task_express5_tenant_claims",
+    title: "Express 5 Claims Portal: Nested Routers and Tenant-Safe Authorization",
+    category: "framework-migration",
+    difficulty: "advanced",
+    tags: ["typescript", "express-5", "routing", "multi-tenancy", "authorization", "insurance"],
+    instructions:
+      "An insurance claims portal fetches records by claim ID alone, allowing cross-organization access. Use the supplied dependency-injected Express-style interfaces to mount a child router at /v1/organizations/:orgId with mergeParams enabled and GET /claims/:claimId. Authenticate first, returning 401 for absent credentials; validate both IDs as 1–64 ASCII letters, digits, underscores or hyphens; authorize the principal for the organization; and query the repository with BOTH organization and claim IDs. Respond with the same 404 body for an invalid ID, unauthorized organization, or missing claim, without querying claims before authorization. Return the claim on success, and let unexpected service rejections reach Express 5 error middleware. The membership and repository services are trusted dependencies: implement their real backing checks and tenant-scoped query when integrating this exercise.",
+    starterCode: expressTenantStarter.trimEnd(),
+    solutionCode: expressTenantSolution.trimEnd(),
+    criteria: [
+      "Mounts a merged-parameter child router with an authenticated claim route",
+      "Validates IDs and checks organization membership before a tenant-scoped claim lookup",
+      "Returns 401 for missing credentials and an indistinguishable 404 for invalid, inaccessible, or absent records",
+      "Allows unexpected service failures to propagate to Express 5 error handling",
+    ],
+  },
   {
     id: "task_express5_problem_details_error_pipeline",
     title: "Express 5 API Migration: Async Rejections, RFC 9457 Problem Details & Safe Error Pipeline",
