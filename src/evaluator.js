@@ -1286,6 +1286,36 @@ export class Evaluator {
           !code.includes("addEventListener"),
         detail: "Escapes supplied text and relies on HTML details grouping rather than custom toggle listeners",
       });
+    } else if (id === "task_html_bidi_safe_support_form") {
+      results.push({
+        name: "Native Directionality Submission Metadata",
+        passed:
+          code.includes('dir="auto"') &&
+          code.includes('dirname="contactName.dir"') &&
+          code.includes('dirname="incidentNotes.dir"') &&
+          code.includes('spec.uiDirection !== "ltr"') &&
+          code.includes('spec.uiDirection !== "rtl"'),
+        detail: "Whitelists interface direction and lets text controls submit their own directionality using dirname",
+      });
+      results.push({
+        name: "Escaped Bidi Isolation for Mixed User Text",
+        passed:
+          code.includes('<bdi dir="auto">') &&
+          code.includes("escapeBidiText") &&
+          code.includes('.replace(/</g, "&lt;")') &&
+          code.includes('"&quot;"'),
+        detail: "Wraps dynamic references in bdi and escapes dynamic values used in both text and attribute contexts",
+      });
+      results.push({
+        name: "Logical Responsive CSS and Direction-Aware Decoration",
+        passed:
+          code.includes("padding-inline:") &&
+          code.includes("inline-size:") &&
+          code.includes("@container support-intake") &&
+          code.includes(":dir(rtl)") &&
+          !code.includes('type="hidden"'),
+        detail: "Uses logical layout, a container query, and :dir(rtl) without manually duplicating native direction fields",
+      });
     } else if (id === "task_html_responsive_picture_fetchpriority_lcp") {
       results.push({
         name: "Progressive <picture> AVIF/WebP Art Direction & Intrinsic Dimensions",
@@ -5351,6 +5381,49 @@ export class Evaluator {
         name: "Rejects Duplicate IDs and Conflicting Open Defaults",
         passed: Boolean(res?.rejectsInvalidGroupStates),
         detail: "Rejects invalid identifiers, duplicate item IDs, and multiple initial open states without adding script handlers",
+      });
+    } else if (taskId === "task_html_bidi_safe_support_form") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const render = typeof renderBidiSafeSupportForm === "function"
+            ? renderBidiSafeSupportForm
+            : exports.renderBidiSafeSupportForm;
+          const out = render({
+            id: "claim-17",
+            uiDirection: "rtl",
+            contactName: "Nour <Claims>",
+            incidentReference: "CLM-<59> & ABC",
+            incidentNotes: "مرحبا, reference <123> & follow-up",
+          });
+
+          let unsafeDirectionRejected = false;
+          let unsafeIdRejected = false;
+          try { render({ id: "claim-18", uiDirection: "auto", contactName: "A", incidentReference: "B", incidentNotes: "C" }); } catch { unsafeDirectionRejected = true; }
+          try { render({ id: 'claim-18" onfocus="bad', uiDirection: "ltr", contactName: "A", incidentReference: "B", incidentNotes: "C" }); } catch { unsafeIdRejected = true; }
+
+          return {
+            directionAndNativeSubmission: out.html.includes('<section class="support-intake" dir="rtl"') && out.html.includes('name="contactName" autocomplete="name" dir="auto" dirname="contactName.dir"') && out.html.includes('name="incidentNotes" dir="auto" dirname="incidentNotes.dir"') && !out.html.includes('type="hidden"'),
+            escapedIsolatedContent: out.html.includes('<bdi dir="auto">CLM-&lt;59&gt; &amp; ABC</bdi>') && out.html.includes('value="Nour &lt;Claims&gt;"') && out.html.includes('مرحبا, reference &lt;123&gt; &amp; follow-up'),
+            logicalDirectionAwareStylesAndValidation: out.css.includes("padding-inline:") && out.css.includes("text-align: start") && out.css.includes("@container support-intake (min-width: 40rem)") && out.css.includes(":dir(rtl) .support-intake__direction-arrow") && unsafeDirectionRejected && unsafeIdRejected,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Locale Direction, dir=auto Fields, and Native dirname Values",
+        passed: Boolean(res?.directionAndNativeSubmission),
+        detail: "Renders a whitelisted interface direction and native text controls with matching dirname attributes",
+      });
+      results.push({
+        name: "Escaped Mixed-Direction User Content",
+        passed: Boolean(res?.escapedIsolatedContent),
+        detail: "Escapes user text in attributes and text nodes and isolates the case reference with bdi",
+      });
+      results.push({
+        name: "Logical RTL Styling and Invalid Input Rejection",
+        passed: Boolean(res?.logicalDirectionAwareStylesAndValidation),
+        detail: "Keeps layout logical, mirrors only its directional arrow through :dir(rtl), and rejects unsafe IDs and direction values",
       });
     } else if (taskId === "task_html_responsive_picture_fetchpriority_lcp") {
       const harness = `
