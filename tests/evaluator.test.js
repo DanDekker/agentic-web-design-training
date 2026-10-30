@@ -256,6 +256,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
       "task_html_dialog_close_request_policy",
       "task_html_request_submitter_native_semantics",
       "task_html_named_details_exclusive_disclosure",
+      "task_html_bidi_safe_support_form",
       "task_html_responsive_picture_fetchpriority_lcp",
       "task_html_importmap_modulepreload_sri",
       "task_html_patient_intake_accessible_error_styling",
@@ -374,7 +375,7 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
 
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
-    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(214);
+    expect(REFACTORING_CURRICULUM_TASKS.length).toBe(215);
     for (const task of REFACTORING_CURRICULUM_TASKS) {
       const res = await evaluator.evaluate(task.id, task.solutionCode);
       expect(res.passed).toBe(true);
