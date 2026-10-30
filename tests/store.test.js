@@ -36,6 +36,53 @@ describe("TaskStore", () => {
     expect(store.list()).toHaveLength(0);
   });
 
+  test("rejects duplicate task IDs and unknown destination boards", async () => {
+    const store = await new TaskStore(file).load();
+    await store.add({ id: "task-one", title: "First" });
+    await expect(store.add({ id: "task-one", title: "Duplicate" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(store.add({ title: "Orphan", boardId: "missing" })).rejects.toBeInstanceOf(ValidationError);
+    expect(store.list().map((task) => task.title)).toEqual(["First"]);
+  });
+
+  test("keeps rejected updates from changing or later persisting partial edits", async () => {
+    const store = await new TaskStore(file).load();
+    const task = await store.add("Original");
+    await expect(store.update(task.id, { title: "Changed", priority: 9 })).rejects.toBeInstanceOf(ValidationError);
+    await expect(store.update(task.id, { title: "Moved", boardId: "missing" })).rejects.toBeInstanceOf(ValidationError);
+    expect(store.get(task.id).title).toBe("Original");
+    await store.add("Another task");
+    expect((await new TaskStore(file).load()).get(task.id).title).toBe("Original");
+  });
+
+  test("isolates nested input and returned values from the stored task", async () => {
+    const store = await new TaskStore(file).load();
+    const input = { title: "Exercise", tags: ["css"], refactorData: { criteria: ["Keep the baseline"] } };
+    const created = await store.add(input);
+    input.tags.push("input mutation");
+    input.refactorData.criteria.push("input mutation");
+    created.tags.push("return mutation");
+    created.refactorData.criteria.push("return mutation");
+    const snapshot = store.state();
+    snapshot.tasks[0].refactorData.criteria.push("snapshot mutation");
+    expect(store.get(created.id).tags).toEqual(["css"]);
+    expect(store.get(created.id).refactorData.criteria).toEqual(["Keep the baseline"]);
+    expect((await new TaskStore(file).load()).get(created.id).refactorData.criteria).toEqual(["Keep the baseline"]);
+  });
+
+  test("reattaches tasks with missing boards during load and restore", async () => {
+    await Bun.write(file, JSON.stringify({
+      version: 1,
+      boards: [{ id: "board-one", name: "One", slug: "one" }],
+      tasks: [{ id: "orphan", title: "Preserve me", boardId: "deleted-board" }],
+    }));
+    const store = await new TaskStore(file).load();
+    expect(store.get("orphan").boardId).toBe("board-one");
+    const restored = await store.restoreTasks([{ id: "restored", title: "Also preserve me", boardId: "missing" }]);
+    expect(restored[0].boardId).toBe("board-one");
+    await store.reorder("board-one", ["restored", "orphan"]);
+    expect((await new TaskStore(file).load()).tasksIn("board-one").map((task) => task.id)).toEqual(["restored", "orphan"]);
+  });
+
   test("toggles completion and stamps doneAt", async () => {
     const store = await new TaskStore(file).load();
     const { id } = await store.add("a");
