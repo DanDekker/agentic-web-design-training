@@ -335,11 +335,75 @@ fetchers (`ChatGPT-User`, `Claude-User`, `Perplexity-User`):
 | Paying an x402 API without an SDK | <https://dev.to/storkhost/paying-an-x402-http-402-api-from-python-without-an-sdk-v1-body-vs-v2-payment-required-header-4jd4> |
 | x402 flow reference (XDC AI) | <https://docs.xdcai.tech/reference/x402-flow> |
 
+### Standards & registries (authoritative)
+
+| Document | URL |
+| --- | --- |
+| RFC 9309 — Robots Exclusion Protocol | <https://www.rfc-editor.org/rfc/rfc9309.html> |
+| RFC 9309 (plain text) | <https://www.rfc-editor.org/rfc/rfc9309.txt> |
+| RFC 9309 — information page | <https://www.rfc-editor.org/info/rfc9309> |
+| RFC 9651 — Structured Fields for HTTP | <https://www.rfc-editor.org/rfc/rfc9651.html> |
+| RFC 9421 — HTTP Message Signatures | <https://www.rfc-editor.org/rfc/rfc9421.html> |
+| RFC 9535 — JSONPath | <https://www.rfc-editor.org/rfc/rfc9535.html> |
+
+### IETF AI Preferences (AIPREF) Working Group
+
+Defines the vocabulary and the HTTP/robots.txt attachment mechanisms for expressing how
+content may be used by automated systems. The `Content-Usage` directive extends the
+robots.txt ABNF from RFC 9309 and carries usage preferences per path.
+
+| Document | URL |
+| --- | --- |
+| AIPREF working group | <https://datatracker.ietf.org/group/aipref/> |
+| `draft-ietf-aipref-vocab` — vocabulary for expressing AI usage preferences | <https://datatracker.ietf.org/doc/draft-ietf-aipref-vocab/> |
+| `draft-ietf-aipref-vocab-08` (2026-09-14) | <https://datatracker.ietf.org/doc/html/draft-ietf-aipref-vocab-08> |
+| `draft-ietf-aipref-attach` — associating AI usage preferences with content in HTTP | <https://datatracker.ietf.org/doc/draft-ietf-aipref-attach/> |
+| `draft-ietf-aipref-attach-05` (2026-08-19) | <https://datatracker.ietf.org/doc/html/draft-ietf-aipref-attach-05> |
+| Latest rendered drafts | <https://ietf-wg-aipref.github.io/drafts/draft-ietf-aipref-vocab.html> / <https://ietf-wg-aipref.github.io/drafts/draft-ietf-aipref-attach.html> |
+| Drafts source repository | <https://github.com/ietf-wg-aipref/drafts> |
+
+### IETF Web Bot Auth Working Group
+
+Cryptographic identity for automated clients: agents sign outbound HTTP requests with
+HTTP Message Signatures, publish a JWKS-based key directory at a well-known URI, and
+identify themselves through a `Signature-Agent` header.
+
+| Document | URL |
+| --- | --- |
+| Web Bot Auth working group | <https://datatracker.ietf.org/group/webbotauth/> |
+| `draft-ietf-webbotauth-httpsig-protocol` | <https://datatracker.ietf.org/doc/draft-ietf-webbotauth-httpsig-protocol/> |
+| `draft-ietf-webbotauth-httpsig-protocol-01` (2026-10-29) | <https://datatracker.ietf.org/doc/html/draft-ietf-webbotauth-httpsig-protocol-01> |
+| Latest rendered draft | <https://webbotauth.github.io/draft-ietf-webbotauth-httpsig-protocol/draft-ietf-webbotauth-httpsig-protocol.html> |
+| Draft source repository | <https://github.com/webbotauth/draft-ietf-webbotauth-httpsig-protocol> |
+| Architecture draft | <https://datatracker.ietf.org/doc/draft-meunier-web-bot-auth-architecture/> |
+| Registry & Signature Agent Card draft | <https://datatracker.ietf.org/doc/draft-meunier-webbotauth-registry/> |
+| Cloudflare — Web Bot Auth | <https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth> |
+
+### Google Search Central (official guidance)
+
+| Document | URL |
+| --- | --- |
+| AI features and your website | <https://developers.google.com/search/docs/appearance/ai-features> |
+| Optimizing for generative AI search | <https://developers.google.com/search/docs/fundamentals/ai-optimization-guide> |
+| robots.txt basics | <https://developers.google.com/search/docs/crawling-indexing/robots/intro> |
+| Structured data gallery | <https://developers.google.com/search/docs/appearance/structured-data/search-gallery> |
+
+### Model Context Protocol (the server-side counterpart to WebMCP)
+
+| Document | URL |
+| --- | --- |
+| MCP specification (2025-06-18 revision) | <https://modelcontextprotocol.io/specification/2025-06-18> |
+| MCP documentation index | <https://modelcontextprotocol.io/llms.txt> |
+
 ### Further reading
 
 | Document | URL |
 | --- | --- |
-| Web Bot Auth / signed agent requests (IETF drafts) | <https://datatracker.ietf.org/> |
+| AIPREF explained — the standard you cannot deploy yet | <https://lantad.co/blog/the-ai-preferences-standard-you-cannot-deploy-yet> |
+| Understanding AIPREF | <http://semiautonomous.systems/blog/understanding-aipref-ietf-standard> |
+| Web Bot Auth guide (Fingerprint) | <https://fingerprint.com/blog/web-bot-auth-guide> |
+| Web Bot Auth: identifying AI agents (WorkOS) | <https://workos.com/blog/web-bot-auth-identify-ai-agents> |
+| AI agent authentication in 2026 | <https://dev.to/webdecoy/ai-agent-authentication-in-2026-web-bot-auth-ard-oauth-247> |
 
 ## Local development
 
