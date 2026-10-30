@@ -1292,6 +1292,37 @@ export class Evaluator {
           code.includes("border-inline-start: 0.45rem double"),
         detail: "Styles the component at its embedded width with visible focus and non-color error cues",
       });
+    } else if (id === "task_html_dsd_public_css_theming_contract") {
+      results.push({
+        name: "Streaming Declarative Shadow DOM and Slot Fallbacks",
+        passed:
+          code.includes('shadowrootmode="open"') &&
+          code.includes("shadowrootdelegatesfocus") &&
+          code.includes('slot name="heading"') &&
+          code.includes('slot name="badge"') &&
+          code.includes("Service status"),
+        detail: "Renders a declarative shadow root with focus delegation and named slot fallbacks",
+      });
+      results.push({
+        name: "Encapsulated Styles and Public Theme Surface",
+        passed:
+          code.includes(":host") &&
+          code.includes("::slotted(") &&
+          code.includes("::part(surface)") &&
+          code.includes('part="surface"') &&
+          code.includes("--gw-status-accent"),
+        detail: "Keeps internal component selectors in the shadow tree while exposing selected parts and theme tokens",
+      });
+      results.push({
+        name: "Safe SSR Attributes, Status Text, and High Contrast",
+        passed:
+          code.includes("escapeStatusText") &&
+          code.includes("props.id.replace") &&
+          code.includes("[\"info\", \"warning\", \"critical\"]") &&
+          code.includes("forced-colors: active") &&
+          code.includes('role="status"'),
+        detail: "Escapes rendered text, constrains host state attributes, and retains text and forced-colors cues",
+      });
     } else if (id === "task_seo_software_app_faq_dataset_graph") {
       results.push({
         name: "Schema.org Dataset DataDownload & License Metadata",
@@ -5100,6 +5131,43 @@ export class Evaluator {
         name: "Embedded Form CSS and Preference Handling",
         passed: Boolean(res?.responsiveStyles),
         detail: "Returns container-query styles with keyboard-focus and forced-colors support",
+      });
+    } else if (taskId === "task_html_dsd_public_css_theming_contract") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const render = typeof renderStatusCardSSR === "function"
+            ? renderStatusCardSSR
+            : exports.renderStatusCardSSR;
+          const out = render({
+            id: "status 01",
+            heading: '<img src=x onerror="alert(1)">',
+            message: "</style><script>alert(2)</script>",
+            badge: "Dispatch",
+            actionLabel: "Review route",
+            severity: 'warning" onclick="alert(3)',
+            density: 'compact"><img src=x>',
+          });
+          const html = out.html;
+          return {
+            declarativeRootFirst: html.indexOf('<template shadowrootmode="open" shadowrootdelegatesfocus>') < html.indexOf('<span slot="badge">'),
+            semantics: html.includes('role="status"') && html.includes('aria-labelledby="status-01-heading"') && html.includes('aria-describedby="status-01-description"'),
+            safelyEscaped: html.includes('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;') && html.includes('&lt;/style&gt;&lt;script&gt;alert(2)&lt;/script&gt;') && !html.includes('</style><script>'),
+            safeHostState: html.includes('id="status-01"') && html.includes('data-severity="info"') && html.includes('density="comfortable"'),
+            styleBoundary: out.shadowCss.includes(':host') && out.shadowCss.includes('::slotted([slot="badge"])') && out.shadowCss.includes('@container status-card') && out.consumerCss.includes('::part(surface)') && out.consumerCss.includes('::part(action)') && out.shadowCss.includes('forced-colors: active'),
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "SSR Shadow Root Semantics and Host-State Sanitization",
+        passed: Boolean(res?.declarativeRootFirst && res?.semantics && res?.safelyEscaped && res?.safeHostState),
+        detail: "Streams the root before light DOM, exposes named status semantics, escapes user copy, and whitelists attributes",
+      });
+      results.push({
+        name: "Shadow and Consumer CSS Boundary Contract",
+        passed: Boolean(res?.styleBoundary),
+        detail: "Returns shadow-scoped host/slot styles with container behavior and documented external ::part hooks",
       });
     } else if (taskId === "task_seo_software_app_faq_dataset_graph") {
       const harness = `

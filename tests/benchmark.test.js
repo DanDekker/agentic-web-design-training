@@ -38,7 +38,7 @@ afterEach(async () => {
 describe("Agentic 1M Curriculum Benchmark Suite", () => {
   test("generates catalog stats with difficulty and category distribution", async () => {
     const stats = suite.getCatalogStats();
-    expect(stats.totalTasks).toBe(199);
+    expect(stats.totalTasks).toBe(200);
     expect(stats.byDifficulty.intermediate).toBeGreaterThan(0);
     expect(stats.byDifficulty.advanced).toBeGreaterThanOrEqual(81);
     expect(stats.byCategory.async).toBeGreaterThan(0);
@@ -53,7 +53,7 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(stats.byCategory["ts-frameworks"]).toBe(4);
     expect(stats.byCategory["framework-migration"]).toBe(4);
     expect(stats.byCategory["package-managers"]).toBe(4);
-    expect(stats.byCategory["html-architecture"]).toBe(6);
+    expect(stats.byCategory["html-architecture"]).toBe(7);
     expect(stats.byCategory["seo-structured-data"]).toBe(5);
     expect(stats.byCategory["ecommerce-checkout"]).toBe(5);
     expect(stats.byCategory["payment-processing"]).toBe(5);
@@ -69,7 +69,7 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(stats.byCategory.webrtc).toBe(3);
     expect(stats.byCategory.webcodecs).toBe(3);
     expect(stats.byTrack["enterprise-typescript"]).toBe(12);
-    expect(stats.byTrack["semantic-web-seo"]).toBe(11);
+    expect(stats.byTrack["semantic-web-seo"]).toBe(12);
     expect(stats.byTrack["commerce-fintech"]).toBe(10);
     expect(stats.byTrack["storefront-order-lifecycle"]).toBe(10);
     expect(stats.byTrack["web-cookies-data-traffic"]).toBe(12);
