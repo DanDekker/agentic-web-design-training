@@ -17,10 +17,7 @@ const OAUTH_FILE = process.env.GUANTLET_WEB_OAUTH_DATA ?? join(DATA_DIR, "oauth.
 const PORT = Number(process.env.PORT ?? 3000);
 const HOSTNAME = process.env.GUANTLET_WEB_HOST ?? "127.0.0.1";
 
-const store = await new TaskStore(DATA_FILE).load();
-if (store.initializedFresh) {
-  await store.seedCurriculumTasks();
-}
+const store = await new TaskStore(DATA_FILE, { seedCurriculumOnCreate: true }).load();
 const authStore = await new AuthStore(AUTH_FILE).load();
 const oauthServer = await new OAuthServer(OAUTH_FILE).load();
 const hub = createHub();
