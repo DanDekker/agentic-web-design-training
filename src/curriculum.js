@@ -1,6 +1,6 @@
 /**
- * Web development curriculum: 139 exercises across 38 categories and 17 tracks.
- * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, real-time media and agentic-web code is imported from standalone files.
+ * Web development curriculum: 148 exercises across 41 categories and 20 tracks.
+ * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
 import reactNextStarter from "../exercises/frameworks/ts_react_nextjs_server_actions/starter.ts" with { type: "text" };
@@ -91,6 +91,12 @@ import webxrSampleStarter from "../exercises/platform/webxr_depth/depth_sampling
 import webxrSampleSolution from "../exercises/platform/webxr_depth/depth_sampling/solution.js" with { type: "text" };
 import webxrLoopStarter from "../exercises/platform/webxr_depth/frame_loop/starter.js" with { type: "text" };
 import webxrLoopSolution from "../exercises/platform/webxr_depth/frame_loop/solution.js" with { type: "text" };
+import rtcTransformStarter from "../exercises/platform/webrtc_encoded_transform/script_transform/starter.js" with { type: "text" };
+import rtcTransformSolution from "../exercises/platform/webrtc_encoded_transform/script_transform/solution.js" with { type: "text" };
+import rtcSFrameStarter from "../exercises/platform/webrtc_encoded_transform/sframe_key_rotation/starter.js" with { type: "text" };
+import rtcSFrameSolution from "../exercises/platform/webrtc_encoded_transform/sframe_key_rotation/solution.js" with { type: "text" };
+import rtcFramePipeStarter from "../exercises/platform/webrtc_encoded_transform/frame_pipe/starter.js" with { type: "text" };
+import rtcFramePipeSolution from "../exercises/platform/webrtc_encoded_transform/frame_pipe/solution.js" with { type: "text" };
 import webnnInferenceStarter from "../exercises/platform/webnn/tensor_inference/starter.js" with { type: "text" };
 import webnnInferenceSolution from "../exercises/platform/webnn/tensor_inference/solution.js" with { type: "text" };
 import webnnQueueStarter from "../exercises/platform/webnn/shared_tensor_queue/starter.js" with { type: "text" };
@@ -191,6 +197,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "WebXR Spatial Computing & Depth Sensing",
     categories: ["webxr-depth"],
   },
+  "webrtc-encoded-media": {
+    id: "webrtc-encoded-media",
+    name: "WebRTC Encoded Media Transforms & SFrame",
+    categories: ["webrtc-encoded-transform"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -236,6 +247,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   webnn: "web-neural-compute",
   "digital-credentials": "digital-credentials",
   "webxr-depth": "webxr-spatial-computing",
+  "webrtc-encoded-transform": "webrtc-encoded-media",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10561,7 +10573,7 @@ export class VirtualizedShadowListEngine {
     difficulty: "advanced",
     tags: ["webxr", "depth-buffer", "meters", "coordinate-transform"],
     instructions:
-      "Read one CPU-accessible XRDepthInformation sample at normalized view coordinates. Reject non-finite or out-of-range coordinates, delegate matrix mapping and rawValueToMeters conversion to getDepthInMeters(), return null when no depth information or invalid depth is available, and fail clearly if a GPU-only object has no CPU sampling method. Never assume depth is stored as millimeters, mutate the shared data buffer, or multiply the API's meter result a second time.",
+      "Read one CPU-accessible XRDepthInformation sample at normalized view coordinates while its XRFrame is active. Reject non-finite or out-of-range coordinates, delegate matrix mapping and rawValueToMeters conversion to getDepthInMeters(), return null when no depth information or a non-finite sample is available, and fail clearly if a GPU-only object has no CPU sampling method. Never assume depth is stored as millimeters, mutate the shared data buffer, or multiply the API's meter result a second time.",
     starterCode: webxrSampleStarter,
     solutionCode: webxrSampleSolution,
     criteria: [
@@ -10586,6 +10598,57 @@ export class VirtualizedShadowListEngine {
       "Collects a current depth result for every pose view while preserving missing values",
       "Rejects asynchronous frame callbacks to avoid queued stale sensor frames",
       "Cancels the pending callback, removes the end listener, and reports failures once",
+    ],
+  },
+  {
+    id: "task_webrtc_encoded_script_transform",
+    title: "Attach a Worker-Based RTCRtpScriptTransform Safely",
+    category: "webrtc-encoded-transform",
+    difficulty: "advanced",
+    tags: ["webrtc", "rtcrtptransform", "worker", "encoded-media"],
+    instructions:
+      "Attach the evolving WebRTC Encoded Transform API to an RTCRtpSender or RTCRtpReceiver using RTCRtpScriptTransform and a dedicated worker. Feature-detect the constructor, validate the endpoint and serializable options, construct before mutating the endpoint, and leave the sender or receiver unchanged if construction fails. Do not fall back to legacy createEncodedStreams or claim that installing a transform alone provides encryption.",
+    starterCode: rtcTransformStarter,
+    solutionCode: rtcTransformSolution,
+    criteria: [
+      "Requires an endpoint with a transform slot and an available script transform constructor",
+      "Constructs RTCRtpScriptTransform with the worker and options before assigning it",
+      "Leaves the endpoint unchanged when feature detection or construction fails",
+      "Returns the assigned transform so setup and teardown can be observed by the caller",
+    ],
+  },
+  {
+    id: "task_webrtc_sframe_key_rotation",
+    title: "Rotate SFrame Keys Without an Undecryptable Media Window",
+    category: "webrtc-encoded-transform",
+    difficulty: "advanced",
+    tags: ["webrtc", "sframe", "cryptokey", "key-rotation"],
+    instructions:
+      "Use the evolving WebRTC SFrame transform managers to rotate an outgoing media key. Install the new CryptoKey in the receiver's decryption key store first, then activate it in the sender encryptor; if sender activation fails, remove the just-added key and preserve the old one. Retire the previous decryption key only after successful activation, tolerate retirement failure by keeping the old key, and reject reused, negative, unsafe, or out-of-range key identifiers. Key distribution and authentication remain the application's responsibility.",
+    starterCode: rtcSFrameStarter,
+    solutionCode: rtcSFrameSolution,
+    criteria: [
+      "Validates new unsigned key identifiers without accepting imprecise JavaScript numbers",
+      "Adds the new decryption key before changing the sender encryption key",
+      "Rolls back the new receive key if sender activation fails and keeps the prior key active",
+      "Retires an old receive key only after activation and tolerates retirement failure",
+    ],
+  },
+  {
+    id: "task_webrtc_encoded_frame_pipe",
+    title: "Keep Encoded Frame Transforms Synchronous and Ownership-Safe",
+    category: "webrtc-encoded-transform",
+    difficulty: "advanced",
+    tags: ["webrtc", "encoded-transform", "streams", "latency"],
+    instructions:
+      "Bridge RTCRtpScriptTransformer readable and writable streams through a fast TransformStream. WebRTC encoded-transform streams disable Streams backpressure to prioritize media latency, so keep the frame callback synchronous and drop frames deliberately when it returns null. Preserve each frame's ownership and order by enqueuing the same frame object, reject attempts to enqueue a replacement or move frames across sources, and pass an optional AbortSignal to pipeTo for lifecycle cleanup.",
+    starterCode: rtcFramePipeStarter,
+    solutionCode: rtcFramePipeSolution,
+    criteria: [
+      "Connects the transformer readable through a TransformStream to its writable",
+      "Processes frames synchronously and allows deliberate drops without creating queue growth",
+      "Enqueues the original frame only and rejects replacement objects that violate ownership",
+      "Passes AbortSignal to pipeTo and returns the stream pipeline promise",
     ],
   },
 ];
