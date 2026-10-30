@@ -1169,11 +1169,15 @@ function closeChatModal() {
   closeDialog(el.chatModal);
 }
 
+let chatRefreshVersion = 0;
 async function refreshChatChannel() {
+  const version = ++chatRefreshVersion;
   try {
     const data = await api("GET", "/api/chat/messages?roomId=dm:agent:pp");
+    if (version !== chatRefreshVersion) return;
     renderChatMessages(data);
   } catch (err) {
+    if (version !== chatRefreshVersion) return;
     toast(err.message);
   }
 }
