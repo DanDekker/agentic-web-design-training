@@ -1316,6 +1316,38 @@ export class Evaluator {
           !code.includes('type="hidden"'),
         detail: "Uses logical layout, a container query, and :dir(rtl) without manually duplicating native direction fields",
       });
+    } else if (id === "task_html_hidden_until_found_support_annex") {
+      results.push({
+        name: "Visible Server Markup and Safe Fragment Navigation",
+        passed:
+          code.includes('aria-controls="${spec.id}"') &&
+          code.includes('aria-expanded="true" hidden>Collapse annex') &&
+          code.includes('href="#${spec.id}"') &&
+          code.includes("escapeAnnexText") &&
+          code.includes("isSafeAnnexId"),
+        detail: "Renders a visible, escaped annex with validated IDs, fragment links, and a hidden optional toggle",
+      });
+      results.push({
+        name: "Feature Detection and Fragment-Preserving Fallback",
+        passed:
+          code.includes('probe.setAttribute("hidden", "until-found")') &&
+          code.includes('hidden: boolean | "until-found"') &&
+          code.includes("fragmentTargetsAnnex") &&
+          code.includes("panel.contains(target)") &&
+          code.includes("restoreVisibleFallback"),
+        detail: "Detects the enumerated hidden state, preserves current descendant fragments, and leaves unsupported browsers expanded",
+      });
+      results.push({
+        name: "Browser-Owned beforematch Reveal and Containment",
+        passed:
+          code.includes('contain: layout;') &&
+          code.includes('addEventListener("beforematch"') &&
+          code.includes('removeEventListener("beforematch"') &&
+          !code.includes("content-visibility:") &&
+          !code.includes("display:") &&
+          !code.includes("preventDefault"),
+        detail: "Lets the browser reveal and scroll to matches while synchronizing state, retaining layout containment, and removing listeners on disposal",
+      });
     } else if (id === "task_html_responsive_picture_fetchpriority_lcp") {
       results.push({
         name: "Progressive <picture> AVIF/WebP Art Direction & Intrinsic Dimensions",
@@ -5424,6 +5456,146 @@ export class Evaluator {
         name: "Logical RTL Styling and Invalid Input Rejection",
         passed: Boolean(res?.logicalDirectionAwareStylesAndValidation),
         detail: "Keeps layout logical, mirrors only its directional arrow through :dir(rtl), and rejects unsafe IDs and direction values",
+      });
+    } else if (taskId === "task_html_hidden_until_found_support_annex") {
+      const harness = `
+        ${sanitizedCode};
+        (() => {
+          const render = typeof renderFindableAnnex === "function"
+            ? renderFindableAnnex
+            : exports.renderFindableAnnex;
+          const bind = typeof bindFindableAnnex === "function"
+            ? bindFindableAnnex
+            : exports.bindFindableAnnex;
+          const out = render({
+            id: "manual",
+            title: "Product <Help & Repair>",
+            sections: [{
+              id: "replacement-filter",
+              heading: "Replace the <water> filter",
+              paragraphs: ["Turn off power & water first.", "Use the serial label <inside> the rear panel."],
+            }],
+          });
+          let duplicateRejected = false;
+          try {
+            render({ id: "manual", title: "Duplicate", sections: [
+              { id: "same", heading: "One", paragraphs: ["First."] },
+              { id: "same", heading: "Two", paragraphs: ["Second."] },
+            ] });
+          } catch { duplicateRejected = true; }
+
+          class Probe {
+            constructor(supported) { this.supported = supported; this.attributes = new Map(); }
+            setAttribute(name, value) { this.attributes.set(name, value); }
+            get hidden() {
+              const value = this.attributes.get("hidden");
+              return this.supported && value === "until-found" ? "until-found" : this.attributes.has("hidden");
+            }
+          }
+          class FakeNode {
+            constructor(ownerDocument) {
+              this.ownerDocument = ownerDocument;
+              this.attributes = new Map();
+              this.listeners = new Map();
+              this.parentNode = null;
+              this.textContent = "";
+            }
+            setAttribute(name, value) { this.attributes.set(name, String(value)); }
+            getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
+            removeAttribute(name) { this.attributes.delete(name); }
+            get hidden() { return this.attributes.has("hidden"); }
+            set hidden(value) { if (value) this.setAttribute("hidden", ""); else this.removeAttribute("hidden"); }
+            contains(node) {
+              let current = node;
+              while (current) { if (current === this) return true; current = current.parentNode; }
+              return false;
+            }
+            addEventListener(type, listener) {
+              if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+              this.listeners.get(type).add(listener);
+            }
+            removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); }
+            dispatch(type, event = {}) {
+              for (const listener of this.listeners.get(type) ?? []) listener({ type, ...event });
+            }
+          }
+          function makeFixture(supported, hash = "") {
+            const doc = {
+              nodes: new Map(),
+              defaultView: { location: { hash } },
+              createElement() { return new Probe(supported); },
+              getElementById(id) { return this.nodes.get(id) ?? null; },
+            };
+            const panel = new FakeNode(doc);
+            panel.id = "manual";
+            const target = new FakeNode(doc);
+            target.id = "manual--section--replacement-filter";
+            target.parentNode = panel;
+            const toggle = new FakeNode(doc);
+            toggle.hidden = true;
+            doc.nodes.set(panel.id, panel);
+            doc.nodes.set(target.id, target);
+            return { doc, panel, target, toggle };
+          }
+
+          const supported = makeFixture(true);
+          const dispose = bind(supported.panel, supported.toggle);
+          const startsCollapsed = supported.panel.getAttribute("hidden") === "until-found" &&
+            supported.toggle.hidden === false && supported.toggle.getAttribute("aria-expanded") === "false" &&
+            supported.toggle.textContent === "Expand annex";
+          supported.toggle.dispatch("click");
+          const manualExpandWorks = supported.panel.getAttribute("hidden") === null && supported.toggle.getAttribute("aria-expanded") === "true";
+          supported.toggle.dispatch("click");
+          let defaultPrevented = false;
+          supported.panel.dispatch("beforematch", { preventDefault() { defaultPrevented = true; } });
+          const beforematchSyncsWithoutTakingReveal = supported.panel.getAttribute("hidden") === "until-found" &&
+            supported.toggle.getAttribute("aria-expanded") === "true" && !defaultPrevented;
+          supported.panel.removeAttribute("hidden"); // Simulate the browser's post-beforematch reveal.
+          dispose();
+          const cleanupWorks = supported.panel.getAttribute("hidden") === null && supported.toggle.hidden &&
+            supported.panel.listeners.get("beforematch").size === 0 && supported.toggle.listeners.get("click").size === 0;
+
+          const unsupported = makeFixture(false);
+          const disposeUnsupported = bind(unsupported.panel, unsupported.toggle);
+          const fallbackWorks = unsupported.panel.getAttribute("hidden") === null && unsupported.toggle.hidden &&
+            (unsupported.panel.listeners.get("beforematch")?.size ?? 0) === 0;
+          disposeUnsupported();
+
+          const fragment = makeFixture(true, "#manual--section--replacement-filter");
+          const disposeFragment = bind(fragment.panel, fragment.toggle);
+          const fragmentRemainsVisible = fragment.panel.getAttribute("hidden") === null &&
+            fragment.toggle.getAttribute("aria-expanded") === "true";
+          disposeFragment();
+
+          const sectionTag = out.html.match(/<section\\b[^>]*>/)?.[0] ?? "";
+          const buttonTag = out.html.match(/<button\\b[^>]*>/)?.[0] ?? "";
+          return {
+            serverMarkupAndEscaping: out.html.includes('href="#manual--section--replacement-filter"') &&
+              out.html.includes('Read Product &lt;Help &amp; Repair&gt;') &&
+              out.html.includes("Replace the &lt;water&gt; filter") &&
+              out.html.includes("Turn off power &amp; water first.") &&
+              !/\\bhidden\\b/.test(sectionTag) && /\\bhidden\\b/.test(buttonTag) && duplicateRejected &&
+              out.css.includes("contain: layout;") && !/\\b(?:display|content-visibility)\\s*:/.test(out.css),
+            supportedNativeBehavior: startsCollapsed && manualExpandWorks && beforematchSyncsWithoutTakingReveal && cleanupWorks,
+            progressiveAndFragmentFallbacks: fallbackWorks && fragmentRemainsVisible,
+          };
+        })();
+      `;
+      const res = runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "Visible Server HTML, Escaped Content, and Section Fragments",
+        passed: Boolean(res?.serverMarkupAndEscaping),
+        detail: "Verifies visible server markup, a hidden optional button, escaped content, unique section fragments, and layout containment",
+      });
+      results.push({
+        name: "Native Find Reveal, Toggle Synchronization, and Cleanup",
+        passed: Boolean(res?.supportedNativeBehavior),
+        detail: "Checks feature-enabled collapse, manual toggles, beforematch state sync without intercepting reveal, and disposal",
+      });
+      results.push({
+        name: "Unsupported Browser and Existing Fragment Fallbacks",
+        passed: Boolean(res?.progressiveAndFragmentFallbacks),
+        detail: "Keeps content visible when unsupported or when the current fragment targets the annex",
       });
     } else if (taskId === "task_html_responsive_picture_fetchpriority_lcp") {
       const harness = `
