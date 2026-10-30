@@ -488,9 +488,9 @@ describe("Agentic Curriculum Refactoring Tasks", () => {
     const validation = validateCurriculumCatalog();
     expect(validation.valid).toBe(true);
     expect(validation.errors).toEqual([]);
-    expect(validation.totalTasks).toBe(139);
-    expect(CURRICULUM_CATEGORIES.length).toBe(38);
-    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(17);
+    expect(validation.totalTasks).toBe(148);
+    expect(CURRICULUM_CATEGORIES.length).toBe(41);
+    expect(Object.keys(CURRICULUM_TRACKS).length).toBe(20);
     expect(REFACTORING_CURRICULUM_TASKS.every((t) => Boolean(t.track && t.order > 0))).toBe(true);
   });
 });
