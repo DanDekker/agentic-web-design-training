@@ -79,6 +79,12 @@ import wasmResourcesStarter from "../exercises/platform/webassembly/component_re
 import wasmResourcesSolution from "../exercises/platform/webassembly/component_resources/solution.js" with { type: "text" };
 import wasmJspiStarter from "../exercises/platform/webassembly/jspi_bindings/starter.js" with { type: "text" };
 import wasmJspiSolution from "../exercises/platform/webassembly/jspi_bindings/solution.js" with { type: "text" };
+import credentialBuilderStarter from "../exercises/platform/digital_credentials/request_builder/starter.js" with { type: "text" };
+import credentialBuilderSolution from "../exercises/platform/digital_credentials/request_builder/solution.js" with { type: "text" };
+import credentialPromptStarter from "../exercises/platform/digital_credentials/prompt_coordinator/starter.js" with { type: "text" };
+import credentialPromptSolution from "../exercises/platform/digital_credentials/prompt_coordinator/solution.js" with { type: "text" };
+import credentialVerifyStarter from "../exercises/platform/digital_credentials/server_verification/starter.js" with { type: "text" };
+import credentialVerifySolution from "../exercises/platform/digital_credentials/server_verification/solution.js" with { type: "text" };
 import webnnInferenceStarter from "../exercises/platform/webnn/tensor_inference/starter.js" with { type: "text" };
 import webnnInferenceSolution from "../exercises/platform/webnn/tensor_inference/solution.js" with { type: "text" };
 import webnnQueueStarter from "../exercises/platform/webnn/shared_tensor_queue/starter.js" with { type: "text" };
@@ -169,6 +175,11 @@ export const CURRICULUM_TRACKS = Object.freeze({
     name: "WebNN Graph Compilation, Tensors & Device Recovery",
     categories: ["webnn"],
   },
+  "digital-credentials": {
+    id: "digital-credentials",
+    name: "Digital Credentials, Browser Mediation & Verifier Privacy",
+    categories: ["digital-credentials"],
+  },
   "agentic-web": {
     id: "agentic-web",
     name: "Agentic Web: WebMCP Tool APIs, GEO/AEO Discovery & Agentic Commerce Protocols",
@@ -212,6 +223,7 @@ export const CATEGORY_TO_TRACK = Object.freeze({
   webtransport: "webtransport-networking",
   webassembly: "webassembly-runtime",
   webnn: "web-neural-compute",
+  "digital-credentials": "digital-credentials",
   webmcp: "agentic-web",
   "agentic-seo": "agentic-web",
   "agentic-commerce": "agentic-web",
@@ -10460,6 +10472,57 @@ export class VirtualizedShadowListEngine {
       "Observes MLContext.lost and invalidates only the session generation that was lost",
       "Discards outcomes from a lost generation and retries inference only within the configured attempt limit",
       "Stops new operations on close and does not return stale graph results after device loss",
+    ],
+  },
+  {
+    id: "task_digital_credentials_request_builder",
+    title: "Build Capability-Gated Digital Credential Presentation and Issuance Requests",
+    category: "digital-credentials",
+    difficulty: "advanced",
+    tags: ["digital-credentials", "credential-management", "protocol-negotiation", "privacy"],
+    instructions:
+      "Build a request adapter for the evolving Digital Credentials API. Accept only get (presentation) or create (issuance), check DigitalCredential.userAgentAllowsProtocol before constructing an operation, and snapshot request data through JSON serialization so circular or non-JSON values fail before a chooser opens. Return the Credential Management options shape { digital: { requests: [{ protocol, data }] } } without inventing a credential format or trying to inspect the user's wallet. Return null when the browser or protocol is unavailable so the caller can choose a conventional fallback.",
+    starterCode: credentialBuilderStarter,
+    solutionCode: credentialBuilderSolution,
+    criteria: [
+      "Accepts only the get and create Credential Management operations",
+      "Checks userAgentAllowsProtocol and returns a fallback signal for unsupported runtimes",
+      "Creates the digital.requests shape with a detached JSON snapshot of request data",
+      "Rejects malformed protocols, non-object data, and circular or non-serializable payloads",
+    ],
+  },
+  {
+    id: "task_digital_credentials_prompt_coordinator",
+    title: "Preserve User Activation and Single-Flight Credential Choosers",
+    category: "digital-credentials",
+    difficulty: "advanced",
+    tags: ["digital-credentials", "user-activation", "single-flight", "abort-signal"],
+    instructions:
+      "Wrap navigator.credentials.get/create so chooser calls happen synchronously in the original user-activation turn. Reject calls without transient activation, return the same promise for an identical in-flight request, reject a different request while a chooser is open, and release the gate after either success or failure. Pass through an optional AbortSignal and make close() reject all future requests. Browser mediation is mandatory for Digital Credentials; do not attempt to suppress the chooser or set mediation to silent.",
+    starterCode: credentialPromptStarter,
+    solutionCode: credentialPromptSolution,
+    criteria: [
+      "Requires a transient user activation before invoking the credential manager",
+      "Invokes get or create synchronously so browser activation is not lost to an await",
+      "Shares an identical in-flight chooser and rejects competing requests until it settles",
+      "Passes an optional signal, releases the gate on resolve or reject, and closes cleanly",
+    ],
+  },
+  {
+    id: "task_digital_credentials_server_verification",
+    title: "Forward Opaque Digital Credentials to a Same-Origin Verifier",
+    category: "digital-credentials",
+    difficulty: "advanced",
+    tags: ["digital-credentials", "verifiable-credentials", "same-origin", "privacy"],
+    instructions:
+      "Treat a browser-mediated credential response as opaque. POST only its protocol and data to a same-origin HTTPS verifier, disable redirects and caching, and return true only when the verifier responds with { verified: true }. Reject cross-origin endpoints before network access, avoid logging or persisting credential contents, and never treat data supplied by the browser as a locally verified identity claim.",
+    starterCode: credentialVerifyStarter,
+    solutionCode: credentialVerifySolution,
+    criteria: [
+      "Requires an opaque credential response and an injected fetch implementation",
+      "Rejects non-HTTPS origins and any endpoint outside the caller's origin",
+      "POSTs protocol and data with same-origin credentials, no-store cache, and redirects disabled",
+      "Returns only the server's explicit verified boolean and never trusts local credential claims",
     ],
   },
 ];
