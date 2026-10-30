@@ -8,6 +8,7 @@ import { OAuthServer } from "../src/oauth.js";
 import { BenchmarkSuite } from "../src/benchmark.js";
 import { createHandler } from "../src/api.js";
 import { createHub } from "../src/events.js";
+import { REFACTORING_CURRICULUM_TASKS } from "../src/curriculum.js";
 
 let dir;
 let handle;
@@ -109,7 +110,8 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(data.summary.failedTasks).toBe(0);
     expect(typeof data.summary.totalDurationMs).toBe("number");
     expect(data.results.length).toBe(data.summary.totalTasks);
-  });
+    expect(data.results.map((result) => result.taskId)).toEqual(REFACTORING_CURRICULUM_TASKS.map((task) => task.id));
+  }, 30000);
 
   test("exports formatted Markdown benchmark report", async () => {
     const res = await call("GET", "/api/curriculum/benchmark?format=markdown");
@@ -120,7 +122,7 @@ describe("Agentic 1M Curriculum Benchmark Suite", () => {
     expect(markdown).toContain("## Category Breakdown");
     expect(markdown).toContain("| Task Title | Category | Difficulty |");
     expect(markdown).toContain("PASSED");
-  });
+  }, 30000);
 
   test("Markdown report keeps task text inside table cells", () => {
     const category = "css|layout";
