@@ -6,7 +6,7 @@ import {
   CURRICULUM_TRACKS,
   CURRICULUM_DIFFICULTIES,
 } from "./curriculum.js";
-import { Evaluator } from "./evaluator.js";
+import { EvaluationBusyError, Evaluator } from "./evaluator.js";
 import { BenchmarkSuite } from "./benchmark.js";
 import { getTypeScriptEcosystemOverview } from "./ts_ecosystem.js";
 import { buildApplicationJsonLdGraph, auditHtmlSeoAndStructuredData } from "./seo.js";
@@ -779,6 +779,7 @@ const benchmarkSuite = new BenchmarkSuite();
     } catch (err) {
       if (err instanceof ValidationError) return json({ error: err.message }, 422);
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
+      if (err instanceof EvaluationBusyError) return json({ error: err.message }, 503, { "retry-after": "1" });
       console.error("[api]", err);
       return json({ error: "Something broke on the server." }, 500);
     }

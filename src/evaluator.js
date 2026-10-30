@@ -1,5 +1,8 @@
 import { Worker } from "node:worker_threads";
 import { Evaluator as EvaluationEngine, prepareEvaluation } from "./evaluator-engine.js";
+import { evaluationPool } from "./evaluation-pool.js";
+
+export { EvaluationBusyError } from "./evaluation-pool.js";
 
 const DEFAULT_TIMEOUT_MS = 5000;
 
@@ -21,6 +24,10 @@ export class Evaluator {
 
   async evaluate(taskId, code, options = {}) {
     const { trimmedCode } = prepareEvaluation(taskId, code);
+    return evaluationPool.run(() => this.#evaluateInWorker(taskId, trimmedCode, options));
+  }
+
+  async #evaluateInWorker(taskId, trimmedCode, options) {
     const started = performance.now();
     let worker;
     let timer;

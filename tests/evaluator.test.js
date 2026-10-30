@@ -98,6 +98,26 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
     expect(result.assertionResults.some((a) => !a.passed)).toBe(true);
   });
 
+  test("returns a retryable response when the shared evaluator queue is full", async () => {
+    const limited = new Evaluator({ timeoutMs: 500 });
+    const runs = Array.from({ length: 36 }, () => limited.evaluate(
+      "task_refactor_async_pipeline",
+      "async function processUserData() { return new Promise(() => {}); }",
+    ));
+    const settled = Promise.allSettled(runs);
+    try {
+      const response = await call("POST", "/api/curriculum/evaluate", {
+        taskId: "task_refactor_async_pipeline",
+        code: "async function processUserData() { return {}; }",
+      });
+      expect(response.status).toBe(503);
+      expect(response.headers.get("retry-after")).toBe("1");
+      expect((await response.json()).error).toContain("busy");
+    } finally {
+      await settled;
+    }
+  }, 15000);
+
   test.each([
     "/* new Map() */ function broken( {",
     "<div>new Map()</div>",
@@ -423,13 +443,16 @@ describe("Agentic Evaluator & Execution Sandbox", () => {
   test("every single task in the curriculum has both static criteria and sandbox assertions", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
     expect(REFACTORING_CURRICULUM_TASKS.length).toBe(221);
-    for (const task of REFACTORING_CURRICULUM_TASKS) {
-      const res = await evaluator.evaluate(task.id, task.solutionCode);
-      expect(res.passed).toBe(true);
-      expect(res.score).toBe(100);
-      expect(res.assertionResults.length).toBeGreaterThanOrEqual(3);
+    for (let index = 0; index < REFACTORING_CURRICULUM_TASKS.length; index += 4) {
+      const batch = REFACTORING_CURRICULUM_TASKS.slice(index, index + 4);
+      const results = await Promise.all(batch.map((task) => evaluator.evaluate(task.id, task.solutionCode)));
+      for (const res of results) {
+        expect(res.passed).toBe(true);
+        expect(res.score).toBe(100);
+        expect(res.assertionResults.length).toBeGreaterThanOrEqual(3);
+      }
     }
-  });
+  }, 30000);
 
   test("CSS industry checks bind layout rules to selectors and ignore braces inside comments", async () => {
     const { REFACTORING_CURRICULUM_TASKS } = await import("../src/curriculum.js");
