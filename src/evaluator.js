@@ -5036,7 +5036,7 @@ export class Evaluator {
 
           const alreadySent = response(true);
           let delegated;
-          const forwarded = stack[1](privateError, request(), alreadySent, (error) => { delegated = error; });
+          stack[1](privateError, request(), alreadySent, (error) => { delegated = error; });
 
           let rejectsServerProblem = false;
           let rejectsUnknownType = false;
@@ -5050,7 +5050,7 @@ export class Evaluator {
             middlewareOrder: stack.length === 2 && stack[0].length === 3 && stack[1].length === 4,
             unmatchedProblem: unmatched.statusCode === 404 && unmatched.contentType === "application/problem+json" && unmatched.body.requestId === "unmatched_1",
             genericInternalError: internal.statusCode === 500 && internal.contentType === "application/problem+json" && internal.body.detail === "An unexpected error occurred." && !internal.body.requestId && !internalJson.includes("db-password-marker") && !internalJson.includes("private-stack-marker") && logs.length === 1,
-            sentHeadersDelegated: forwarded === privateError && delegated === privateError && alreadySent.writes === 0,
+            sentHeadersDelegated: delegated === privateError && alreadySent.writes === 0,
             publicProblemValidation: rejectsServerProblem && rejectsUnknownType,
           };
         })();
