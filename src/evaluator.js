@@ -242,6 +242,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Sibling Animation Resolves Inside Feature Gate", all: ["@supports (timeline-scope: --transcript-progress) and (animation-timeline: --transcript-progress)", "animation-timeline: --transcript-progress", "animation: transcript-progress linear both"], withinRules: [{ selector: ".media-card__progress-fill", all: ["animation-timeline: --transcript-progress"] }] },
     { name: "Reduced Motion Keeps Transcript Available", all: ["prefers-reduced-motion: reduce", "animation: none"], withinRules: [{ selector: ".media-card__progress-fill", all: ["animation: none"] }], none: ["display: none"] },
   ],
+  task_css_reading_flow_dense_grid_accessibility: [
+    { name: "Source-Order Baseline and Dense-Grid Enhancement", all: ["grid-auto-flow: row", "@supports (reading-flow: grid-rows) and (reading-order: -1)", "grid-auto-flow: dense", "reading-flow: grid-rows"], before: [["grid-auto-flow: row", "@supports (reading-flow:"]] },
+    { name: "Urgent Visual and Reading Priority", all: [".incident-card--urgent", "grid-column: 1 / -1", "grid-row: 1", "reading-order: -1"], withinRules: [{ selector: ".incident-card--urgent", all: ["grid-row: 1", "reading-order: -1"] }] },
+    { name: "Narrow Single-Column Flow Without Reordering Hacks", all: ["@media (max-width: 44rem)", "grid-template-columns: minmax(0, 1fr)", "grid-auto-flow: row"], none: ["\n  order:", "tabindex=", "tabindex ="] },
+  ],
 });
 
 function cssCheckPassed(code, check) {

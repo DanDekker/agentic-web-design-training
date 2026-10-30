@@ -1,5 +1,5 @@
 /**
- * Web development curriculum: 206 exercises across 42 categories and 21 tracks.
+ * Web development curriculum: 207 exercises across 42 categories and 21 tracks.
  * Framework, browser-platform, GPU, transport, WebAssembly, WebNN, WebXR, credentials, real-time media and agentic-web code is imported from standalone files.
  */
 
@@ -3869,6 +3869,59 @@ window.addEventListener("scroll", () => {
       "Scopes a dashed timeline name on each repeated component root and defines the same named view timeline on its nested scroller",
       "Binds the sibling progress marker to the named timeline only inside a feature query, avoiding cross-component name collisions",
       "Keeps transcript layout available without the draft feature and removes progress animation for reduced-motion users",
+    ],
+  },
+  {
+    id: "task_css_reading_flow_dense_grid_accessibility",
+    title: "Keep Keyboard and Reading Order Aligned with a Dense Incident Grid",
+    category: "css",
+    difficulty: "advanced",
+    tags: ["css", "reading-flow", "reading-order", "grid", "accessibility", "progressive-enhancement"],
+    instructions:
+      "An emergency operations board places an urgent incident panel across the first row and uses dense Grid packing to fill gaps left by variable-height dispatch cards. The HTML source order must stay logical for browsers that do not support CSS reading-flow. Add a supported enhancement that makes sequential keyboard and reading navigation follow the rendered row order, while moving the urgent panel to the first reading-order group. Keep the base grid in source order and avoid positive tabindex, duplicated markup, and the CSS order property. CSS Display Level 4 is still a Working Draft, so only enable visual reordering when the reading-flow properties are supported.",
+    starterCode: `/* Logical DOM order is the fallback. */
+.incident-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-auto-flow: row;
+  gap: 1rem;
+}`,
+    solutionCode: `/* Keep DOM order logical; unsupported browsers retain source-order layout. */
+.incident-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-auto-flow: row;
+  gap: 1rem;
+}
+
+.incident-card {
+  min-inline-size: 0;
+}
+
+@supports (reading-flow: grid-rows) and (reading-order: -1) {
+  .incident-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: dense;
+    reading-flow: grid-rows;
+  }
+
+  .incident-card--urgent {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    reading-order: -1;
+  }
+}
+
+@media (max-width: 44rem) {
+  .incident-board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+  }
+}`,
+    criteria: [
+      "Keeps source-order Grid as the baseline and gates dense two-column packing with reading-flow support",
+      "Uses reading-flow: grid-rows and reading-order: -1 so the spanning urgent incident is visited first and other cards follow visual rows",
+      "Avoids tabindex and the CSS order property, preserving a meaningful DOM order and a one-column narrow-screen layout",
     ],
   },
   {
