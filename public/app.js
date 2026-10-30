@@ -234,6 +234,12 @@ const isTyping = (node) =>
   !!node &&
   (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.tagName === "SELECT" || node.isContentEditable);
 
+const isInteractive = (node) =>
+  isTyping(node) || !!node && (
+    ["BUTTON", "A", "SUMMARY"].includes(node.tagName) ||
+    ["button", "link", "tab", "radio", "checkbox", "combobox", "listbox", "option"].includes(node.getAttribute?.("role"))
+  );
+
 const dialogs = [el.refactorModal, el.authModal, el.oauthModal, el.benchmarkModal, el.chatModal, el.shopModal, el.trafficModal, el.designModal, el.palette].filter(Boolean);
 
 function openDialog(dialog) {
@@ -2049,7 +2055,7 @@ document.addEventListener("keydown", (event) => {
     mod ||
     event.altKey ||
     dialogs.some((dialog) => dialog.open) ||
-    isTyping(event.target) ||
+    isInteractive(event.target) ||
     state.editing
   ) {
     return;

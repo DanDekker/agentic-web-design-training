@@ -83,6 +83,21 @@ describe("Client dialogs and keyboard navigation", () => {
     expect(app.requests.filter((req) => ["PATCH", "DELETE"].includes(req.method))).toEqual([]);
   });
 
+  test("page shortcuts do not intercept keyboard actions on focused buttons", async () => {
+    const app = await createClient({ snapshot: { tasks: [
+      { id: "one", title: "One", boardId: "board_today", done: false },
+      { id: "two", title: "Two", boardId: "board_today", done: false },
+    ] } });
+    await app.key("j");
+    const move = app.get("list").children[0].querySelector(".task-move-down");
+    move.focus();
+    expect((await app.key("Enter", {}, move)).defaultPrevented).not.toBe(true);
+    expect((await app.key("ArrowDown", {}, move)).defaultPrevented).not.toBe(true);
+    expect((await app.key("Delete", {}, move)).defaultPrevented).not.toBe(true);
+    expect(app.get("list").querySelector(".task-edit")).toBeNull();
+    expect(app.requests.filter((request) => request.method === "DELETE")).toHaveLength(0);
+  });
+
   test("palette exposes its active option and leaves Tab to the browser", async () => {
     const app = await createClient();
     await app.click("btn-oauth-portal");
