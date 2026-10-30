@@ -43,6 +43,11 @@ describe("TaskStore", () => {
     await store.add({ id: "task-one", title: "First" });
     await expect(store.add({ id: "task-one", title: "Duplicate" })).rejects.toBeInstanceOf(ValidationError);
     await expect(store.add({ title: "Orphan", boardId: "missing" })).rejects.toBeInstanceOf(ValidationError);
+    for (const id of ["", "bad\n", "two words"]) {
+      await expect(store.add({ id, title: "Invalid ID" })).rejects.toBeInstanceOf(ValidationError);
+      await expect(store.addBoard("Invalid ID", id)).rejects.toBeInstanceOf(ValidationError);
+    }
+    await expect(store.restoreTasks([{ id: "valid", title: "Valid" }, { id: "bad\n", title: "Invalid" }])).rejects.toBeInstanceOf(ValidationError);
     expect(store.list().map((task) => task.title)).toEqual(["First"]);
   });
 

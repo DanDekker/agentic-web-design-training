@@ -21,6 +21,7 @@ export class ValidationError extends Error {
 
 const clone = (value) => structuredClone(value);
 const squeeze = (value) => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
+const isAddressableId = (value) => typeof value === "string" && value.length > 0 && !/[^A-Za-z0-9_-]/.test(value);
 
 function slugify(name) {
   const slug = squeeze(name)
@@ -203,7 +204,7 @@ export class TaskStore {
     if (cleanName.length > BOARD_NAME_MAX) {
       throw new ValidationError(`Keep the board name under ${BOARD_NAME_MAX} characters.`);
     }
-    if (id != null && (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id))) {
+    if (id != null && !isAddressableId(id)) {
       throw new ValidationError("Board ID must contain only letters, numbers, hyphens, and underscores.");
     }
     return this.#transaction((state) => {
@@ -266,7 +267,7 @@ export class TaskStore {
       boardId = state.boards[0]?.id;
     } else if (input && typeof input === "object") {
       title = input.title;
-      boardId = input.boardId || state.boards[0]?.id;
+      boardId = input.boardId ?? state.boards[0]?.id;
       notes = input.notes;
       priority = input.priority;
       due = input.due;
@@ -279,8 +280,8 @@ export class TaskStore {
 
     const board = state.boards.find((b) => b.id === boardId);
     if (!board) throw new ValidationError("Unknown board.");
-    const id = input?.id || randomUUID();
-    if (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id)) {
+    const id = input?.id ?? randomUUID();
+    if (!isAddressableId(id)) {
       throw new ValidationError("Task ID must contain only letters, numbers, hyphens, and underscores.");
     }
     if (state.tasks.some((existing) => existing.id === id)) {
@@ -379,10 +380,15 @@ export class TaskStore {
   async restoreTasks(tasks) {
     if (!Array.isArray(tasks)) throw new ValidationError("restore needs an array of tasks.");
     const captured = clone(tasks);
+    for (const raw of captured) {
+      if (!isTask(raw) || !isAddressableId(raw.id)) {
+        throw new ValidationError("Every restored task needs an addressable ID and title.");
+      }
+      cleanTitle(raw.title);
+    }
     return this.#transaction((state) => {
       const restored = [];
       for (const raw of captured) {
-        if (!isTask(raw)) continue;
         if (state.tasks.some((t) => t.id === raw.id)) continue;
         const board = state.boards.find((b) => b.id === raw.boardId) || state.boards[0];
         const task = this.#normalize(raw, board.id);
