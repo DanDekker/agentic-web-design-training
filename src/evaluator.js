@@ -207,6 +207,11 @@ const CSS_TASK_CHECKS = Object.freeze({
     { name: "Target Feedback and Focusable Skip Link", all: [":target", ".docs-skip-link:focus-visible", "transform: translateY(0)", "outline-offset: 3px"] },
     { name: "Motion Preference", all: ["scroll-behavior: smooth", "prefers-reduced-motion: reduce", "scroll-behavior: auto"] },
   ],
+  task_css_responsive_embeds_stable_geometry: [
+    { name: "Fluid Media Geometry Reservation", all: [".course-embed", "inline-size: 100%", "aspect-ratio: 16 / 9", "aspect-ratio: 9 / 16", "max-inline-size: 100%"] },
+    { name: "Frame Fills the Reserved Wrapper", all: [":where(iframe, video)", "position: absolute", "inset: 0", "block-size: 100%", "border: 0"] },
+    { name: "Focus Without Media Clipping", all: [":focus-within", "outline: 3px solid", "outline-offset: 3px"], none: ["overflow: hidden", "width: 560px", "height: 315px"] },
+  ],
 });
 
 function cssCheckPassed(code, check) {
