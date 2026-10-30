@@ -307,8 +307,8 @@ function renderTasks() {
   if (el.meter) el.meter.style.width = total === 0 ? "0%" : `${(done / total) * 100}%`;
   if (el.clear) el.clear.hidden = done === 0;
 
-  for (const button of el.filters) {
-    button.setAttribute("aria-selected", String(button.dataset.filter === state.filter));
+  for (const input of el.filters) {
+    input.checked = input.dataset.filter === state.filter;
   }
 }
 
@@ -1595,8 +1595,8 @@ el.btnCurriculum?.addEventListener("click", seedCurriculum);
 el.userPill?.addEventListener("click", openAuthModal);
 el.btnOAuthPortal?.addEventListener("click", openOAuthModal);
 
-for (const button of el.filters) {
-  button.addEventListener("click", () => setFilter(button.dataset.filter));
+for (const input of el.filters) {
+  input.addEventListener("change", () => setFilter(input.dataset.filter));
 }
 
 el.searchInput?.addEventListener("input", (e) => {

@@ -15,6 +15,7 @@ class Element {
   value = "";
   hidden = false;
   disabled = false;
+  checked = false;
   open = false;
 
   constructor(document, tagName) {
@@ -41,6 +42,7 @@ class Element {
     if (name === "value") this.value = String(value);
     if (name === "hidden") this.hidden = true;
     if (name === "disabled") this.disabled = true;
+    if (name === "checked") this.checked = true;
     if (name.startsWith("data-")) {
       this.dataset[name.slice(5).replace(/-([a-z])/g, (_, char) => char.toUpperCase())] = String(value);
     }

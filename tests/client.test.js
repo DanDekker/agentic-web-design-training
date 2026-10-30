@@ -7,6 +7,23 @@ const challenge = (id, title = "Refactor task") => ({
 });
 
 describe("Client dialogs and keyboard navigation", () => {
+  test("task filters expose one native radio selection and update the list", async () => {
+    const app = await createClient({ snapshot: { tasks: [
+      { id: "active", title: "Active task", boardId: "board_today", done: false },
+      { id: "done", title: "Completed task", boardId: "board_today", done: true },
+    ] } });
+    expect(app.get("filter-all").getAttribute("type")).toBe("radio");
+    expect(app.get("filter-all").getAttribute("name")).toBe("task-filter");
+    expect(app.get("filter-all").checked).toBe(true);
+    await app.get("filter-done").emit("change");
+    expect(app.get("filter-done").checked).toBe(true);
+    expect(app.get("filter-all").checked).toBe(false);
+    expect(app.get("list").children.map((row) => row.querySelector(".task-title").textContent)).toEqual(["Completed task"]);
+    await app.key("1");
+    expect(app.get("filter-all").checked).toBe(true);
+    expect(app.get("list").children).toHaveLength(2);
+  });
+
   for (const [button, dialog, close] of [
     ["user-pill", "auth-modal", "btn-close-auth"],
     ["btn-oauth-portal", "oauth-modal", "btn-close-oauth"],
