@@ -40,3 +40,22 @@ test("an expired queue entry is removed without consuming a later slot", async (
   await running;
   expect(await retry).toBe("available");
 });
+
+test("canceling a queued evaluation removes it and preserves the next waiter's place", async () => {
+  const pool = new EvaluationPool({ concurrency: 1, maxWaiting: 2, maxWaitMs: 1000 });
+  const gate = deferred();
+  const running = pool.run(() => gate.promise);
+  const controller = new AbortController();
+  let canceledJobStarted = false;
+  const canceled = pool.run(() => { canceledJobStarted = true; }, { signal: controller.signal });
+  const canceledError = canceled.catch((error) => error);
+  const next = pool.run(() => "next");
+  controller.abort();
+  expect((await canceledError).name).toBe("AbortError");
+  gate.resolve();
+  await running;
+  expect(await next).toBe("next");
+  expect(canceledJobStarted).toBe(false);
+  await expect(pool.run(() => "never", { signal: controller.signal })).rejects.toHaveProperty("name", "AbortError");
+  expect(await pool.run(() => "still available")).toBe("still available");
+});

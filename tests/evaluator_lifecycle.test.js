@@ -28,6 +28,16 @@ test("a submission cannot accidentally change the server's built-in prototypes",
   }
 });
 
+test("canceling a running evaluation stops its worker and frees capacity", async () => {
+  const evaluator = new Evaluator();
+  const controller = new AbortController();
+  const run = evaluator.evaluate(task.id, "async function processUserData() { return new Promise(() => {}); }", {}, { signal: controller.signal });
+  await Bun.sleep(100);
+  controller.abort();
+  await expect(run).rejects.toHaveProperty("name", "AbortError");
+  expect((await evaluator.evaluate(task.id, task.solutionCode)).passed).toBe(true);
+}, 10000);
+
 test("an async infinite loop is terminated and a later evaluation still runs", async () => {
   // A child process keeps the test runner safe if evaluation ever regresses to
   // running an uninterruptible async loop on the main event loop again.

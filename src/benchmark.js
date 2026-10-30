@@ -49,7 +49,8 @@ export class BenchmarkSuite {
   /**
    * Runs automated verification benchmark against all curriculum tasks using reference solutions.
    */
-  async runFullBenchmark({ category = null } = {}) {
+  async runFullBenchmark({ category = null, signal } = {}) {
+    if (signal?.aborted) throw new DOMException("Evaluation canceled.", "AbortError");
     const startTime = performance.now();
     const targetTasks = category
       ? REFACTORING_CURRICULUM_TASKS.filter((t) => t.category === category)
@@ -65,7 +66,7 @@ export class BenchmarkSuite {
         const index = nextIndex++;
         const task = targetTasks[index];
         try {
-          const evalResult = await this.#evaluator.evaluate(task.id, task.solutionCode);
+          const evalResult = await this.#evaluator.evaluate(task.id, task.solutionCode, {}, { signal });
           taskResults[index] = {
             taskId: task.id,
             title: task.title,

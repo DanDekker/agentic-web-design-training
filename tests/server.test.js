@@ -118,6 +118,54 @@ test("an async runaway evaluation times out without blocking the HTTP server", a
   }
 }, 12000);
 
+test("disconnected evaluation requests release worker capacity", async () => {
+  const handler = createRequestHandler({
+    handleApi: createHandler(null, null),
+    serveStatic: () => new Response("Not found", { status: 404 }),
+  });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: handler });
+  const controllers = Array.from({ length: 4 }, () => new AbortController());
+  try {
+    const requests = controllers.map((controller) => fetch(new URL("/api/curriculum/evaluate", server.url), {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ taskId: "task_refactor_async_pipeline", code: "async function processUserData() { return new Promise(() => {}); }" }),
+    }).catch(() => null));
+    await Bun.sleep(350);
+    controllers.forEach((controller) => controller.abort());
+    await Promise.all(requests);
+    const response = await fetch(new URL("/api/curriculum/evaluate", server.url), {
+      method: "POST",
+      signal: AbortSignal.timeout(2500),
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        taskId: "task_refactor_async_pipeline",
+        code: REFACTORING_CURRICULUM_TASKS.find((task) => task.id === "task_refactor_async_pipeline").solutionCode,
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).passed).toBe(true);
+  } finally {
+    controllers.forEach((controller) => controller.abort());
+    await server.stop(true);
+  }
+}, 10000);
+
+test("long-running benchmark requests get a longer HTTP idle timeout", async () => {
+  const handler = createRequestHandler({
+    handleApi: async () => { await Bun.sleep(1400); return new Response("finished"); },
+    serveStatic: () => new Response("Not found", { status: 404 }),
+  });
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0, idleTimeout: 1, fetch: handler });
+  try {
+    const response = await fetch(new URL("/api/curriculum/benchmark?run=true", server.url));
+    expect(await response.text()).toBe("finished");
+  } finally {
+    await server.stop(true);
+  }
+}, 6000);
+
 test("event streams stay open across the server idle timeout and deliver later updates", async () => {
   const hub = createHub();
   const handler = createRequestHandler({

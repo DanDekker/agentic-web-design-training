@@ -421,7 +421,7 @@ const benchmarkSuite = new BenchmarkSuite();
       /* ── Curriculum Refactoring Tasks ─────────────────────── */
       if (pathname === "/api/curriculum/evaluate" && req.method === "POST") {
         const { taskId, code, options } = await readJson(req);
-        const result = await evaluator.evaluate(taskId, code, options);
+        const result = await evaluator.evaluate(taskId, code, options, { signal: req.signal });
         return json(result);
       }
       if (pathname === "/api/curriculum/benchmark") {
@@ -429,12 +429,12 @@ const benchmarkSuite = new BenchmarkSuite();
           const format = searchParams.get("format");
           const category = searchParams.get("category") || null;
           if (format === "markdown") {
-            const bench = await benchmarkSuite.runFullBenchmark({ category });
+            const bench = await benchmarkSuite.runFullBenchmark({ category, signal: req.signal });
             const md = benchmarkSuite.formatMarkdown(bench);
             return new Response(md, { headers: { "content-type": "text/markdown; charset=utf-8" } });
           }
           if (searchParams.get("run") === "true") {
-            const bench = await benchmarkSuite.runFullBenchmark({ category });
+            const bench = await benchmarkSuite.runFullBenchmark({ category, signal: req.signal });
             return json(bench);
           }
           return json(benchmarkSuite.getCatalogStats());
@@ -444,7 +444,7 @@ const benchmarkSuite = new BenchmarkSuite();
 
       if (pathname === "/api/curriculum/benchmark/run-all" && req.method === "POST") {
         const body = await readJson(req);
-        const results = await benchmarkSuite.runFullBenchmark({ category: body?.category || null });
+        const results = await benchmarkSuite.runFullBenchmark({ category: body?.category || null, signal: req.signal });
         return json(results);
       }
       if (pathname === "/api/curriculum/ecosystem" && req.method === "GET") {
@@ -780,6 +780,7 @@ const benchmarkSuite = new BenchmarkSuite();
       if (err instanceof ValidationError) return json({ error: err.message }, 422);
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
       if (err instanceof EvaluationBusyError) return json({ error: err.message }, 503, { "retry-after": "1" });
+      if (err?.name === "AbortError" && req.signal.aborted) return json({ error: "Evaluation canceled." }, 499);
       console.error("[api]", err);
       return json({ error: "Something broke on the server." }, 500);
     }

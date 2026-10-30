@@ -6,6 +6,10 @@ export class EvaluationBusyError extends Error {
   }
 }
 
+export function evaluationAbortError() {
+  return new DOMException("Evaluation canceled.", "AbortError");
+}
+
 export class EvaluationPool {
   #active = 0;
   #waiting = [];
@@ -23,38 +27,50 @@ export class EvaluationPool {
     this.#maxWaitMs = maxWaitMs;
   }
 
-  #acquire() {
+  #cleanup(waiter) {
+    clearTimeout(waiter.timer);
+    waiter.signal?.removeEventListener("abort", waiter.onAbort);
+  }
+
+  #acquire(signal) {
+    if (signal?.aborted) return Promise.reject(evaluationAbortError());
     if (this.#active < this.#concurrency) {
       this.#active++;
       return Promise.resolve();
     }
     if (this.#waiting.length >= this.#maxWaiting) return Promise.reject(new EvaluationBusyError());
     return new Promise((resolve, reject) => {
-      const waiter = { resolve, timer: null };
-      waiter.timer = setTimeout(() => {
+      const waiter = { resolve, timer: null, signal, onAbort: null };
+      const remove = (error) => {
         const index = this.#waiting.indexOf(waiter);
         if (index >= 0) {
           this.#waiting.splice(index, 1);
-          reject(new EvaluationBusyError());
+          this.#cleanup(waiter);
+          reject(error);
         }
-      }, this.#maxWaitMs);
+      };
+      waiter.onAbort = () => remove(evaluationAbortError());
       this.#waiting.push(waiter);
+      waiter.timer = setTimeout(() => remove(new EvaluationBusyError()), this.#maxWaitMs);
+      signal?.addEventListener("abort", waiter.onAbort, { once: true });
+      if (signal?.aborted) waiter.onAbort();
     });
   }
 
   #release() {
     const waiter = this.#waiting.shift();
     if (waiter) {
-      clearTimeout(waiter.timer);
+      this.#cleanup(waiter);
       waiter.resolve(); // Transfer the slot directly; the active count is unchanged.
     } else {
       this.#active--;
     }
   }
 
-  async run(job) {
-    await this.#acquire();
+  async run(job, { signal } = {}) {
+    await this.#acquire(signal);
     try {
+      if (signal?.aborted) throw evaluationAbortError();
       return await job();
     } finally {
       this.#release();
