@@ -2202,6 +2202,22 @@ export class Evaluator {
         passed: code.includes("Object.entries(imports)") && code.includes("Object.entries(namespace)") && code.includes("Object.entries(exports)"),
         detail: "Builds fresh namespaces while preserving memories, globals and other non-function bindings",
       });
+    } else if (id === "task_webnn_tensor_inference_lifecycle") {
+      results.push({
+        name: "Least-Privilege Tensor Permissions",
+        passed: code.includes("writable: true") && code.includes("readable: true") && code.includes("writable: false"),
+        detail: "Creates input tensors for writes and output tensors for readback with the correct permissions",
+      });
+      results.push({
+        name: "Dispatch Submission and Readback Completion",
+        passed: code.includes("context.dispatch(graph, inputs, outputs)") && code.includes("await context.readTensor(tensor)"),
+        detail: "Submits dispatch synchronously and waits for readTensor to observe completed work",
+      });
+      results.push({
+        name: "Owned Tensor Cleanup on Every Exit",
+        passed: code.includes("finally") && code.includes("ownedTensors.reverse()") && code.includes("tensor.destroy()"),
+        detail: "Destroys all locally allocated tensors after success or failure",
+      });
     } else {
       results.push({
         name: "Syntactic Refactoring Valid",
@@ -7614,6 +7630,71 @@ export class Evaluator {
         name: "JSPI Import Suspension, Export Promises & Unsupported Runtime",
         passed: Boolean(res?.jspiBoundaryOk),
         detail: "Uses injected JSPI shims to wrap functions, keep memory values intact and reject absent proposal APIs",
+      });
+    } else if (taskId === "task_webnn_tensor_inference_lifecycle") {
+      const harness = `
+        ${sanitizedCode};
+        (async () => {
+          try {
+            const events = [];
+            const descriptors = [];
+            function makeContext(failRead = false) {
+              return {
+                async createTensor(descriptor) {
+                  descriptors.push(descriptor);
+                  events.push("create:" + (descriptor.writable ? "input" : "output"));
+                  return {
+                    descriptor,
+                    data: null,
+                    destroy() { events.push("destroy:" + (descriptor.writable ? "input" : "output")); },
+                  };
+                },
+                writeTensor(tensor, data) {
+                  events.push("write");
+                  tensor.data = new Float32Array(data);
+                },
+                dispatch(graph, inputs, outputs) {
+                  events.push("dispatch");
+                  outputs.result.data = new Float32Array([inputs.values.data[0] * 2]);
+                },
+                async readTensor(tensor) {
+                  events.push("read:result");
+                  if (failRead) throw new Error("context lost");
+                  await Promise.resolve();
+                  return tensor.data.buffer.slice(0);
+                },
+              };
+            }
+            const context = makeContext();
+            const outputs = await runWebNNInference(context, { id: "graph" }, {
+              values: { descriptor: { dataType: "float32", shape: [2] }, data: new Float32Array([3, 4]) },
+            }, {
+              result: { dataType: "float32", shape: [1] },
+            });
+            const outputValue = new Float32Array(outputs.result)[0];
+            const expectedOrder = events.indexOf("dispatch") < events.indexOf("read:result") &&
+              events.indexOf("read:result") < events.lastIndexOf("destroy:output");
+            const permissionsOk = descriptors[0].writable === true && descriptors[0].readable === false &&
+              descriptors[1].readable === true && descriptors[1].writable === false;
+            const failedContext = makeContext(true);
+            let failedReadRejected = false;
+            try {
+              await runWebNNInference(failedContext, { id: "graph" }, {
+                values: { descriptor: { dataType: "float32", shape: [1] }, data: new Float32Array([1]) },
+              }, { result: { dataType: "float32", shape: [1] } });
+            } catch { failedReadRejected = true; }
+            const destroysAfterFailure = events.filter((event) => event.startsWith("destroy:")).length === 4;
+            return {
+              webnnInferenceOk: outputValue === 6 && expectedOrder && permissionsOk && failedReadRejected && destroysAfterFailure,
+            };
+          } catch { return { webnnInferenceOk: false }; }
+        })();
+      `;
+      const res = await runInContext(harness, ctx, { timeout: 1000 });
+      results.push({
+        name: "WebNN Tensor Permissions, Timeline Readback & Failure Cleanup",
+        passed: Boolean(res?.webnnInferenceOk),
+        detail: "Runs a named graph, awaits output readback and destroys input/output tensors on successful and failed reads",
       });
     } else {
       // General syntax evaluation
