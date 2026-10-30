@@ -4,11 +4,9 @@
  * half-written data file behind. Supports single-list legacy calls and multi-board
  * rich refactoring task workflows.
  */
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { REFACTORING_CURRICULUM_TASKS } from "./curriculum.js";
-import { readJsonStore } from "./persistence.js";
+import { readJsonStore, writeJsonFile } from "./persistence.js";
 
 export const TITLE_MAX = 300;
 export const NOTES_MAX = 4000;
@@ -82,9 +80,11 @@ export class TaskStore {
   #boards = [];
   #tasks = [];
   #queue = Promise.resolve();
+  #write;
 
-  constructor(file) {
+  constructor(file, { write = writeJsonFile } = {}) {
     this.#file = file;
+    this.#write = write;
   }
 
   async load() {
@@ -97,9 +97,10 @@ export class TaskStore {
   async #seedFresh() {
     const today = makeBoard("Today", "board_today");
     const refactorBoard = makeBoard("Agentic Refactoring", "board_refactor_curriculum");
-    this.#boards = [today, refactorBoard];
+    const boards = [today, refactorBoard];
+    await this.#write(this.#file, JSON.stringify({ version: 1, boards, tasks: [] }, null, 2));
+    this.#boards = boards;
     this.#tasks = [];
-    await this.#persist();
   }
 
   #hydrate(parsed) {
@@ -185,8 +186,8 @@ export class TaskStore {
 
   /* ── boards ────────────────────────────────────────────── */
 
-  #uniqueSlug(base, exceptId = null) {
-    const taken = new Set(this.#boards.filter((b) => b.id !== exceptId).map((b) => b.slug));
+  #uniqueSlug(boards, base, exceptId = null) {
+    const taken = new Set(boards.filter((b) => b.id !== exceptId).map((b) => b.slug));
     if (!taken.has(base)) return base;
     let n = 2;
     while (taken.has(`${base}-${n}`)) n += 1;
@@ -199,67 +200,70 @@ export class TaskStore {
     if (cleanName.length > BOARD_NAME_MAX) {
       throw new ValidationError(`Keep the board name under ${BOARD_NAME_MAX} characters.`);
     }
-    if (id && this.#boards.some((b) => b.id === id)) {
-      throw new ValidationError("That board already exists.");
+    if (id != null && (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id))) {
+      throw new ValidationError("Board ID must contain only letters, numbers, hyphens, and underscores.");
     }
-
-    const board = makeBoard(cleanName, id ?? randomUUID());
-    board.slug = this.#uniqueSlug(board.slug);
-    this.#boards.push(board);
-    await this.#persist();
-    return clone(board);
+    return this.#transaction((state) => {
+      if (id && state.boards.some((b) => b.id === id)) {
+        throw new ValidationError("That board already exists.");
+      }
+      const board = makeBoard(cleanName, id ?? randomUUID());
+      board.slug = this.#uniqueSlug(state.boards, board.slug);
+      state.boards.push(board);
+      return { value: board };
+    });
   }
 
   async renameBoard(id, name) {
-    const board = this.#boards.find((b) => b.id === id);
-    if (!board) return null;
-    const cleanName = squeeze(name);
-    if (!cleanName) throw new ValidationError("A board needs a name.");
-    if (cleanName.length > BOARD_NAME_MAX) {
-      throw new ValidationError(`Keep the board name under ${BOARD_NAME_MAX} characters.`);
-    }
-
-    board.name = cleanName;
-    board.slug = this.#uniqueSlug(slugify(cleanName), board.id);
-    await this.#persist();
-    return clone(board);
+    return this.#transaction((state) => {
+      const board = state.boards.find((b) => b.id === id);
+      if (!board) return { value: null, changed: false };
+      const cleanName = squeeze(name);
+      if (!cleanName) throw new ValidationError("A board needs a name.");
+      if (cleanName.length > BOARD_NAME_MAX) {
+        throw new ValidationError(`Keep the board name under ${BOARD_NAME_MAX} characters.`);
+      }
+      board.name = cleanName;
+      board.slug = this.#uniqueSlug(state.boards, slugify(cleanName), board.id);
+      return { value: board };
+    });
   }
 
   async deleteBoard(id) {
-    const index = this.#boards.findIndex((b) => b.id === id);
-    if (index === -1) return null;
-    if (this.#boards.length === 1) throw new ValidationError("Keep at least one board.");
-
-    const [board] = this.#boards.splice(index, 1);
-    const removedTasks = this.#tasks.filter((task) => task.boardId === id);
-    this.#tasks = this.#tasks.filter((task) => task.boardId !== id);
-    await this.#persist();
-    return { board: clone(board), removedTasks: removedTasks.map(clone) };
+    return this.#transaction((state) => {
+      const index = state.boards.findIndex((b) => b.id === id);
+      if (index === -1) return { value: null, changed: false };
+      if (state.boards.length === 1) throw new ValidationError("Keep at least one board.");
+      const [board] = state.boards.splice(index, 1);
+      const removedTasks = state.tasks.filter((task) => task.boardId === id);
+      state.tasks = state.tasks.filter((task) => task.boardId !== id);
+      return { value: { board, removedTasks } };
+    });
   }
 
   /* ── tasks ─────────────────────────────────────────────── */
 
-  #insert(task) {
+  #insert(tasks, task) {
     let last = -1;
-    this.#tasks.forEach((existing, index) => {
+    tasks.forEach((existing, index) => {
       if (existing.boardId === task.boardId) last = index;
     });
     if (last === -1) {
-      this.#tasks.push(task);
+      tasks.push(task);
     } else {
-      this.#tasks.splice(last + 1, 0, task);
+      tasks.splice(last + 1, 0, task);
     }
   }
 
-  async add(input) {
+  #makeTask(input, state) {
     // Supports add(title: string) and add(taskObject)
     let title, boardId, notes, priority, due, category, tags, refactorData;
     if (typeof input === "string") {
       title = input;
-      boardId = this.#boards[0]?.id;
+      boardId = state.boards[0]?.id;
     } else if (input && typeof input === "object") {
       title = input.title;
-      boardId = input.boardId || this.#boards[0]?.id;
+      boardId = input.boardId || state.boards[0]?.id;
       notes = input.notes;
       priority = input.priority;
       due = input.due;
@@ -270,17 +274,17 @@ export class TaskStore {
       throw new ValidationError("A task needs a title.");
     }
 
-    const board = this.#boards.find((b) => b.id === boardId);
+    const board = state.boards.find((b) => b.id === boardId);
     if (!board) throw new ValidationError("Unknown board.");
     const id = input?.id || randomUUID();
     if (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id)) {
       throw new ValidationError("Task ID must contain only letters, numbers, hyphens, and underscores.");
     }
-    if (this.#tasks.some((existing) => existing.id === id)) {
+    if (state.tasks.some((existing) => existing.id === id)) {
       throw new ValidationError("That task already exists.");
     }
     const now = new Date().toISOString();
-    const task = {
+    return {
       id,
       boardId: board.id,
       title: cleanTitle(title),
@@ -293,12 +297,17 @@ export class TaskStore {
       refactorData: refactorData && typeof refactorData === "object" ? clone(refactorData) : null,
       createdAt: now,
       updatedAt: now,
-      doneAt: null,
+      doneAt: input?.done ? now : null,
     };
+  }
 
-    this.#insert(task);
-    await this.#persist();
-    return clone(task);
+  async add(input) {
+    const captured = clone(input);
+    return this.#transaction((state) => {
+      const task = this.#makeTask(captured, state);
+      this.#insert(state.tasks, task);
+      return { value: task };
+    });
   }
 
   async addTask(input) {
@@ -306,42 +315,40 @@ export class TaskStore {
   }
 
   async update(id, patch = {}) {
-    const index = this.#tasks.findIndex((t) => t.id === id);
-    if (index === -1) return null;
-    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
-      throw new ValidationError("Task updates must be an object.");
-    }
-    const task = clone(this.#tasks[index]);
-
-    if (patch.title !== undefined) task.title = cleanTitle(patch.title);
-    if (patch.notes !== undefined) task.notes = cleanNotes(patch.notes);
-    if (patch.priority !== undefined) task.priority = cleanPriority(patch.priority);
-    if (patch.due !== undefined) task.due = cleanDue(patch.due);
-    if (patch.category !== undefined) task.category = String(patch.category);
-    if (Array.isArray(patch.tags)) task.tags = clone(patch.tags);
-    if (patch.refactorData !== undefined) task.refactorData = clone(patch.refactorData);
-
-    if (patch.done !== undefined) {
-      const done = Boolean(patch.done);
-      if (done !== task.done) {
-        task.done = done;
-        task.doneAt = done ? new Date().toISOString() : null;
+    const captured = clone(patch);
+    return this.#transaction((state) => {
+      const index = state.tasks.findIndex((t) => t.id === id);
+      if (index === -1) return { value: null, changed: false };
+      if (!captured || typeof captured !== "object" || Array.isArray(captured)) {
+        throw new ValidationError("Task updates must be an object.");
       }
-    }
+      const task = state.tasks[index];
+      if (captured.title !== undefined) task.title = cleanTitle(captured.title);
+      if (captured.notes !== undefined) task.notes = cleanNotes(captured.notes);
+      if (captured.priority !== undefined) task.priority = cleanPriority(captured.priority);
+      if (captured.due !== undefined) task.due = cleanDue(captured.due);
+      if (captured.category !== undefined) task.category = String(captured.category);
+      if (Array.isArray(captured.tags)) task.tags = captured.tags;
+      if (captured.refactorData !== undefined) task.refactorData = captured.refactorData;
 
-    if (patch.boardId !== undefined && patch.boardId !== task.boardId) {
-      const board = this.#boards.find((b) => b.id === patch.boardId);
-      if (!board) throw new ValidationError("Unknown board.");
-      this.#tasks.splice(index, 1);
-      task.boardId = board.id;
-      this.#insert(task);
-    } else {
-      this.#tasks[index] = task;
-    }
+      if (captured.done !== undefined) {
+        const done = Boolean(captured.done);
+        if (done !== task.done) {
+          task.done = done;
+          task.doneAt = done ? new Date().toISOString() : null;
+        }
+      }
 
-    task.updatedAt = new Date().toISOString();
-    await this.#persist();
-    return clone(task);
+      if (captured.boardId !== undefined && captured.boardId !== task.boardId) {
+        const board = state.boards.find((b) => b.id === captured.boardId);
+        if (!board) throw new ValidationError("Unknown board.");
+        state.tasks.splice(index, 1);
+        task.boardId = board.id;
+        this.#insert(state.tasks, task);
+      }
+      task.updatedAt = new Date().toISOString();
+      return { value: task };
+    });
   }
 
   async updateTask(id, patch = {}) {
@@ -349,34 +356,38 @@ export class TaskStore {
   }
 
   async remove(id) {
-    const index = this.#tasks.findIndex((t) => t.id === id);
-    if (index === -1) return false;
-    this.#tasks.splice(index, 1);
-    await this.#persist();
-    return true;
+    return this.#transaction((state) => {
+      const index = state.tasks.findIndex((t) => t.id === id);
+      if (index === -1) return { value: false, changed: false };
+      state.tasks.splice(index, 1);
+      return { value: true };
+    });
   }
 
   async removeTask(id) {
-    const index = this.#tasks.findIndex((t) => t.id === id);
-    if (index === -1) return null;
-    const [task] = this.#tasks.splice(index, 1);
-    await this.#persist();
-    return clone(task);
+    return this.#transaction((state) => {
+      const index = state.tasks.findIndex((t) => t.id === id);
+      if (index === -1) return { value: null, changed: false };
+      const [task] = state.tasks.splice(index, 1);
+      return { value: task };
+    });
   }
 
   async restoreTasks(tasks) {
     if (!Array.isArray(tasks)) throw new ValidationError("restore needs an array of tasks.");
-    const restored = [];
-    for (const raw of tasks) {
-      if (!isTask(raw)) continue;
-      if (this.#tasks.some((t) => t.id === raw.id)) continue;
-      const board = this.#boards.find((b) => b.id === raw.boardId) || this.#boards[0];
-      const task = this.#normalize(raw, board.id);
-      this.#insert(task);
-      restored.push(clone(task));
-    }
-    await this.#persist();
-    return restored;
+    const captured = clone(tasks);
+    return this.#transaction((state) => {
+      const restored = [];
+      for (const raw of captured) {
+        if (!isTask(raw)) continue;
+        if (state.tasks.some((t) => t.id === raw.id)) continue;
+        const board = state.boards.find((b) => b.id === raw.boardId) || state.boards[0];
+        const task = this.#normalize(raw, board.id);
+        this.#insert(state.tasks, task);
+        restored.push(task);
+      }
+      return { value: restored, changed: restored.length > 0 };
+    });
   }
 
   /**
@@ -397,73 +408,76 @@ export class TaskStore {
       throw new ValidationError("reorder needs an array of ids.");
     }
 
-    if (!Array.isArray(ids)) throw new ValidationError("reorder needs an array of ids.");
+    const captured = clone(ids);
+    return this.#transaction((state) => {
+      if (boardId) {
+        const board = state.boards.find((b) => b.id === boardId);
+        if (!board) throw new ValidationError("Unknown board.");
 
-    if (boardId) {
-      const board = this.#boards.find((b) => b.id === boardId);
-      if (!board) throw new ValidationError("Unknown board.");
-
-      const inBoard = this.#tasks.filter((task) => task.boardId === board.id);
-      const remaining = new Map(inBoard.map((task) => [task.id, task]));
-      const ordered = [];
-      for (const id of ids) {
-        const task = remaining.get(id);
-        if (task) {
-          ordered.push(task);
-          remaining.delete(id);
+        const inBoard = state.tasks.filter((task) => task.boardId === board.id);
+        const remaining = new Map(inBoard.map((task) => [task.id, task]));
+        const ordered = [];
+        for (const id of captured) {
+          const task = remaining.get(id);
+          if (task) {
+            ordered.push(task);
+            remaining.delete(id);
+          }
         }
-      }
-      for (const task of remaining.values()) ordered.push(task);
+        for (const task of remaining.values()) ordered.push(task);
 
-      const rebuilt = [];
-      for (const b of this.#boards) {
-        if (b.id === board.id) rebuilt.push(...ordered);
-        else rebuilt.push(...this.#tasks.filter((task) => task.boardId === b.id));
-      }
-      this.#tasks = rebuilt;
-    } else {
-      // Global list reorder (backward compatible)
-      const remaining = new Map(this.#tasks.map((t) => [t.id, t]));
-      const next = [];
-      for (const id of ids) {
-        const task = remaining.get(id);
-        if (task) {
-          next.push(task);
-          remaining.delete(id);
+        const rebuilt = [];
+        for (const b of state.boards) {
+          if (b.id === board.id) rebuilt.push(...ordered);
+          else rebuilt.push(...state.tasks.filter((task) => task.boardId === b.id));
         }
+        state.tasks = rebuilt;
+      } else {
+        const remaining = new Map(state.tasks.map((task) => [task.id, task]));
+        const next = [];
+        for (const id of captured) {
+          const task = remaining.get(id);
+          if (task) {
+            next.push(task);
+            remaining.delete(id);
+          }
+        }
+        for (const task of remaining.values()) next.push(task);
+        state.tasks = next;
       }
-      for (const task of remaining.values()) next.push(task);
-      this.#tasks = next;
-    }
-
-    await this.#persist();
-    return this.list();
+      return { value: state.tasks };
+    });
   }
 
   async clearCompleted(boardId = undefined) {
-    const before = this.#tasks.length;
-    this.#tasks = this.#tasks.filter(
-      (task) => !task.done || (boardId !== undefined && task.boardId !== boardId),
-    );
-    const removed = before - this.#tasks.length;
-    if (removed > 0) await this.#persist();
-    return removed;
+    return this.#transaction((state) => {
+      const before = state.tasks.length;
+      state.tasks = state.tasks.filter(
+        (task) => !task.done || (boardId !== undefined && task.boardId !== boardId),
+      );
+      const removed = before - state.tasks.length;
+      return { value: removed, changed: removed > 0 };
+    });
   }
 
   /**
    * Seed Agentic Curriculum Refactoring Tasks into the "Agentic Refactoring" board.
    */
   async seedCurriculumTasks() {
-    let board = this.#boards.find((b) => b.id === "board_refactor_curriculum");
-    if (!board) {
-      board = await this.addBoard("Agentic Refactoring", "board_refactor_curriculum");
-    }
+    return this.#transaction((state) => {
+      let board = state.boards.find((b) => b.id === "board_refactor_curriculum");
+      const boardCreated = !board;
+      if (!board) {
+        board = makeBoard("Agentic Refactoring", "board_refactor_curriculum");
+        board.slug = this.#uniqueSlug(state.boards, board.slug);
+        state.boards.push(board);
+      }
 
-    const created = [];
-    for (const item of REFACTORING_CURRICULUM_TASKS) {
-      const existing = this.#tasks.find((t) => t.id === item.id);
-      if (!existing) {
-        const task = await this.add({
+      const existing = new Set(state.tasks.map((task) => task.id));
+      const created = [];
+      for (const item of REFACTORING_CURRICULUM_TASKS) {
+        if (existing.has(item.id)) continue;
+        const task = this.#makeTask({
           id: item.id,
           boardId: board.id,
           title: item.title,
@@ -480,22 +494,28 @@ export class TaskStore {
             solutionCode: item.solutionCode,
             criteria: item.criteria,
           },
-        });
+        }, state);
+        this.#insert(state.tasks, task);
+        existing.add(task.id);
         created.push(task);
       }
-    }
-    return created;
+      return { value: created, changed: boardCreated || created.length > 0 };
+    });
   }
 
   /* ── persistence ───────────────────────────────────────── */
 
-  #persist() {
-    const payload = JSON.stringify({ version: 1, boards: this.#boards, tasks: this.#tasks }, null, 2);
-    const run = this.#queue.catch(() => {}).then(async () => {
-      await mkdir(dirname(this.#file), { recursive: true });
-      const tmp = `${this.#file}.${process.pid}.tmp`;
-      await writeFile(tmp, payload, "utf8");
-      await rename(tmp, this.#file);
+  #transaction(change) {
+    const run = this.#queue.then(async () => {
+      const state = clone({ boards: this.#boards, tasks: this.#tasks });
+      const { value, changed = true } = change(state);
+      if (changed) {
+        const payload = JSON.stringify({ version: 1, ...state }, null, 2);
+        await this.#write(this.#file, payload);
+        this.#boards = state.boards;
+        this.#tasks = state.tasks;
+      }
+      return clone(value);
     });
     this.#queue = run.catch(() => {});
     return run;
