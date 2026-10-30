@@ -39,6 +39,7 @@ Every logo in the README links to the upstream project the curriculum exercises 
 | Technology | URL |
 | --- | --- |
 | Bun | <https://github.com/oven-sh/bun> |
+| parse5 HTML parser API | <https://parse5.js.org/functions/parse5.parse.html> |
 | JavaScript (ECMA-262) | <https://github.com/tc39/ecma262> |
 | HTML Living Standard | <https://github.com/whatwg/html> |
 | HTML Standard: dialog and interactive elements | <https://html.spec.whatwg.org/multipage/interactive-elements.html> |
@@ -233,6 +234,7 @@ commit above. See [`assets/logos/SOURCES.md`](assets/logos/SOURCES.md) for the f
 | Purpose | URL |
 | --- | --- |
 | Schema.org vocabulary | <https://schema.org/> |
+| JSON-LD 1.1 specification | <https://www.w3.org/TR/json-ld11/> |
 | `Offer.availability` — `InStock` | <https://schema.org/InStock> |
 | `Offer.availability` — `OutOfStock` | <https://schema.org/OutOfStock> |
 | `ItemCondition` — `NewCondition` | <https://schema.org/NewCondition> |
@@ -246,6 +248,7 @@ commit above. See [`assets/logos/SOURCES.md`](assets/logos/SOURCES.md) for the f
 | Topic | Primary documentation |
 | --- | --- |
 | Google Search robots meta rules and `X-Robots-Tag` | <https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag> |
+| Google Search structured data policies | <https://developers.google.com/search/docs/appearance/structured-data/sd-policies> |
 | Google Search robots.txt crawl controls | <https://developers.google.com/search/docs/crawling-indexing/robots/intro> |
 | Google Search site moves and URL migrations | <https://developers.google.com/search/docs/crawling-indexing/site-move-with-url-changes> |
 | Google Search redirect behavior and recommendations | <https://developers.google.com/search/docs/crawling-indexing/301-redirects> |
