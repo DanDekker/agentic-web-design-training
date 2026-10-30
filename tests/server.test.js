@@ -123,6 +123,23 @@ test("event subscriptions are removed when a reader cancels", async () => {
   expect(hub.size).toBe(0);
 });
 
+test("a stalled event subscriber is disconnected while an active subscriber keeps receiving updates", async () => {
+  const hub = createHub();
+  const slow = hub.stream().body.getReader();
+  const fast = hub.stream().body.getReader();
+  const decoder = new TextDecoder();
+  await fast.read(); // connected frame; the slow reader never drains its queue
+  for (let i = 0; i < 100; i++) {
+    hub.broadcast({ type: "state", at: i });
+    const event = await fast.read();
+    expect(decoder.decode(event.value)).toContain(`"at":${i}`);
+  }
+  expect(hub.size).toBe(1);
+  await expect(slow.read()).rejects.toThrow("Event stream fell behind");
+  await fast.cancel();
+  expect(hub.size).toBe(0);
+});
+
 test("HTTP routing emits one update for a task mutation and none for read-only work", async () => {
   const dir = await mkdtemp(join(tmpdir(), "gauntlet-web-events-"));
   const broadcasts = [];

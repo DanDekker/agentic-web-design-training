@@ -1,4 +1,6 @@
 /** Tiny SSE hub: one stream per client, a broadcast frame after every mutation. */
+const MAX_QUEUED_FRAMES = 64;
+
 export function createHub() {
   const clients = new Set();
 
@@ -16,6 +18,13 @@ export function createHub() {
         entry = {
           send(frame) {
             try {
+              // Notifications can be reconciled from current state on reconnect.
+              // Drop a stalled subscriber instead of accumulating an unbounded queue.
+              if (controller.desiredSize === null || controller.desiredSize <= 0) {
+                cleanup();
+                controller.error(new Error("Event stream fell behind"));
+                return;
+              }
               controller.enqueue(encoder.encode(frame));
             } catch {
               cleanup();
@@ -29,7 +38,7 @@ export function createHub() {
       cancel() {
         cleanup();
       },
-    });
+    }, { highWaterMark: MAX_QUEUED_FRAMES });
 
     return new Response(body, {
       headers: {
