@@ -155,6 +155,7 @@ not assumed to work uniformly across browsers.
 | CSS Conditional Rules Level 5 (scroll-state container queries) | <https://www.w3.org/TR/css-conditional-5/> |
 | Scroll-driven Animations Level 1 (`timeline-scope`, named scroll and view timelines) | <https://drafts.csswg.org/scroll-animations/> |
 | CSS Display Level 4 (`reading-flow` and `reading-order`) | <https://drafts.csswg.org/css-display-4/> |
+| CSS Custom Highlight API Level 1 (`Highlight`, `CSS.highlights`, `::highlight()`) | <https://drafts.csswg.org/css-highlight-api-1/> |
 | CSS Shadow Module Level 1 (`:host()`, `::slotted()`, `:has-slotted`, `::part()`, `exportparts`) | <https://drafts.csswg.org/css-shadow-parts/> |
 | Cascade Level 6 (`@scope` and scope proximity) | <https://www.w3.org/TR/css-cascade-6/> |
 | Functions and Mixins (`@function`) | <https://www.w3.org/TR/css-mixins-1/> |
